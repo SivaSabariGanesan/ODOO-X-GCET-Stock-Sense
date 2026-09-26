@@ -188,10 +188,10 @@ export function ReceiptFormPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading">
-              Create Inbound Receipt
+              New Receipt
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Record incoming purchase order shipments from vendors into warehouse dock staging.
+              Record incoming stock from suppliers.
             </p>
           </div>
         </div>
@@ -206,25 +206,25 @@ export function ReceiptFormPage() {
         {/* Step 1: Supplier & Warehouse Routing */}
         <div className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-            1. Supplier & Destination Warehouse
+            Receipt Details
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Supplier Name */}
             <div>
               <Input
-                label="Supplier / Vendor Name"
+                label="Supplier"
                 placeholder="e.g. Acme Corp"
                 value={supplierName}
                 onChange={(e) => setSupplierName(e.target.value)}
-                hint="Optional — enter vendor name for reference"
+                hint="Vendor or supplier name"
               />
             </div>
 
             {/* Warehouse */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Target Warehouse <span className="text-brand ml-1">*</span>
+                Warehouse <span className="text-brand ml-1">*</span>
               </label>
               <div className="relative mt-1.5">
                 <select
@@ -245,11 +245,11 @@ export function ReceiptFormPage() {
             {/* Supplier PO Reference */}
             <div>
               <Input
-                label="Supplier Reference / PO #"
+                label="Source Document"
                 placeholder="e.g. PO-8842"
                 value={supplierReference}
                 onChange={(e) => setSupplierReference(e.target.value)}
-                hint="Vendor dispatch slip or PO tracking code"
+                hint="Purchase order or delivery slip number"
               />
             </div>
           </div>
@@ -259,7 +259,7 @@ export function ReceiptFormPage() {
         <div className="space-y-4 pt-2">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              2. Product Lines & Quantities ({lines.length})
+              Products ({lines.length})
             </h2>
             <Button
               type="button"
@@ -362,13 +362,13 @@ export function ReceiptFormPage() {
         {/* Notes */}
         <div className="space-y-1.5 pt-2 border-t border-slate-100">
           <label className="block text-xs font-semibold text-gray-700 tracking-tight">
-            Internal Receiving Notes & Instructions
+            Notes
           </label>
           <textarea
             rows={2}
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add quality inspection checklists, dock bay door numbers, or carrier notes..."
+            placeholder="Additional notes or instructions..."
             className="w-full p-2.5 text-xs text-gray-800 bg-view border border-gray-300 rounded shadow-xs focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
           />
         </div>
@@ -376,7 +376,7 @@ export function ReceiptFormPage() {
         {/* ── Actions Bar ────────────────────────────────────────────── */}
         <div className="pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="text-xs text-slate-500">
-            <span className="text-brand">*</span> Validating instantly increments warehouse stock ledger
+            <span className="text-brand">*</span> Validating will update warehouse stock balances immediately.
           </div>
 
           <div className="flex items-center gap-2 w-full sm:w-auto justify-end">

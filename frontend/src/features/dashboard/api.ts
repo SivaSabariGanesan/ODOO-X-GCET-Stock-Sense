@@ -524,7 +524,7 @@ export function transformToRecentActivities(movements: RawMovement[]): RecentAct
 
     const { timestamp, relativeTime } = formatRelativeTime(m.createdAt)
     const whId = m.destinationLocation?.warehouseId || m.sourceLocation?.warehouseId || 'WH'
-    const whName = m.destinationLocation?.fullPath || m.sourceLocation?.fullPath || 'Warehouse Node'
+    const whName = m.destinationLocation?.fullPath || m.sourceLocation?.fullPath || 'Warehouse'
 
     return {
       id: m.id,

@@ -255,8 +255,14 @@ export function DeliveryDetailsPage() {
                 dot
               >
                 {delivery.status === 'WAITING'
-                  ? 'WAITING AVAILABILITY'
-                  : delivery.status}
+                  ? 'Waiting Stock'
+                  : delivery.status === 'DONE'
+                  ? 'Done'
+                  : delivery.status === 'READY'
+                  ? 'Ready'
+                  : delivery.status === 'CANCELED'
+                  ? 'Cancelled'
+                  : 'Draft'}
               </Badge>
             </div>
 
@@ -426,12 +432,12 @@ export function DeliveryDetailsPage() {
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900">
-                  Step 1: Warehouse Picking
+                  1. Picking
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {delivery.status === 'DRAFT'
-                    ? 'Awaiting pick execution'
-                    : 'Items picked from racks'}
+                    ? 'Pending item pick'
+                    : 'Items picked from locations'}
                 </div>
               </div>
             </div>
@@ -451,12 +457,12 @@ export function DeliveryDetailsPage() {
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900">
-                  Step 2: Carton Packing
+                  2. Packing
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {delivery.status === 'READY' || delivery.status === 'DONE'
-                    ? 'Packed & labeled for shipment'
-                    : 'Cartons pending seal'}
+                    ? 'Packed and ready for delivery'
+                    : 'Pending pack'}
                 </div>
               </div>
             </div>
@@ -470,7 +476,7 @@ export function DeliveryDetailsPage() {
                 onClick={handlePick}
                 disabled={isActioning}
               >
-                {isActioning ? 'Updating…' : 'Complete Picking'}
+                {isActioning ? 'Updating…' : 'Mark as Picked'}
               </Button>
             )}
             {delivery.status === 'WAITING' && (
@@ -480,7 +486,7 @@ export function DeliveryDetailsPage() {
                 onClick={handlePack}
                 disabled={isActioning}
               >
-                {isActioning ? 'Updating…' : 'Seal Cartons (Pack)'}
+                {isActioning ? 'Updating…' : 'Mark as Packed'}
               </Button>
             )}
           </div>
@@ -496,7 +502,7 @@ export function DeliveryDetailsPage() {
               <div className="flex items-center gap-2">
                 <Box className="w-4 h-4 text-brand" />
                 <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Outbound Product Lines ({items.length})
+                  Products ({items.length})
                 </h2>
               </div>
               <span className="font-mono text-xs text-slate-500">
@@ -580,7 +586,7 @@ export function DeliveryDetailsPage() {
         <div className="space-y-5">
           <div className="bg-white border border-slate-200/80 rounded-lg p-4 shadow-2xs space-y-4">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
-              Shipment Logistics
+              Logistics & Details
             </h3>
 
             <div className="space-y-3 text-xs">
@@ -597,7 +603,7 @@ export function DeliveryDetailsPage() {
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[11px]">Staging Source</span>
+                <span className="text-slate-400 block text-[11px]">Source Location</span>
                 <span className="font-mono text-slate-700">
                   {delivery.defaultSourceLocation?.fullPath ||
                     delivery.defaultSourceLocation?.name ||
@@ -633,7 +639,7 @@ export function DeliveryDetailsPage() {
             {delivery.notes && (
               <div className="pt-2 border-t border-slate-100">
                 <span className="text-slate-400 block text-[11px] mb-1">
-                  Dispatch Instructions
+                  Notes
                 </span>
                 <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic">
                   "{delivery.notes}"

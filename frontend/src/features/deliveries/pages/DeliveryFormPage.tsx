@@ -234,10 +234,10 @@ export function DeliveryFormPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading">
-              Create Delivery Order
+              New Delivery Order
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Draft customer sales order fulfillment, pick routing, and carrier dispatch consignment.
+              Prepare and process outgoing stock.
             </p>
           </div>
         </div>
@@ -255,19 +255,19 @@ export function DeliveryFormPage() {
         {/* Step 1: Customer & Warehouse Routing */}
         <div className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-            1. Customer & Source Warehouse
+            Delivery Details
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Customer */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Customer Name <span className="text-brand ml-1">*</span>
+                Customer <span className="text-brand ml-1">*</span>
               </label>
               <Input
                 value={customer}
                 onChange={(e) => setCustomer(e.target.value)}
-                placeholder="e.g. Global Logistics Direct"
+                placeholder="e.g. Acme Corp"
                 className="mt-1.5"
                 required
               />
@@ -276,7 +276,7 @@ export function DeliveryFormPage() {
             {/* Customer Reference */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Sales Order / Reference #
+                Source Document
               </label>
               <Input
                 value={customerReference}
@@ -289,24 +289,24 @@ export function DeliveryFormPage() {
             {/* Warehouse ID */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Source Warehouse ID <span className="text-brand ml-1">*</span>
+                Warehouse ID <span className="text-brand ml-1">*</span>
               </label>
               <Input
                 value={warehouseId}
                 onChange={(e) => setWarehouseId(e.target.value)}
-                placeholder="UUID format (e.g. 64a05d3b-e307-4a31-a335-029ecc4273ff)"
+                placeholder="Warehouse UUID"
                 className="mt-1.5 font-mono text-xs"
                 required
               />
               <span className="text-[10.5px] text-slate-400 mt-1 block">
-                Warehouse UUID (default: Central Warehouse)
+                Source warehouse identifier
               </span>
             </div>
 
             {/* Notes */}
             <div>
               <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Dispatch / Shipping Notes
+                Notes
               </label>
               <Input
                 value={notes}
@@ -322,7 +322,7 @@ export function DeliveryFormPage() {
         <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              2. Products to Dispatch ({lines.length})
+              Products ({lines.length})
             </h2>
             <Button
               type="button"
@@ -332,7 +332,7 @@ export function DeliveryFormPage() {
               onClick={handleAddLine}
               className="text-xs py-1"
             >
-              Add Line Item
+              Add Product Line
             </Button>
           </div>
 

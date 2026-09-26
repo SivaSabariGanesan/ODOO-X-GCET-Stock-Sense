@@ -261,15 +261,23 @@ export function TransferDetailsPage() {
                 }
                 dot
               >
-                {transfer.status}
+                {transfer.status === 'DONE'
+                  ? 'Done'
+                  : transfer.status === 'READY'
+                  ? 'Ready'
+                  : transfer.status === 'CANCELED'
+                  ? 'Cancelled'
+                  : transfer.status === 'WAITING'
+                  ? 'Waiting'
+                  : 'Draft'}
               </Badge>
               {isInterWarehouse ? (
                 <span className="text-[10.5px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200 font-medium">
-                  Inter-Warehouse Transit
+                  Inter-Warehouse
                 </span>
               ) : (
                 <span className="text-[10.5px] px-2 py-0.5 bg-slate-100 text-slate-600 rounded border border-slate-200 font-medium">
-                  Internal Rack Move
+                  Internal Transfer
                 </span>
               )}
             </div>
@@ -352,12 +360,11 @@ export function TransferDetailsPage() {
         </div>
       </div>
 
-      {/* ── Prominent Inventory Rule Notice ──────────────────────────── */}
+      {/* ── Notice ──────────────────────────── */}
       <div className="bg-[#ede9fe]/40 border border-[#71639e]/20 rounded-lg p-3 sm:px-4 sm:py-3 flex items-start gap-3 text-xs text-slate-700">
         <Info className="w-4 h-4 text-brand shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <strong className="text-brand-dark font-semibold">Stock Reallocation Semantics: </strong>
-          Internal transfers change location, not total inventory. On validation, recorded quantities move between bins without modifying aggregate company balance.
+          Internal transfers move stock between locations without modifying overall company inventory.
         </div>
       </div>
 
@@ -425,7 +432,7 @@ export function TransferDetailsPage() {
       <div className="bg-white border border-slate-200/80 rounded-lg p-5 shadow-2xs">
         <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1.5">
           <Warehouse className="w-3.5 h-3.5 text-brand" />
-          <span>Routing & Scheduling Overview</span>
+          <span>Transfer Details</span>
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
@@ -450,19 +457,19 @@ export function TransferDetailsPage() {
           </div>
 
           <div>
-            <span className="text-slate-400 block text-[11px]">Movement Scope</span>
+            <span className="text-slate-400 block text-[11px]">Transfer Type</span>
             <span className="font-medium text-slate-800 mt-0.5 block">
-              {isInterWarehouse ? 'Facility to Facility' : 'Internal Rack Replenishment'}
+              {isInterWarehouse ? 'Inter-Warehouse' : 'Internal Location'}
             </span>
             <span className="text-slate-400 text-[11px]">
-              {(transfer.items || []).length} distinct SKU{(transfer.items || []).length !== 1 ? 's' : ''}
+              {(transfer.items || []).length} SKU{(transfer.items || []).length !== 1 ? 's' : ''}
             </span>
           </div>
 
           <div>
-            <span className="text-slate-400 block text-[11px]">Created Timeline</span>
+            <span className="text-slate-400 block text-[11px]">Created</span>
             <span className="font-medium text-slate-900 mt-0.5 block flex items-center gap-1">
-              <Clock className="w-3 h-3 text-slate-400" />
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
               {createdDateStr}
             </span>
             {transfer.completedAt && (
@@ -475,7 +482,7 @@ export function TransferDetailsPage() {
 
         {transfer.notes && (
           <div className="mt-4 pt-3 border-t border-slate-100 text-xs">
-            <span className="text-slate-400 block text-[11px]">Operator Instructions / Notes</span>
+            <span className="text-slate-400 block text-[11px]">Notes</span>
             <p className="text-slate-700 mt-0.5">{transfer.notes}</p>
           </div>
         )}
@@ -487,7 +494,7 @@ export function TransferDetailsPage() {
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-brand" />
             <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
-              Product Movement Lines ({(transfer.items || []).length})
+              Products ({(transfer.items || []).length})
             </h2>
           </div>
           <span className="text-xs text-slate-500 font-mono">
@@ -505,7 +512,7 @@ export function TransferDetailsPage() {
                 <th className="py-2.5 px-4">Product Name</th>
                 <th className="py-2.5 px-4">Source Location</th>
                 <th className="py-2.5 px-4">Destination Location</th>
-                <th className="py-2.5 px-4 text-right">Transfer Qty</th>
+                <th className="py-2.5 px-4 text-right">Quantity</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
@@ -552,11 +559,11 @@ export function TransferDetailsPage() {
         </div>
       </div>
 
-      {/* ── Activity / Timeline Ledger ──────────────────────────────── */}
+      {/* ── Activity / History ─────────────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg p-5 shadow-2xs">
         <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1.5">
           <History className="w-3.5 h-3.5 text-brand" />
-          <span>Operational Movement History & Audit Log</span>
+          <span>History</span>
         </h2>
 
         <div className="space-y-4">

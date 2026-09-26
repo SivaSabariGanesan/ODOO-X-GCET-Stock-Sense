@@ -359,7 +359,7 @@ export function TransferFormPage() {
               New Internal Transfer
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Draft an internal movement between warehouse facilities or rack locations.
+              Move stock between locations.
             </p>
           </div>
         </div>
@@ -386,14 +386,11 @@ export function TransferFormPage() {
         </div>
       </div>
 
-      {/* ── Explicit Stock Semantics Callout ────────────────────────── */}
+      {/* ── Stock Rule Callout ────────────────────────── */}
       <div className="bg-[#ede9fe]/40 border border-[#71639e]/25 rounded-lg p-3.5 flex items-start gap-3 text-xs text-slate-700">
         <Info className="w-4 h-4 text-brand shrink-0 mt-0.5" />
         <div className="leading-relaxed">
-          <strong className="text-brand-dark font-semibold">Important Inventory Rule: </strong>
-          Internal transfers change location, not total inventory. When validated, items will be deducted from{' '}
-          <span className="font-mono font-medium text-slate-900">{sourceLocName}</span> and credited to{' '}
-          <span className="font-mono font-medium text-slate-900">{destLocName}</span> with zero impact on company aggregate stock.
+          Internal transfers move stock between locations without modifying overall company inventory.
         </div>
       </div>
 
@@ -403,7 +400,7 @@ export function TransferFormPage() {
         <div>
           <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1.5">
             <ArrowLeftRight className="w-3.5 h-3.5 text-brand" />
-            <span>Origin & Destination Routing</span>
+            <span>Locations</span>
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5 p-4 rounded-lg bg-slate-50/60 border border-slate-200/70">
@@ -415,7 +412,7 @@ export function TransferFormPage() {
               </label>
 
               <div>
-                <label className="text-[11px] text-slate-500 block mb-1">Facility / Warehouse</label>
+                <label className="text-[11px] text-slate-500 block mb-1">Warehouse</label>
                 <select
                   value={sourceWarehouseId}
                   onChange={(e) => handleSourceWarehouseChange(e.target.value)}
@@ -431,7 +428,7 @@ export function TransferFormPage() {
               </div>
 
               <div>
-                <label className="text-[11px] text-slate-500 block mb-1">Specific Bin / Rack Location</label>
+                <label className="text-[11px] text-slate-500 block mb-1">Location</label>
                 <select
                   value={sourceLocationId}
                   onChange={(e) => setSourceLocationId(e.target.value)}
@@ -457,7 +454,7 @@ export function TransferFormPage() {
               </label>
 
               <div>
-                <label className="text-[11px] text-slate-500 block mb-1">Facility / Warehouse</label>
+                <label className="text-[11px] text-slate-500 block mb-1">Warehouse</label>
                 <select
                   value={destinationWarehouseId}
                   onChange={(e) => handleDestinationWarehouseChange(e.target.value)}
@@ -473,7 +470,7 @@ export function TransferFormPage() {
               </div>
 
               <div>
-                <label className="text-[11px] text-slate-500 block mb-1">Specific Bin / Rack Location</label>
+                <label className="text-[11px] text-slate-500 block mb-1">Location</label>
                 <select
                   value={destinationLocationId}
                   onChange={(e) => setDestinationLocationId(e.target.value)}
@@ -507,11 +504,11 @@ export function TransferFormPage() {
 
         {/* Notes */}
         <div>
-          <label className="text-xs font-semibold text-slate-700 block mb-1">Operational Transfer Notes</label>
+          <label className="text-xs font-semibold text-slate-700 block mb-1">Notes</label>
           <Input
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            placeholder="e.g. Replenish high-velocity staging buffer"
+            placeholder="Additional notes or instructions..."
           />
         </div>
 
@@ -546,8 +543,8 @@ export function TransferFormPage() {
               <thead>
                 <tr className="bg-slate-50/70 border-b border-slate-200/80 text-slate-600 font-semibold select-none">
                   <th className="py-2 px-3 w-10 text-center">#</th>
-                  <th className="py-2 px-3">Product Name & SKU</th>
-                  <th className="py-2 px-3 w-36 text-right">Transfer Quantity</th>
+                  <th className="py-2 px-3">Product</th>
+                  <th className="py-2 px-3 w-36 text-right">Quantity</th>
                   <th className="py-2 px-3 w-20">Unit</th>
                   <th className="py-2 px-3 w-14 text-center">Action</th>
                 </tr>
@@ -627,7 +624,7 @@ export function TransferFormPage() {
                 Total Line Items: <strong className="text-slate-800">{lines.length}</strong>
               </span>
               <div className="text-slate-700">
-                Sum Total Units:{' '}
+                Total Units:{' '}
                 <strong className="font-mono text-slate-900 text-sm">
                   {totalTransferUnits.toLocaleString()}
                 </strong>
@@ -640,7 +637,7 @@ export function TransferFormPage() {
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200/80">
           <Link to="/operations/transfers">
             <Button variant="ghost" size="sm">
-              Cancel & Return
+              Cancel
             </Button>
           </Link>
 

@@ -136,13 +136,13 @@ export function ProductDetailsPage() {
   const getStatusBadge = (status: StockStatus) => {
     switch (status) {
       case 'in_stock':
-        return <Badge variant="success" dot>IN STOCK</Badge>
+        return <Badge variant="success" dot>In Stock</Badge>
       case 'low_stock':
-        return <Badge variant="warning" dot>LOW STOCK</Badge>
+        return <Badge variant="warning" dot>Low Stock</Badge>
       case 'out_of_stock':
-        return <Badge variant="danger" dot>OUT OF STOCK</Badge>
+        return <Badge variant="danger" dot>Out of Stock</Badge>
       case 'inactive':
-        return <Badge variant="neutral" dot>INACTIVE</Badge>
+        return <Badge variant="neutral" dot>Inactive</Badge>
     }
   }
 
@@ -282,17 +282,17 @@ export function ProductDetailsPage() {
       {/* ── 2-Column Grid: Stock by Location & Reorder Rules ──────────── */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
 
-        {/* Left Column: Stock by Location Hierarchy (7 Cols) */}
+        {/* Left Column: Stock by Location (7 Cols) */}
         <div className="md:col-span-7 bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden flex flex-col">
           <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
             <div className="flex items-center gap-2">
               <FolderTree className="w-4 h-4 text-brand" />
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-                Stock by Location Hierarchy
+                Stock by Location
               </h2>
             </div>
             <span className="text-[11px] text-slate-400 font-mono">
-              Real-time bin balances
+              Locations and quantities
             </span>
           </div>
 
@@ -377,10 +377,9 @@ export function ProductDetailsPage() {
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-brand" />
               <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-                Reorder Information
+                Reordering Rules
               </h2>
             </div>
-            <span className="text-[11px] text-slate-400">Automated MRP</span>
           </div>
 
           <div className="p-5 space-y-4 text-xs flex-1">
@@ -433,11 +432,11 @@ export function ProductDetailsPage() {
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-slate-500" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Recent Product Movements
+              Recent Stock Movements
             </h2>
           </div>
           <span className="text-xs text-slate-400 font-mono">
-            {product.recentMovements.length} logged entries
+            {product.recentMovements.length} entries
           </span>
         </div>
 
@@ -495,7 +494,7 @@ export function ProductDetailsPage() {
 
                     <td className="px-4 py-3 sm:pr-5 text-right whitespace-nowrap">
                       <Badge variant="done" dot>
-                        {mov.status.toUpperCase()}
+                        {mov.status === 'completed' ? 'Completed' : mov.status === 'done' ? 'Done' : mov.status}
                       </Badge>
                     </td>
                   </tr>
