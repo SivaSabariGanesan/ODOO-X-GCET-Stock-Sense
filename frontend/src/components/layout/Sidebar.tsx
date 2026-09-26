@@ -8,6 +8,7 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   History,
+  Repeat,
   Warehouse,
   Tag,
   Scale,
@@ -64,6 +65,7 @@ export function Sidebar({
     { name: 'Deliveries',            href: '/operations/deliveries',  icon: ArrowUpFromLine,  count: '8' },
     { name: 'Internal Transfers',    href: '/operations/transfers',   icon: ArrowLeftRight,   count: '2' },
     { name: 'Inventory Adjustments', href: '/operations/adjustments', icon: SlidersHorizontal, count: '1' },
+    { name: 'Reordering Rules',      href: '/operations/reordering-rules', icon: Repeat },
     { name: 'Move History',          href: '/operations/moves',       icon: History },
   ]
 
