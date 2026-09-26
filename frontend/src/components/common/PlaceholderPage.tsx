@@ -136,6 +136,13 @@ export function PlaceholderPage({
       row.status.toLowerCase().includes(searchFilter.toLowerCase())
   )
 
+  const [currentPage,   setCurrentPage]   = useState(1)
+  const pageSize = 10
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / pageSize))
+  const isOnlyOnePage = totalPages <= 1
+  const isPrevDisabled = currentPage <= 1 || isOnlyOnePage
+  const isNextDisabled = currentPage >= totalPages || isOnlyOnePage
+
   const kanbanStages: RowStatus[] = ['draft', 'confirmed', 'ready', 'done']
 
   // ---------------------------------------------------------------------------
@@ -143,13 +150,13 @@ export function PlaceholderPage({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-3 max-w-7xl mx-auto pb-6">
+    <div className="space-y-2.5 max-w-7xl mx-auto pb-4">
 
       {/* ── Control Panel ─────────────────────────────────────────────── */}
-      <div className="bg-view border border-slate-200/90 rounded-lg p-3 sm:p-3.5 shadow-xs space-y-3">
+      <div className="bg-view border border-slate-200/90 rounded-lg p-3 shadow-xs space-y-2.5">
 
         {/* Row 1: Title + actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
 
           {/* Title block */}
           <div className="flex items-center gap-2 min-w-0">
@@ -185,7 +192,7 @@ export function PlaceholderPage({
                   </span>
                 )}
               </div>
-              <p className="text-xs text-gray-500 mt-0.5 font-sans line-clamp-1">{subtitle}</p>
+              <p className="text-xs text-slate-600 mt-0.5 font-sans line-clamp-1">{subtitle}</p>
             </div>
           </div>
 
@@ -314,18 +321,18 @@ export function PlaceholderPage({
         {stats.map((stat, idx) => (
           <div
             key={idx}
-            className="bg-view border border-slate-200/90 rounded-md px-3 py-2.5 shadow-xs"
+            className="bg-view border border-slate-200/90 rounded-md px-3 py-2 shadow-xs"
           >
-            <div className="text-[11px] font-medium text-slate-500 leading-none">
+            <div className="text-[11px] font-medium text-slate-600 leading-none">
               {stat.label}
             </div>
-            <div className="text-xl font-heading font-bold text-gray-900 mt-1 leading-none">
+            <div className="text-lg sm:text-xl font-heading font-bold text-gray-900 mt-1 leading-tight">
               {stat.value}
             </div>
             {stat.change && (
               <div
                 className={cn(
-                  'mt-1 text-[11px] font-medium',
+                  'mt-0.5 text-[11px] font-medium',
                   stat.trend === 'up'
                     ? 'text-success-text'
                     : stat.trend === 'down'
@@ -390,11 +397,11 @@ export function PlaceholderPage({
           <div className="hidden sm:block overflow-hidden border border-slate-200/90 rounded-lg shadow-xs bg-view">
 
             {/* Table header bar */}
-            <div className="flex items-center justify-between py-2 px-4 bg-slate-50/80 border-b border-slate-200">
+            <div className="flex items-center justify-between py-1.5 px-3.5 bg-slate-50/80 border-b border-slate-200">
               <span className="font-semibold text-xs text-gray-700 font-heading">
                 {tableTitle}
               </span>
-              <span className="text-[11px] text-gray-400 font-mono">
+              <span className="text-[11px] text-slate-500 font-mono">
                 {filteredRows.length} of {sampleRows.length}
                 {searchFilter ? ' matching' : ' entries'}
               </span>
@@ -424,7 +431,7 @@ export function PlaceholderPage({
                         </div>
                       </th>
                     ))}
-                    <th className="w-16 text-right">Action</th>
+                    <th className="w-20 text-right">Actions</th>
                   </tr>
                 </thead>
 
@@ -459,10 +466,10 @@ export function PlaceholderPage({
                             />
                           </td>
 
-                          {/* SKU / reference — monospace, brand tint */}
-                          <td className="td-mono font-semibold text-brand-dark">
+                          {/* SKU / reference — secondary monospace */}
+                          <td className="td-mono text-xs font-normal text-slate-500">
                             <div className="flex items-center gap-1.5 group">
-                              <span>{row.ref}</span>
+                              <span className="font-mono">{row.ref}</span>
                               <button
                                 type="button"
                                 onClick={() => copyRef(row.ref)}
@@ -475,11 +482,11 @@ export function PlaceholderPage({
                             </div>
                           </td>
 
-                          {/* Name / description — strongest text */}
-                          <td className="font-medium text-gray-900">{row.desc}</td>
+                          {/* Name / description — strong visual hierarchy */}
+                          <td className="font-semibold text-gray-900 text-sm">{row.desc}</td>
 
-                          {/* Quantity — monospace, visually prominent */}
-                          <td className="td-mono font-semibold text-gray-800">{row.qty}</td>
+                          {/* Quantity / On-hand — strong visual hierarchy */}
+                          <td className="td-mono text-sm font-bold text-gray-900">{row.qty}</td>
 
                           {/* Status badge */}
                           <td>
@@ -491,12 +498,12 @@ export function PlaceholderPage({
                           {/* Category / last modified — secondary */}
                           <td className="text-gray-500 text-xs">{row.updated}</td>
 
-                          {/* Action */}
+                          {/* Action — prominent compact button */}
                           <td className="text-right">
                             <button
                               type="button"
                               onClick={() => handleAction(`${actionLabel} ${row.ref}`)}
-                              className="text-xs text-brand hover:text-brand-dark font-medium hover:underline cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 rounded"
+                              className="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded text-brand-dark bg-brand-light/70 hover:bg-brand hover:text-white border border-brand/20 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 shadow-2xs"
                               aria-label={`${actionLabel} ${row.ref}`}
                             >
                               {actionLabel}
@@ -510,19 +517,37 @@ export function PlaceholderPage({
               </table>
             </div>
 
-            <div className="py-2 px-4 bg-slate-50/70 border-t border-slate-200 flex items-center justify-between text-xs text-gray-500">
+            <div className="py-2 px-3.5 bg-slate-50/70 border-t border-slate-200 flex items-center justify-between text-xs text-gray-500">
               <span>
                 Showing {filteredRows.length === 0 ? 0 : 1}–{filteredRows.length} of {sampleRows.length} entries
               </span>
               <div className="flex items-center gap-1">
                 <button
-                  className="px-2.5 py-1 rounded border border-slate-300 bg-view text-gray-400 opacity-50 cursor-not-allowed"
-                  disabled
-                  aria-disabled="true"
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  disabled={isPrevDisabled}
+                  aria-disabled={isPrevDisabled}
+                  className={cn(
+                    'px-2.5 py-1 rounded border border-slate-300 text-xs transition-colors',
+                    isPrevDisabled
+                      ? 'bg-slate-50 text-gray-400 opacity-50 cursor-not-allowed'
+                      : 'bg-view text-gray-700 hover:bg-slate-50 cursor-pointer'
+                  )}
                 >
                   Previous
                 </button>
-                <button className="px-2.5 py-1 rounded border border-slate-300 bg-view text-gray-700 hover:bg-slate-50 cursor-pointer">
+                <button
+                  type="button"
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  disabled={isNextDisabled}
+                  aria-disabled={isNextDisabled}
+                  className={cn(
+                    'px-2.5 py-1 rounded border border-slate-300 text-xs transition-colors',
+                    isNextDisabled
+                      ? 'bg-slate-50 text-gray-400 opacity-50 cursor-not-allowed'
+                      : 'bg-view text-gray-700 hover:bg-slate-50 cursor-pointer'
+                  )}
+                >
                   Next
                 </button>
               </div>
@@ -555,7 +580,7 @@ export function PlaceholderPage({
                         className="rounded border-gray-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
                         aria-label={`Select ${row.ref}`}
                       />
-                      <span className="font-mono font-bold text-xs text-brand-dark">
+                      <span className="font-mono text-xs text-slate-500">
                         {row.ref}
                       </span>
                       <button
@@ -572,23 +597,23 @@ export function PlaceholderPage({
                     </Badge>
                   </div>
 
-                  <div className="text-xs font-medium text-gray-900 leading-snug">
+                  <div className="text-sm font-semibold text-gray-900 leading-snug">
                     {row.desc}
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
                     <div className="flex items-center gap-2 text-gray-500">
-                      <span className="font-mono font-semibold text-gray-800">{row.qty}</span>
+                      <span className="font-mono font-bold text-gray-900">{row.qty}</span>
                       <span aria-hidden="true">&middot;</span>
                       <span>{row.updated}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleAction(`${actionLabel} ${row.ref}`)}
-                      className="text-xs text-brand font-medium hover:underline focus:outline-none"
+                      className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded text-brand-dark bg-brand-light/70 hover:bg-brand hover:text-white border border-brand/20 transition-colors cursor-pointer"
                       aria-label={`${actionLabel} ${row.ref}`}
                     >
-                      {actionLabel} →
+                      {actionLabel}
                     </button>
                   </div>
                 </div>

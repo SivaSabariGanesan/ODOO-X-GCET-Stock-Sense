@@ -65,12 +65,12 @@ export function ProductsPlaceholder() {
       // human-readable labels. 'active' = is_active true, 'archived' = false.
       statusLabelMap={{ active: 'Active', archived: 'Archived' }}
       stats={[
-        { label: 'Catalog Items',    value: '2,481', change: '2,473 active',          trend: 'neutral' },
-        { label: 'Reorder Triggers', value: '142',   change: 'Products below minimum', trend: 'down'    },
-        { label: 'Zero Stock',       value: '8',     change: 'Requires replenishment', trend: 'down'    },
+        { label: 'Products',         value: '2,481', change: '2,473 active',          trend: 'neutral' },
+        { label: 'Reorder Required', value: '142',   change: 'Products below minimum', trend: 'down'    },
+        { label: 'Out of Stock',     value: '8',     change: 'Requires replenishment', trend: 'down'    },
         { label: 'Categories',       value: '34',    change: '6 primary families',     trend: 'neutral' },
       ]}
-      columns={['Product SKU', 'Product Name', 'On-Hand', 'Status', 'Category']}
+      columns={['Product SKU', 'Product Name', 'On-hand', 'Status', 'Category']}
       sampleRows={[
         {
           ref:     'SKU-ERG-904',

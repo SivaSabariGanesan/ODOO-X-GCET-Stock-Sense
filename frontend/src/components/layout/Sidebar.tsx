@@ -38,7 +38,6 @@ export function Sidebar({
   const [operationsOpen, setOperationsOpen] = useState(true)
 
   const isSettingsActive = location.pathname.startsWith('/settings')
-  const [settingsOpen, setSettingsOpen] = useState(true)
 
   // Ctrl+B toggles sidebar; Esc closes mobile drawer
   useEffect(() => {
@@ -68,9 +67,6 @@ export function Sidebar({
     { name: 'Move History',          href: '/operations/history',     icon: History },
   ]
 
-  const configItems = [
-    { name: 'Warehouses', href: '/settings/warehouses', icon: Warehouse, count: '3' },
-  ]
 
   // ---------------------------------------------------------------------------
   // Reusable section label
@@ -258,39 +254,12 @@ export function Sidebar({
         {/* ── CONFIGURATION ──────────────────────────────────────────── */}
         <div className="pt-2">
           <SectionLabel label="Configuration" active={isSettingsActive} />
-
-          {!isCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setSettingsOpen(!settingsOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-1 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors cursor-pointer"
-              aria-expanded={settingsOpen}
-            >
-              <span className={cn(isSettingsActive && 'text-brand-dark')}>
-                Warehouses &amp; Locations
-              </span>
-              {settingsOpen
-                ? <ChevronDown className="w-3 h-3" />
-                : <ChevronRight className="w-3 h-3" />
-              }
-            </button>
-          ) : (
-            <div className="h-px bg-slate-100 my-1 mx-1" />
-          )}
-
-          {((!isCollapsed && settingsOpen) || isCollapsed) && (
-            <div className={cn('space-y-0.5', !isCollapsed && 'mt-0.5 pl-1')}>
-              {configItems.map((item) => (
-                <NavItem
-                  key={item.href}
-                  to={item.href}
-                  icon={item.icon}
-                  label={item.name}
-                  count={item.count}
-                />
-              ))}
-            </div>
-          )}
+          <NavItem
+            to="/settings/warehouses"
+            icon={Warehouse}
+            label="Warehouses"
+            count="3"
+          />
         </div>
 
         {/* ── ACCOUNT ────────────────────────────────────────────────── */}

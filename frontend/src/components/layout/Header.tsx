@@ -33,7 +33,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
   const [isWarehouseOpen, setIsWarehouseOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
-  const [activeWarehouse, setActiveWarehouse] = useState('WH01 - Main Central Hub')
+  const [activeWarehouse, setActiveWarehouse] = useState('WH01 — Main Central Warehouse')
 
   const profileRef = useRef<HTMLDivElement>(null)
   const warehouseRef = useRef<HTMLDivElement>(null)
@@ -131,9 +131,9 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
   const currentPageTitle = breadcrumbs[breadcrumbs.length - 1]?.label || 'Dashboard'
 
   const warehouses = [
-    { id: 'WH01', name: 'WH01 - Main Central Hub', location: 'Section A-D', utilization: '74% Capacity' },
-    { id: 'WH02', name: 'WH02 - North Distribution', location: 'Bulk Staging', utilization: '52% Capacity' },
-    { id: 'WH03', name: 'WH03 - Cold Storage Unit', location: 'Zone C', utilization: '88% Capacity' },
+    { id: 'WH01', name: 'WH01 — Main Central Warehouse', location: 'Section A-D', utilization: '74% Capacity' },
+    { id: 'WH02', name: 'WH02 — North Distribution Hub', location: 'Bulk Staging', utilization: '52% Capacity' },
+    { id: 'WH03', name: 'WH03 — Cold Storage Facility', location: 'Zone C', utilization: '88% Capacity' },
   ]
 
   return (
@@ -217,9 +217,9 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
               }}
               className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-gray-200/80 border border-gray-300 rounded text-gray-700 transition-colors cursor-pointer"
             >
-              <Warehouse className="w-3.5 h-3.5 text-brand" />
-              <span className="font-medium max-w-[130px] truncate">{activeWarehouse}</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+              <Warehouse className="w-3.5 h-3.5 text-brand shrink-0" />
+              <span className="font-medium max-w-[280px] truncate">{activeWarehouse}</span>
+              <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
             </button>
 
             {/* Mobile Compact Warehouse Button */}
@@ -234,11 +234,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
               aria-label="Select warehouse"
             >
               <Warehouse className="w-3.5 h-3.5 text-brand" />
-              <span className="font-semibold">{activeWarehouse.split(' - ')[0]}</span>
+              <span className="font-semibold">{activeWarehouse.split(/ — | - /)[0]}</span>
             </button>
 
             {isWarehouseOpen && (
-              <div className="dropdown-menu absolute right-0 mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
+              <div className="dropdown-menu absolute right-0 mt-1.5 w-80 max-w-[calc(100vw-1.5rem)] bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
                 <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 flex items-center justify-between">
                   <span>Warehouse Facility</span>
                   <span className="text-[10px] text-brand">3 Online</span>
