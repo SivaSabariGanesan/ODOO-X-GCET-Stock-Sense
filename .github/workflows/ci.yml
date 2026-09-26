@@ -1,0 +1,79 @@
+name: StockSense CI - Tests & Build Check
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  backend-test-and-build:
+    name: Backend Test Suite & Build Check
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: stocksense_db
+          POSTGRES_USER: stocksense
+          POSTGRES_PASSWORD: stocksense_pass
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Backend Dependencies
+        working-directory: ./backend
+        run: bun install --frozen-lockfile || bun install
+
+      - name: Push Database Schema
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://stocksense:stocksense_pass@localhost:5432/stocksense_db
+        run: bun run db:push
+
+      - name: Execute Backend Test Cases
+        working-directory: ./backend
+        env:
+          DATABASE_URL: postgresql://stocksense:stocksense_pass@localhost:5432/stocksense_db
+          JWT_SECRET: ci_testing_jwt_secret_998877
+          NODE_ENV: test
+        run: bun test
+
+      - name: Build Backend Bundle
+        working-directory: ./backend
+        run: bun run build
+
+  frontend-build:
+    name: Frontend Build & Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun Environment
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Frontend Dependencies
+        working-directory: ./frontend
+        run: bun install --frozen-lockfile || bun install
+
+      - name: Run Frontend Build & Typecheck
+        working-directory: ./frontend
+        run: bun run build
