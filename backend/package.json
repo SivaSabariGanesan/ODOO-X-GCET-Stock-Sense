@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --watch src/server/index.ts",
-    "build": "bun build src/server/index.ts --outdir dist",
+    "build": "bun build src/server/index.ts --target=bun --outdir dist",
+    "test": "bun test",
     "db:generate": "drizzle-kit generate:pg",
     "db:push": "drizzle-kit push:pg",
     "db:migrate": "bun run src/db/migrate.ts",
