@@ -9,8 +9,10 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   History,
+  Repeat,
   Warehouse,
   Tag,
+  Scale,
   User,
   X,
   ExternalLink,
@@ -44,9 +46,11 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     { id: 'del', title: 'Outgoing Delivery Orders', category: 'Operations', href: '/operations/deliveries', icon: ArrowUpFromLine, badge: '8 Dispatches' },
     { id: 'trf', title: 'Internal Stock Transfers', category: 'Operations', href: '/operations/transfers', icon: ArrowLeftRight },
     { id: 'adj', title: 'Inventory Adjustments & Counts', category: 'Operations', href: '/operations/adjustments', icon: SlidersHorizontal },
+    { id: 'reorder', title: 'Reordering Rules & Stock Thresholds', category: 'Operations', href: '/operations/reordering-rules', icon: Repeat },
     { id: 'hist', title: 'Stock Move History Ledger', category: 'Operations', href: '/operations/moves', icon: History },
     { id: 'wh', title: 'Warehouse Facilities Configuration', category: 'Configuration', href: '/settings/warehouses', icon: Warehouse, badge: '3 Nodes' },
     { id: 'cat', title: 'Product Categories Taxonomy', category: 'Configuration', href: '/settings/categories', icon: Tag },
+    { id: 'uom', title: 'Units of Measure (UOM) Catalog', category: 'Configuration', href: '/settings/uoms', icon: Scale },
     { id: 'prof', title: 'Operator Profile & Node Security', category: 'Configuration', href: '/profile', icon: User },
   ]
 

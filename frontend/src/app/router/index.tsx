@@ -39,6 +39,8 @@ import {
   WarehouseDetailsPage,
 } from '@/features/warehouses'
 import { CategoriesListPage } from '@/features/categories'
+import { UomsListPage } from '@/features/uoms'
+import { ReorderingRulesListPage } from '@/features/reordering-rules'
 import { ProfilePage } from '@/features/profile'
 
 export const router = createBrowserRouter([
@@ -178,6 +180,10 @@ export const router = createBrowserRouter([
             element: <MoveHistoryPage />,
           },
           {
+            path: 'reordering-rules',
+            element: <ReorderingRulesListPage />,
+          },
+          {
             path: 'history',
             element: <Navigate to="/operations/moves" replace />,
           },
@@ -207,11 +213,27 @@ export const router = createBrowserRouter([
             path: 'categories',
             element: <CategoriesListPage />,
           },
+          {
+            path: 'uoms',
+            element: <UomsListPage />,
+          },
+          {
+            path: 'reordering-rules',
+            element: <ReorderingRulesListPage />,
+          },
         ],
       },
       {
         path: 'categories',
         element: <Navigate to="/settings/categories" replace />,
+      },
+      {
+        path: 'uoms',
+        element: <Navigate to="/settings/uoms" replace />,
+      },
+      {
+        path: 'reordering-rules',
+        element: <Navigate to="/operations/reordering-rules" replace />,
       },
       {
         path: 'profile',
