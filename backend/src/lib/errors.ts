@@ -396,6 +396,17 @@ export class InvalidReorderQuantityError extends AppError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Stock Balance Domain Errors
+// ---------------------------------------------------------------------------
+
+export class StockBalanceNotFoundError extends AppError {
+  constructor(identifier?: string) {
+    super(identifier ? `Stock balance '${identifier}' was not found` : "Stock balance not found", 404);
+    this.name = "StockBalanceNotFoundError";
+  }
+}
+
 
 
 

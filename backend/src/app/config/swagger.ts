@@ -298,6 +298,29 @@ export const openApiSpec = {
           warehouseShortCode: { type: "string", nullable: true },
         },
       },
+      StockBalance: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          locationId: { type: "string", format: "uuid" },
+          quantity: { type: "string", example: "250.0000" },
+          reservedQuantity: { type: "string", example: "0.0000" },
+          availableQuantity: { type: "string", example: "250.0000" },
+          lastMovedAt: { type: "string", format: "date-time" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          productName: { type: "string", nullable: true },
+          productSku: { type: "string", nullable: true },
+          uomName: { type: "string", nullable: true },
+          uomAbbreviation: { type: "string", nullable: true },
+          locationName: { type: "string", nullable: true },
+          locationFullPath: { type: "string", nullable: true },
+          warehouseId: { type: "string", format: "uuid", nullable: true },
+          warehouseName: { type: "string", nullable: true },
+          warehouseShortCode: { type: "string", nullable: true },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -1846,6 +1869,102 @@ export const openApiSpec = {
             },
           },
           404: { description: "Reordering rule not found" },
+        },
+      },
+    },
+    "/api/stock-balances": {
+      get: {
+        summary: "List Stock Balances with Pagination, Filtering & Search",
+        tags: ["Stock Balances"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 10 } },
+          { name: "productId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by product ID" },
+          { name: "locationId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by location ID" },
+          { name: "warehouseId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by warehouse ID" },
+          { name: "categoryId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by category ID" },
+          { name: "search", in: "query", schema: { type: "string" }, description: "Search by product name/SKU or location name/path" },
+          { name: "hasStock", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter for balances with quantity > 0" },
+          { name: "sortBy", in: "query", schema: { type: "string", enum: ["quantity", "lastMovedAt", "createdAt", "productName"], default: "lastMovedAt" } },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"], default: "desc" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of stock balance records",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/StockBalance" } },
+                    pagination: {
+                      type: "object",
+                      properties: {
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        total: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "Invalid query parameters" },
+        },
+      },
+    },
+    "/api/stock-balances/check": {
+      get: {
+        summary: "Check Current Stock Balance for Product at Location",
+        tags: ["Stock Balances"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "productId", in: "query", required: true, schema: { type: "string", format: "uuid" } },
+          { name: "locationId", in: "query", required: true, schema: { type: "string", format: "uuid" } },
+        ],
+        responses: {
+          200: { description: "Current stock balance object", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/StockBalance" } } } } } },
+          400: { description: "Missing query parameters" },
+          404: { description: "Product or Location not found" },
+        },
+      },
+    },
+    "/api/stock-balances/product/{productId}": {
+      get: {
+        summary: "Get Aggregated Product Stock across all Locations",
+        tags: ["Stock Balances"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "productId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Aggregated product stock and location breakdown" },
+          404: { description: "Product not found" },
+        },
+      },
+    },
+    "/api/stock-balances/location/{locationId}": {
+      get: {
+        summary: "Get all Product Stock Balances at Location",
+        tags: ["Stock Balances"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "locationId", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "All product balances at specified location" },
+          404: { description: "Location not found" },
+        },
+      },
+    },
+    "/api/stock-balances/{id}": {
+      get: {
+        summary: "Get Stock Balance Details by ID",
+        tags: ["Stock Balances"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Stock balance record details", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/StockBalance" } } } } } },
+          404: { description: "Stock balance record not found" },
         },
       },
     },
