@@ -313,6 +313,7 @@ After running `bun --cwd backend run db:seed`, log into StockSense with the demo
 
 ## 📄 Documentation Links
 
+- 📊 [Production Monitoring & Observability Stack](docs/OBSERVABILITY.md) — Prometheus metrics (`GET /metrics`), Grafana dashboards, Loki log aggregation, Promtail log shipping, AI token & cost tracking, and alert rules.
 - 🔒 [Security Hardening & Audit Specification](docs/SECURITY.md) — Argon2id password hashing, RBAC, rate limiting, security headers, request size limits, and security tests.
 - 🚀 [Production Infrastructure & Deployment Guide](docs/DEPLOYMENT.md) — Production setup, Docker Compose, startup sequence, health/readiness endpoints, backup/restore procedures.
 - 📘 [API Integration Guide](docs/API_INTEGRATION.md) — Endpoint contracts, request schemas, WebSocket events, and frontend client integration code.

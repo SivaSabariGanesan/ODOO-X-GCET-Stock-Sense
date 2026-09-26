@@ -4,6 +4,7 @@ import { receiptItems } from "../../db/schema/receipt-items";
 import { ReceiptCoreService } from "./service";
 import { InventoryService } from "../inventory/service";
 import { EventBus } from "../websocket/event-bus";
+import { receiptsProcessedTotal } from "../../lib/metrics.js";
 import { ReceiptWithDetails } from "./types";
 import {
   ReceiptNotFoundError,
@@ -111,6 +112,10 @@ export class ReceiptProcessingService {
         })
         .where(eq(receipts.id, receiptId));
     });
+
+    try {
+      receiptsProcessedTotal.inc({ status: "processed" });
+    } catch {}
 
     // 7. Post-Commit WebSocket Event Publishing
     try {

@@ -1,0 +1,77 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Total AI Requests Today",
+      "type": "stat",
+      "targets": [{ "expr": "increase(ai_requests_total[24h])", "legendFormat": "Requests" }]
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "title": "Total Tokens Today",
+      "type": "stat",
+      "targets": [{ "expr": "increase(ai_tokens_total[24h])", "legendFormat": "Tokens" }]
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "title": "Estimated Cost Today ($ USD)",
+      "type": "stat",
+      "targets": [{ "expr": "increase(ai_estimated_cost_usd_total[24h])", "legendFormat": "$ USD" }]
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "title": "AI Error Rate (5m)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(ai_errors_total[5m]))", "legendFormat": "Errors/sec" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "title": "Token Consumption Over Time (Input vs Output)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(ai_input_tokens_total[1m])) by (model)", "legendFormat": "Input Tokens - {{model}}" },
+        { "expr": "sum(rate(ai_output_tokens_total[1m])) by (model)", "legendFormat": "Output Tokens - {{model}}" }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "title": "AI Request Generation Latency (p95 seconds)",
+      "type": "timeseries",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(ai_request_duration_seconds_bucket[1m])) by (le, model))", "legendFormat": "{{model}} p95 latency" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "title": "Estimated Cost Rate by AI Model ($ USD/hour)",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(rate(ai_estimated_cost_usd_total[1m])) by (model) * 3600", "legendFormat": "{{model}} $/hr" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "title": "AI Requests per Second by Model",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(rate(ai_requests_total[1m])) by (model, status)", "legendFormat": "{{model}} ({{status}})" }]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["stocksense", "ai", "tokens", "cost"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "StockSense AI Tokens & Cost Monitoring Dashboard",
+  "uid": "stocksense-ai"
+}

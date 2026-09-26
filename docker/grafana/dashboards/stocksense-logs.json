@@ -1,0 +1,51 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 12, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Centralized Application & Infrastructure Logs (Loki)",
+      "type": "logs",
+      "targets": [{ "expr": "{service=~\"backend|postgres|proxy\"} |= \"$search\"", "legendFormat": "" }],
+      "options": {
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 2,
+      "title": "Log Volume by Level over Time",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(count_over_time({service=\"backend\"}[1m])) by (level)", "legendFormat": "{{level}}" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 3,
+      "title": "Recent ERROR & WARN Events",
+      "type": "logs",
+      "targets": [{ "expr": "{service=\"backend\"} |~ \"(?i)error|warn|fail\"", "legendFormat": "" }],
+      "options": {
+        "showLabels": true,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "sortOrder": "Descending"
+      }
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["stocksense", "logs", "loki"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "StockSense Logs Dashboard (Loki)",
+  "uid": "stocksense-logs"
+}

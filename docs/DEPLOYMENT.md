@@ -6,7 +6,7 @@ This document provides a comprehensive operational guide for building, container
 
 ## 1. System Requirements & Architecture Model
 
-StockSense is deployed as a 4-tier containerized stack:
+StockSense is deployed as a containerized stack featuring application services and isolated observability:
 
 ```text
                                   Internet
@@ -16,20 +16,22 @@ StockSense is deployed as a 4-tier containerized stack:
                              │           │
                    HTTP/REST │           │ WebSocket (/ws)
                              ▼           ▼
-                      Frontend / Backend Server
-                                 │
-                     ┌───────────┼───────────┐
-                     ▼           ▼           ▼
-                 PostgreSQL     AI         Email
-                     │         (Groq)     (Nodemailer)
-                     ▼
-             Persistent Volume
+                      Frontend / Backend Server ◄──────── Prometheus (/metrics)
+                                 │                            │
+                     ┌───────────┼───────────┐                ▼
+                     ▼           ▼           ▼             Grafana
+                 PostgreSQL     AI         Email              ▲
+                     │         (Groq)     (Nodemailer)        │
+                     ▼                                     Loki Engine
+             Persistent Volume                                ▲
+                                                              │
+                                                        Promtail Shipper
 ```
 
 ### Minimum Hardware Recommendations
-- **CPU**: 2 vCPUs
-- **RAM**: 4 GB RAM (2 GB for PostgreSQL buffer pool & Bun server)
-- **Disk**: 20 GB SSD (with persistent volume storage for PostgreSQL data)
+- **CPU**: 2-4 vCPUs
+- **RAM**: 4-8 GB RAM (PostgreSQL pool, Bun backend, Prometheus, Loki, Grafana)
+- **Disk**: 40 GB SSD (with persistent volume storage for PostgreSQL, Prometheus, Loki, and Grafana data)
 
 ---
 

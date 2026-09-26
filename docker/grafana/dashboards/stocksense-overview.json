@@ -1,0 +1,79 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "id": 1,
+      "title": "Application Uptime",
+      "type": "stat",
+      "targets": [{ "expr": "stocksense_application_uptime_seconds", "legendFormat": "Uptime (seconds)" }]
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "id": 2,
+      "title": "Total Request Rate (req/s)",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(http_requests_total[1m]))", "legendFormat": "req/sec" }]
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "id": 3,
+      "title": "HTTP 5xx Error Rate",
+      "type": "stat",
+      "targets": [{ "expr": "sum(rate(http_requests_total{status=~\"5..\"}[1m]))", "legendFormat": "5xx errors/sec" }]
+    },
+    {
+      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "id": 4,
+      "title": "Active WebSockets",
+      "type": "stat",
+      "targets": [{ "expr": "websocket_connections_active", "legendFormat": "connections" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "id": 5,
+      "title": "HTTP Request Rate by Route",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(rate(http_requests_total[1m])) by (route, method)", "legendFormat": "{{method}} {{route}}" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "id": 6,
+      "title": "95th Percentile Request Latency (seconds)",
+      "type": "timeseries",
+      "targets": [{ "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[1m])) by (le, route))", "legendFormat": "{{route}} p95" }]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "id": 7,
+      "title": "Inventory Operations (Receipts, Deliveries, Transfers, Adjustments)",
+      "type": "timeseries",
+      "targets": [
+        { "expr": "sum(rate(receipts_processed_total[5m]))", "legendFormat": "Receipts/s" },
+        { "expr": "sum(rate(deliveries_processed_total[5m]))", "legendFormat": "Deliveries/s" },
+        { "expr": "sum(rate(transfers_processed_total[5m]))", "legendFormat": "Transfers/s" },
+        { "expr": "sum(rate(adjustments_processed_total[5m]))", "legendFormat": "Adjustments/s" }
+      ]
+    },
+    {
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "id": 8,
+      "title": "Stock Movements Audit Log Rate",
+      "type": "timeseries",
+      "targets": [{ "expr": "sum(rate(stock_movements_total[1m])) by (movement_type)", "legendFormat": "{{movement_type}}" }]
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["stocksense", "overview"],
+  "time": { "from": "now-1h", "to": "now" },
+  "title": "StockSense Overview Dashboard",
+  "uid": "stocksense-overview"
+}

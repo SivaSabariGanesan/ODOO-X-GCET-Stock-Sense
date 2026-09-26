@@ -1,0 +1,82 @@
+groups:
+  - name: stocksense_alert_rules
+    rules:
+      # 1. Backend Service Availability
+      - alert: BackendServiceDown
+        expr: up{job="stocksense-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "StockSense backend container unavailable"
+          description: "The StockSense backend instance has been down for more than 1 minute."
+
+      # 2. High HTTP API Error Rate
+      - alert: HighApiErrorRate
+        expr: (sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))) * 100 > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High HTTP 5xx error rate detected (> 5%)"
+          description: "HTTP 5xx server errors represent more than 5% of total requests over the last 5 minutes."
+
+      # 3. High Request Latency
+      - alert: HighApiLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le)) > 2.0
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High 95th percentile HTTP latency (> 2s)"
+          description: "95% of HTTP API requests are taking longer than 2.0 seconds to respond over 5 minutes."
+
+      # 4. Database High Query Errors
+      - alert: HighDatabaseErrors
+        expr: sum(rate(database_queries_total{status="error"}[5m])) > 1
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PostgreSQL query errors detected"
+          description: "PostgreSQL query error rate exceeded 1 error per second over 2 minutes."
+
+      # 5. High AI Assistant Error Rate
+      - alert: HighAiErrorRate
+        expr: (sum(rate(ai_errors_total[5m])) / sum(rate(ai_requests_total[5m]))) * 100 > 10
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High AI Assistant error rate (> 10%)"
+          description: "AI orchestrator error rate exceeds 10% of total AI requests over 3 minutes."
+
+      # 6. AI Token Usage Spike Alert
+      - alert: AiTokenUsageSpike
+        expr: rate(ai_tokens_total[5m]) > 100
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusual AI token consumption rate spike"
+          description: "AI token consumption rate exceeds 100 tokens/sec baseline. Check for runaway queries or prompt explosions."
+
+      # 7. High WebSocket Errors
+      - alert: WebSocketErrorSpike
+        expr: rate(websocket_errors_total[5m]) > 0.5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "WebSocket error spike detected"
+          description: "WebSocket errors are occurring at a rate higher than 0.5 per second over 2 minutes."
+
+      # 8. Email Delivery Failure Spike
+      - alert: EmailDeliveryFailures
+        expr: sum(rate(emails_failed_total[5m])) > 0.1
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Transactional email failure spike"
+          description: "Transactional email deliveries (OTP, password reset) are failing at an elevated rate."

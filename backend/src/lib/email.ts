@@ -58,6 +58,8 @@ function getLiveSmtpConfig() {
 // Welcome, Notifications) using Nodemailer SMTP or dev console fallback.
 // ---------------------------------------------------------------------------
 
+import { emailsSentTotal, emailsFailedTotal, emailDeliveryDurationSeconds } from "./metrics.js";
+
 export class EmailService {
   private static getTransporter() {
     if (config.env === "test" || process.env.NODE_ENV === "test" || process.env.DISABLE_SMTP_TEST === "true") {
@@ -96,40 +98,56 @@ export class EmailService {
     return null;
   }
 
-  private static async dispatch(to: string, rendered: RenderedEmailResult): Promise<boolean> {
+  private static async dispatch(to: string, rendered: RenderedEmailResult, template = "general"): Promise<boolean> {
+    const start = Date.now();
     const transporter = this.getTransporter();
 
-    if (transporter) {
-      try {
-        await transporter.sendMail({
-          from: config.email.from,
-          to,
-          subject: rendered.subject,
-          text: rendered.text,
-          html: rendered.html,
-        });
-        console.log(`[EmailService] Email '${rendered.subject}' sent successfully to ${to}`);
-        return true;
-      } catch (err) {
-        console.error(`[EmailService] Failed to send email via SMTP to ${to}:`, err);
-        // Development fallback log so OTP is always visible in terminal
+    try {
+      if (transporter) {
+        try {
+          await transporter.sendMail({
+            from: config.email.from,
+            to,
+            subject: rendered.subject,
+            text: rendered.text,
+            html: rendered.html,
+          });
+          console.log(`[EmailService] Email '${rendered.subject}' sent successfully to ${to}`);
+          try {
+            emailsSentTotal.inc({ template, status: "success" });
+          } catch {}
+          return true;
+        } catch (err) {
+          console.error(`[EmailService] Failed to send email via SMTP to ${to}:`, err);
+          try {
+            emailsFailedTotal.inc({ template });
+          } catch {}
+          // Development fallback log so OTP is always visible in terminal
+          console.log("\n=======================================================");
+          console.log(`📧 [EMAIL DISPATCH - DEV CONSOLE FALLBACK TRANSPORT]`);
+          console.log(`To: ${to}`);
+          console.log(`Subject: ${rendered.subject}`);
+          console.log(`Text Payload:\n${rendered.text}`);
+          console.log("=======================================================\n");
+          return true;
+        }
+      } else {
+        // Development console fallback log
         console.log("\n=======================================================");
-        console.log(`📧 [EMAIL DISPATCH - DEV CONSOLE FALLBACK TRANSPORT]`);
+        console.log(`📧 [EMAIL DISPATCH - DEV CONSOLE TRANSPORT]`);
         console.log(`To: ${to}`);
         console.log(`Subject: ${rendered.subject}`);
         console.log(`Text Payload:\n${rendered.text}`);
         console.log("=======================================================\n");
+        try {
+          emailsSentTotal.inc({ template, status: "success" });
+        } catch {}
         return true;
       }
-    } else {
-      // Development console fallback log
-      console.log("\n=======================================================");
-      console.log(`📧 [EMAIL DISPATCH - DEV CONSOLE TRANSPORT]`);
-      console.log(`To: ${to}`);
-      console.log(`Subject: ${rendered.subject}`);
-      console.log(`Text Payload:\n${rendered.text}`);
-      console.log("=======================================================\n");
-      return true;
+    } finally {
+      try {
+        emailDeliveryDurationSeconds.observe({ template }, (Date.now() - start) / 1000);
+      } catch {}
     }
   }
 
@@ -143,7 +161,7 @@ export class EmailService {
       userName,
       expiresInMinutes: config.otp.expiresInMinutes,
     });
-    return await this.dispatch(to, rendered);
+    return await this.dispatch(to, rendered, "password_reset");
   }
 
   /**
@@ -155,7 +173,7 @@ export class EmailService {
       verificationUrl,
       userName,
     });
-    return await this.dispatch(to, rendered);
+    return await this.dispatch(to, rendered, "verification");
   }
 
   /**
@@ -167,7 +185,7 @@ export class EmailService {
       userName,
       changedAt: new Date().toUTCString(),
     });
-    return await this.dispatch(to, rendered);
+    return await this.dispatch(to, rendered, "password_changed");
   }
 
   /**
@@ -179,7 +197,7 @@ export class EmailService {
       userName,
       loginUrl,
     });
-    return await this.dispatch(to, rendered);
+    return await this.dispatch(to, rendered, "welcome");
   }
 
   /**
@@ -201,6 +219,6 @@ export class EmailService {
       ctaUrl,
       userName,
     });
-    return await this.dispatch(to, rendered);
+    return await this.dispatch(to, rendered, "notification");
   }
 }

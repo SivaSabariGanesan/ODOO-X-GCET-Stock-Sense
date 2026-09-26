@@ -3,6 +3,7 @@ import { stockMovements, StockMovement, ReferenceType } from "../../db/schema/st
 import { products } from "../../db/schema/products";
 import { locations } from "../../db/schema/locations";
 import { users } from "../../db/schema/users";
+import { stockMovementsTotal } from "../../lib/metrics.js";
 import {
   ListStockMovementsQuery,
   RecordMovementInput,
@@ -102,6 +103,10 @@ export class StockLedgerService {
         createdBy: input.createdBy ?? null,
       })
       .returning();
+
+    try {
+      stockMovementsTotal.inc({ movement_type: inserted.movementType });
+    } catch {}
 
     return inserted;
   }

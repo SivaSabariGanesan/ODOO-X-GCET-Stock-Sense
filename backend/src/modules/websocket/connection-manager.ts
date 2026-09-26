@@ -1,5 +1,12 @@
 import { SafeUser } from "../auth/types";
 import { EventEnvelope, WsConnectionData } from "./types";
+import {
+  websocketConnectionsTotal,
+  websocketDisconnectsTotal,
+  websocketConnectionsActive,
+  websocketMessagesTotal,
+  websocketErrorsTotal,
+} from "../../lib/metrics.js";
 
 interface ConnectionEntry {
   ws: any;
@@ -30,6 +37,12 @@ export class ConnectionManager {
     };
 
     ConnectionManager.connections.set(connectionId, { ws, data });
+
+    try {
+      websocketConnectionsTotal.inc();
+      websocketConnectionsActive.set(ConnectionManager.connections.size);
+    } catch {}
+
     return data;
   }
 
@@ -37,7 +50,13 @@ export class ConnectionManager {
    * Unregisters a disconnected socket and cleans up subscription registries.
    */
   static removeConnection(connectionId: string): void {
-    ConnectionManager.connections.delete(connectionId);
+    if (ConnectionManager.connections.has(connectionId)) {
+      ConnectionManager.connections.delete(connectionId);
+      try {
+        websocketDisconnectsTotal.inc();
+        websocketConnectionsActive.set(ConnectionManager.connections.size);
+      } catch {}
+    }
   }
 
   /**
@@ -93,9 +112,21 @@ export class ConnectionManager {
         }
       } catch (err) {
         console.error(`[WebSocket] Failed to send to connection '${connectionId}':`, err);
+        try {
+          websocketErrorsTotal.inc({ error_type: "send_failure" });
+        } catch {}
         // Clean up broken connection
         ConnectionManager.connections.delete(connectionId);
+        try {
+          websocketConnectionsActive.set(ConnectionManager.connections.size);
+        } catch {}
       }
+    }
+
+    if (count > 0) {
+      try {
+        websocketMessagesTotal.inc({ event_type: event.type ?? "unknown" });
+      } catch {}
     }
 
     return count;

@@ -17,86 +17,134 @@ YOUR DIRECTIVES:
 6. Provide concise, clear, and bulleted human-readable answers.
 `;
 
+import { recordAiUsage } from "../../lib/metrics.js";
+
 export class AiOrchestrator {
   public static async handleChat(
     input: ChatRequestInput,
     user: UserContext
   ): Promise<ChatResponseData> {
+    const start = Date.now();
+    let status: "success" | "error" = "success";
+    let errorType = "";
+    let modelUsed = "grounded-engine";
+    let inputTokens = 0;
+    let outputTokens = 0;
+
     const conversationId = input.conversationId ?? `conv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
     const message = input.message.trim();
 
     if (!message) {
+      status = "error";
+      errorType = "validation_error";
+      recordAiUsage({
+        model: modelUsed,
+        inputTokens: 0,
+        outputTokens: 0,
+        durationSeconds: (Date.now() - start) / 1000,
+        status,
+        errorType,
+      });
       throw new AppError("Message content cannot be empty", 400);
     }
 
-    const apiKey = (process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY ?? "").replace(/"/g, "").trim();
-    const isConfirmed = input.confirmAction === true || /^yes$|^confirm$|^proceed$/i.test(message);
+    try {
+      const apiKey = (process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY ?? "").replace(/"/g, "").trim();
+      const isConfirmed = input.confirmAction === true || /^yes$|^confirm$|^proceed$/i.test(message);
 
-    // 1. Check for Action Intent first (Receipt/Delivery/Transfer/Adjustment processing)
-    const actionMatch = this.detectActionIntent(message);
-    if (actionMatch) {
-      const tool = aiTools[actionMatch.tool];
-      if (tool && tool.requiresConfirmation) {
-        // Check RBAC first
-        if (tool.requiredRole && !tool.requiredRole.includes(user.role as any)) {
-          throw new AppError(`Forbidden: ${user.role} role is not authorized to execute ${actionMatch.tool}`, 403);
-        }
+      // 1. Check for Action Intent first (Receipt/Delivery/Transfer/Adjustment processing)
+      const actionMatch = this.detectActionIntent(message);
+      if (actionMatch) {
+        const tool = aiTools[actionMatch.tool];
+        if (tool && tool.requiresConfirmation) {
+          // Check RBAC first
+          if (tool.requiredRole && !tool.requiredRole.includes(user.role as any)) {
+            status = "error";
+            errorType = "authorization_error";
+            throw new AppError(`Forbidden: ${user.role} role is not authorized to execute ${actionMatch.tool}`, 403);
+          }
 
-        if (!isConfirmed) {
-          return {
-            answer: `I can ${actionMatch.description}. Are you sure you want to proceed? This will permanently mutate stock balances and create immutable ledger entries. Please reply 'confirm' or set confirmAction: true to execute.`,
-            sources: ["InventoryService"],
-            toolCalls: [],
-            confirmationRequired: true,
-            actionPending: {
-              tool: actionMatch.tool,
-              params: actionMatch.params,
-              description: actionMatch.description,
-            },
-            conversationId,
-          };
-        }
+          if (!isConfirmed) {
+            const resData: ChatResponseData = {
+              answer: `I can ${actionMatch.description}. Are you sure you want to proceed? This will permanently mutate stock balances and create immutable ledger entries. Please reply 'confirm' or set confirmAction: true to execute.`,
+              sources: ["InventoryService"],
+              toolCalls: [],
+              confirmationRequired: true,
+              actionPending: {
+                tool: actionMatch.tool,
+                params: actionMatch.params,
+                description: actionMatch.description,
+              },
+              conversationId,
+            };
+            inputTokens = Math.ceil(message.length / 4);
+            outputTokens = Math.ceil(resData.answer.length / 4);
+            return resData;
+          }
 
-        // Execute action tool when confirmed
-        const toolResult = await tool.handler(actionMatch.params, user);
-        return {
-          answer: `Action executed successfully: ${toolResult.message ?? toolResult.success}`,
-          sources: ["InventoryService", "StockBalanceService", "StockLedgerService"],
-          toolCalls: [{ tool: actionMatch.tool, params: actionMatch.params, result: toolResult }],
-          confirmationRequired: false,
-          actionPending: null,
-          conversationId,
-        };
-      }
-    }
-
-    // 2. Try LLM API Provider (Groq / Gemini / OpenAI) if API Key is configured
-    if (apiKey && process.env.NODE_ENV !== "test") {
-      try {
-        let llmResult = null;
-        if (apiKey.startsWith("gsk_")) {
-          llmResult = await this.callGroqApi(message, apiKey, user);
-        } else {
-          llmResult = await this.callGeminiApi(message, apiKey, user);
-        }
-
-        if (llmResult) {
-          return {
-            answer: llmResult.answer,
-            sources: llmResult.sources,
-            toolCalls: llmResult.toolCalls,
+          // Execute action tool when confirmed
+          const toolResult = await tool.handler(actionMatch.params, user);
+          const resData: ChatResponseData = {
+            answer: `Action executed successfully: ${toolResult.message ?? toolResult.success}`,
+            sources: ["InventoryService", "StockBalanceService", "StockLedgerService"],
+            toolCalls: [{ tool: actionMatch.tool, params: actionMatch.params, result: toolResult }],
             confirmationRequired: false,
             actionPending: null,
             conversationId,
           };
+          inputTokens = Math.ceil(message.length / 4);
+          outputTokens = Math.ceil(resData.answer.length / 4);
+          return resData;
         }
-      } catch (err) {
-        console.warn("[AiOrchestrator] External LLM API call failed or timed out, falling back to Grounded Intent Engine:", err);
       }
-    }
 
-    // 3. Deterministic Intent & Function Tool Dispatcher (Grounded Engine)
-    return await this.dispatchIntent(message, user, conversationId);
+      // 2. Try LLM API Provider (Groq / Gemini / OpenAI) if API Key is configured
+      if (apiKey && process.env.NODE_ENV !== "test") {
+        try {
+          let llmResult = null;
+          if (apiKey.startsWith("gsk_")) {
+            llmResult = await this.callGroqApi(message, apiKey, user);
+          } else {
+            llmResult = await this.callGeminiApi(message, apiKey, user);
+          }
+
+          if (llmResult) {
+            modelUsed = llmResult.model ?? (apiKey.startsWith("gsk_") ? "llama-3.3-70b-versatile" : "gemini-2.5-flash");
+            inputTokens = llmResult.inputTokens ?? Math.ceil(message.length / 4);
+            outputTokens = llmResult.outputTokens ?? Math.ceil(llmResult.answer.length / 4);
+            return {
+              answer: llmResult.answer,
+              sources: llmResult.sources,
+              toolCalls: llmResult.toolCalls,
+              confirmationRequired: false,
+              actionPending: null,
+              conversationId,
+            };
+          }
+        } catch (err) {
+          console.warn("[AiOrchestrator] External LLM API call failed or timed out, falling back to Grounded Intent Engine:", err);
+        }
+      }
+
+      // 3. Deterministic Intent & Function Tool Dispatcher (Grounded Engine)
+      const resData = await this.dispatchIntent(message, user, conversationId);
+      inputTokens = Math.ceil(message.length / 4);
+      outputTokens = Math.ceil(resData.answer.length / 4);
+      return resData;
+    } catch (err: any) {
+      status = "error";
+      errorType = err.statusCode === 403 ? "authorization_error" : "execution_error";
+      throw err;
+    } finally {
+      recordAiUsage({
+        model: modelUsed,
+        inputTokens,
+        outputTokens,
+        durationSeconds: (Date.now() - start) / 1000,
+        status,
+        errorType: status === "error" ? errorType : undefined,
+      });
+    }
   }
 
   private static detectActionIntent(message: string): { tool: string; params: Record<string, any>; description: string } | null {
@@ -305,7 +353,7 @@ export class AiOrchestrator {
     message: string,
     apiKey: string,
     user: UserContext
-  ): Promise<{ answer: string; sources: string[]; toolCalls: ToolCallRecord[] } | null> {
+  ): Promise<{ answer: string; sources: string[]; toolCalls: ToolCallRecord[]; model?: string; inputTokens?: number; outputTokens?: number } | null> {
     const candidateModels = Array.from(new Set([
       process.env.AI_MODEL,
       "llama-3.3-70b-versatile",
@@ -359,6 +407,9 @@ export class AiOrchestrator {
     const choice = resJson.choices?.[0];
     if (!choice) return null;
 
+    const inputTokens = resJson.usage?.prompt_tokens ?? Math.ceil(message.length / 4);
+    let outputTokens = resJson.usage?.completion_tokens ?? 0;
+
     const toolCalls: ToolCallRecord[] = [];
     const sources = new Set<string>();
 
@@ -404,14 +455,20 @@ export class AiOrchestrator {
       if (secondResponse.ok) {
         const secondJson = (await secondResponse.json()) as any;
         const finalContent = secondJson.choices?.[0]?.message?.content;
+        if (secondJson.usage?.completion_tokens) {
+          outputTokens += secondJson.usage.completion_tokens;
+        } else if (finalContent) {
+          outputTokens += Math.ceil(finalContent.length / 4);
+        }
         if (finalContent) {
-          return { answer: finalContent, sources: Array.from(sources), toolCalls };
+          return { answer: finalContent, sources: Array.from(sources), toolCalls, model, inputTokens, outputTokens };
         }
       }
     }
 
     if (choice.message?.content) {
-      return { answer: choice.message.content, sources: Array.from(sources), toolCalls };
+      if (!outputTokens) outputTokens = Math.ceil(choice.message.content.length / 4);
+      return { answer: choice.message.content, sources: Array.from(sources), toolCalls, model, inputTokens, outputTokens };
     }
     } // end for model loop
 
@@ -422,7 +479,7 @@ export class AiOrchestrator {
     message: string,
     apiKey: string,
     user: UserContext
-  ): Promise<{ answer: string; sources: string[]; toolCalls: ToolCallRecord[] } | null> {
+  ): Promise<{ answer: string; sources: string[]; toolCalls: ToolCallRecord[]; model?: string; inputTokens?: number; outputTokens?: number } | null> {
     const model = process.env.AI_MODEL ?? "gemini-2.5-flash";
     const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -448,6 +505,9 @@ export class AiOrchestrator {
     const candidate = resJson.candidates?.[0]?.content;
     if (!candidate) return null;
 
+    const inputTokens = resJson.usageMetadata?.promptTokenCount ?? Math.ceil(message.length / 4);
+    const outputTokens = resJson.usageMetadata?.candidatesTokenCount ?? 0;
+
     const toolCalls: ToolCallRecord[] = [];
     const sources = new Set<string>();
 
@@ -465,7 +525,8 @@ export class AiOrchestrator {
 
     const textPart = candidate.parts?.find((p: any) => p.text)?.text;
     if (textPart) {
-      return { answer: textPart, sources: Array.from(sources), toolCalls };
+      const finalOutTokens = outputTokens || Math.ceil(textPart.length / 4);
+      return { answer: textPart, sources: Array.from(sources), toolCalls, model, inputTokens, outputTokens: finalOutTokens };
     }
 
     return null;

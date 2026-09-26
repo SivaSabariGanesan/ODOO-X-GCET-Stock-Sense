@@ -62,12 +62,61 @@ app.use("*", async (c, next) => {
   await next();
 });
 
+import {
+  register,
+  httpRequestsTotal,
+  httpRequestDurationSeconds,
+  payloadTooLargeTotal,
+  authorizationFailuresTotal,
+} from "../lib/metrics";
+
+// Helper function to normalize path parameters for low-cardinality route labels
+function normalizeRoute(path: string): string {
+  return path
+    .replace(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi, ":id")
+    .replace(/\/\d+/g, "/:id");
+}
+
 // ---------------------------------------------------------------------------
-// 4. Request Body Size Limit Safeguard (Max 10MB)
+// 4. Prometheus HTTP Metrics Middleware
+// ---------------------------------------------------------------------------
+app.use("*", async (c, next) => {
+  if (c.req.path === "/metrics") {
+    await next();
+    return;
+  }
+  const start = Date.now();
+  await next();
+  const duration = (Date.now() - start) / 1000;
+  const method = c.req.method;
+  const route = normalizeRoute(c.req.path);
+  const status = String(c.res.status);
+
+  try {
+    httpRequestsTotal.inc({ method, route, status });
+    httpRequestDurationSeconds.observe({ method, route, status }, duration);
+  } catch {}
+});
+
+// ---------------------------------------------------------------------------
+// 5. GET /metrics - Expose Prometheus Metrics Endpoint
+// ---------------------------------------------------------------------------
+app.get("/metrics", async (c) => {
+  try {
+    const metrics = await register.metrics();
+    return c.text(metrics, 200, { "Content-Type": register.contentType });
+  } catch (err) {
+    return c.text("Error generating metrics", 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
+// 6. Request Body Size Limit Safeguard (Max 10MB)
 // ---------------------------------------------------------------------------
 app.use("*", async (c, next) => {
   const contentLength = c.req.header("content-length");
   if (contentLength && parseInt(contentLength, 10) > 10 * 1024 * 1024) {
+    payloadTooLargeTotal.inc();
     throw new AppError("Payload Too Large: Request body exceeds maximum limit of 10MB", 413);
   }
   await next();
