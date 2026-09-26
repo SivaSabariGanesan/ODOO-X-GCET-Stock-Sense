@@ -297,6 +297,20 @@ export class UomReferencedError extends AppError {
   }
 }
 
+export class DuplicateWarehouseError extends AppError {
+  constructor(identifier: string) {
+    super(`A warehouse with name or short code '${identifier}' already exists`, 409);
+    this.name = "DuplicateWarehouseError";
+  }
+}
+
+export class WarehouseReferencedError extends AppError {
+  constructor(id: string, message = `Warehouse '${id}' is referenced by existing locations or inventory operations and cannot be hard deleted. Deactivate it instead.`) {
+    super(message, 400);
+    this.name = "WarehouseReferencedError";
+  }
+}
+
 
 
 

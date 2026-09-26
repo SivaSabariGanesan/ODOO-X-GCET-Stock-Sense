@@ -241,6 +241,20 @@ export const openApiSpec = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      Warehouse: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string", example: "Main Central Warehouse" },
+          shortCode: { type: "string", example: "WH01" },
+          description: { type: "string", nullable: true, example: "Main logistics center" },
+          address: { type: "string", nullable: true, example: "123 Industrial Park, Sector 4" },
+          isActive: { type: "boolean", example: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -1379,6 +1393,139 @@ export const openApiSpec = {
             },
           },
           404: { description: "Unit of Measure not found" },
+        },
+      },
+    },
+    "/api/warehouses": {
+      get: {
+        summary: "List Warehouses with Pagination, Filtering & Search",
+        tags: ["Warehouse CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 10 } },
+          { name: "search", in: "query", schema: { type: "string" }, description: "Filter by name or shortCode" },
+          { name: "isActive", in: "query", schema: { type: "string", enum: ["true", "false"] }, description: "Filter by active status" },
+          { name: "sortBy", in: "query", schema: { type: "string", enum: ["name", "shortCode", "createdAt"], default: "name" } },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"], default: "asc" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of warehouses",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/Warehouse" } },
+                    pagination: {
+                      type: "object",
+                      properties: {
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        total: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "Invalid query parameters" },
+        },
+      },
+      post: {
+        summary: "Create New Warehouse",
+        tags: ["Warehouse CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "shortCode"],
+                properties: {
+                  name: { type: "string", example: "Main Central Warehouse" },
+                  shortCode: { type: "string", example: "WH01" },
+                  description: { type: "string", example: "Central logistics hub" },
+                  address: { type: "string", example: "123 Industrial Way" },
+                  isActive: { type: "boolean", default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Warehouse created successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Warehouse" } } } } } },
+          400: { description: "Validation error" },
+          409: { description: "Duplicate warehouse name or shortCode error" },
+        },
+      },
+    },
+    "/api/warehouses/{id}": {
+      get: {
+        summary: "Get Warehouse Details by ID",
+        tags: ["Warehouse CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Warehouse details", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Warehouse" } } } } } },
+          404: { description: "Warehouse not found" },
+        },
+      },
+      patch: {
+        summary: "Update Warehouse Record",
+        tags: ["Warehouse CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  shortCode: { type: "string" },
+                  description: { type: "string", nullable: true },
+                  address: { type: "string", nullable: true },
+                  isActive: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Warehouse updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Warehouse" } } } } } },
+          400: { description: "Validation error" },
+          404: { description: "Warehouse not found" },
+          409: { description: "Duplicate warehouse name or shortCode error" },
+        },
+      },
+      delete: {
+        summary: "Delete or Deactivate Warehouse",
+        tags: ["Warehouse CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "Warehouse deleted if unreferenced, or deactivated if referenced by locations, receipts, or deliveries",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    message: { type: "string" },
+                    mode: { type: "string", enum: ["deleted", "deactivated"] },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: "Warehouse not found" },
         },
       },
     },
