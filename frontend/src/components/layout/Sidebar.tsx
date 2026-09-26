@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 

@@ -12,6 +12,7 @@ import {
   Shield,
   Home,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useWebSocket } from '@/hooks/useWebSocket'
@@ -210,6 +211,8 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
       }
     } else if (segments[0] === 'profile') {
       crumbs.push({ label: 'User Profile' })
+    } else if (segments[0] === 'ai') {
+      crumbs.push({ label: 'AI Copilot' })
     }
 
     return crumbs

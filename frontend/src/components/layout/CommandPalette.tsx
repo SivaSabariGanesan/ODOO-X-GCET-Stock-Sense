@@ -17,6 +17,7 @@ import {
   Boxes,
   X,
   ExternalLink,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
@@ -42,6 +43,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   const items: CommandItem[] = [
     { id: 'dash', title: 'Dashboard', category: 'Navigation', href: '/dashboard', icon: LayoutDashboard },
+    { id: 'chat', title: 'Inventory Assistant', category: 'Navigation', href: '/ai', icon: Sparkles },
     { id: 'inv', title: 'Stock Balances', category: 'Navigation', href: '/inventory', icon: Boxes },
     { id: 'prod', title: 'Products', category: 'Navigation', href: '/products', icon: Package },
     { id: 'rec', title: 'Receipts', category: 'Operations', href: '/operations/receipts', icon: ArrowDownToLine },
