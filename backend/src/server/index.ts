@@ -109,8 +109,6 @@ app.get("/api/locations/:locationId/stock-movements", authMiddleware, async (c) 
   );
 });
 
-app.route("/api/products", productsRouter);
-
 
 
 // ---------------------------------------------------------------------------

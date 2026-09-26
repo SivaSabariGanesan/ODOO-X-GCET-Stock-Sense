@@ -29,7 +29,7 @@ export class AiOrchestrator {
       throw new AppError("Message content cannot be empty", 400);
     }
 
-    const apiKey = config.email ? (process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY ?? "") : "";
+    const apiKey = (process.env.GEMINI_API_KEY ?? process.env.AI_API_KEY ?? "").replace(/"/g, "").trim();
     const isConfirmed = input.confirmAction === true || /^yes$|^confirm$|^proceed$/i.test(message);
 
     // 1. Check for Action Intent first (Receipt/Delivery/Transfer/Adjustment processing)
@@ -70,26 +70,32 @@ export class AiOrchestrator {
       }
     }
 
-    // 2. Try Gemini API Function Calling if API Key is configured
-    if (apiKey) {
+    // 2. Try LLM API Provider (Groq / Gemini / OpenAI) if API Key is configured
+    if (apiKey && process.env.NODE_ENV !== "test") {
       try {
-        const geminiResult = await this.callGeminiApi(message, apiKey, user);
-        if (geminiResult) {
+        let llmResult = null;
+        if (apiKey.startsWith("gsk_")) {
+          llmResult = await this.callGroqApi(message, apiKey, user);
+        } else {
+          llmResult = await this.callGeminiApi(message, apiKey, user);
+        }
+
+        if (llmResult) {
           return {
-            answer: geminiResult.answer,
-            sources: geminiResult.sources,
-            toolCalls: geminiResult.toolCalls,
+            answer: llmResult.answer,
+            sources: llmResult.sources,
+            toolCalls: llmResult.toolCalls,
             confirmationRequired: false,
             actionPending: null,
             conversationId,
           };
         }
       } catch (err) {
-        console.warn("[AiOrchestrator] Gemini API call failed or timed out, falling back to Intent Dispatcher:", err);
+        console.warn("[AiOrchestrator] External LLM API call failed or timed out, falling back to Grounded Intent Engine:", err);
       }
     }
 
-    // 3. Deterministic Intent & Function Tool Dispatcher (Grounding Engine)
+    // 3. Deterministic Intent & Function Tool Dispatcher (Grounded Engine)
     return await this.dispatchIntent(message, user, conversationId);
   }
 
@@ -290,6 +296,123 @@ export class AiOrchestrator {
       actionPending: null,
       conversationId,
     };
+  }
+
+  private static async callGroqApi(
+    message: string,
+    apiKey: string,
+    user: UserContext
+  ): Promise<{ answer: string; sources: string[]; toolCalls: ToolCallRecord[] } | null> {
+    const candidateModels = Array.from(new Set([
+      process.env.AI_MODEL,
+      "llama-3.3-70b-versatile",
+      "llama-3.1-8b-instant",
+      "deepseek-r1-distill-llama-70b",
+      "qwen-2.5-coder-32b",
+      "llama-3.1-70b-versatile",
+      "llama-3.2-11b-vision-preview",
+    ].filter(Boolean))) as string[];
+
+    const endpoint = "https://api.groq.com/openai/v1/chat/completions";
+
+    const openAiTools = Object.values(aiTools).map((t) => ({
+      type: "function",
+      function: {
+        name: t.name,
+        description: t.description,
+        parameters: {
+          type: "object",
+          properties: t.parameters.properties,
+          required: t.parameters.required,
+        },
+      },
+    }));
+
+    for (const model of candidateModels) {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: message },
+          ],
+          tools: openAiTools,
+          tool_choice: "auto",
+        }),
+      });
+
+      if (!response.ok) {
+        const errText = await response.text();
+        console.warn(`[AiOrchestrator] Groq model '${model}' error:`, response.status, errText);
+        continue;
+      }
+
+    const resJson = (await response.json()) as any;
+    const choice = resJson.choices?.[0];
+    if (!choice) return null;
+
+    const toolCalls: ToolCallRecord[] = [];
+    const sources = new Set<string>();
+
+    if (choice.message?.tool_calls?.length > 0) {
+      for (const tc of choice.message.tool_calls) {
+        const fnName = tc.function.name;
+        let args = {};
+        try {
+          args = typeof tc.function.arguments === "string" ? JSON.parse(tc.function.arguments) : tc.function.arguments;
+        } catch {
+          args = {};
+        }
+        const tool = aiTools[fnName];
+        if (tool) {
+          const toolResult = await tool.handler(args, user);
+          toolCalls.push({ tool: fnName, params: args, result: toolResult });
+          sources.add(fnName);
+        }
+      }
+
+      // 2nd pass: Send tool output back to Groq for final grounded summary
+      const secondResponse = await fetch(endpoint, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: SYSTEM_PROMPT },
+            { role: "user", content: message },
+            choice.message,
+            ...toolCalls.map((tc, idx) => ({
+              role: "tool",
+              tool_call_id: choice.message.tool_calls[idx]?.id ?? `call_${idx}`,
+              content: JSON.stringify(tc.result),
+            })),
+          ],
+        }),
+      });
+
+      if (secondResponse.ok) {
+        const secondJson = (await secondResponse.json()) as any;
+        const finalContent = secondJson.choices?.[0]?.message?.content;
+        if (finalContent) {
+          return { answer: finalContent, sources: Array.from(sources), toolCalls };
+        }
+      }
+    }
+
+    if (choice.message?.content) {
+      return { answer: choice.message.content, sources: Array.from(sources), toolCalls };
+    }
+    } // end for model loop
+
+    return null;
   }
 
   private static async callGeminiApi(
