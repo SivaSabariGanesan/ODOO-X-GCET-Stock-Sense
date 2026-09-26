@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Search,
   Plus,
@@ -14,128 +14,134 @@ import {
   ArrowRight,
   Layers,
   MapPin,
-} from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
-import { Button } from '@/components/ui/Button'
-import { TablePagination } from '@/components/common/TablePagination'
-import { EmptyState } from '@/components/common/EmptyState'
-import { useToast } from '@/context/ToastContext'
-import { getMockTransfers, updateTransferStatus, TRANSFER_WAREHOUSES } from '../mockTransfers'
-import { Transfer, TransferFiltersState, TransferStatus } from '../types'
+  AlertCircle,
+  Loader2,
+} from 'lucide-react';
+import { Badge } from '@/components/ui/Badge';
+import { Button } from '@/components/ui/Button';
+import { TablePagination } from '@/components/common/TablePagination';
+import { EmptyState } from '@/components/common/EmptyState';
+import { useToast } from '@/context/ToastContext';
+import { useTransfers } from '../hooks/useTransfers';
+import { transfersApi } from '../api';
+import { warehousesApi } from '@/features/warehouses/api';
+import type { ApiTransfer, ApiTransferStatus } from '../types';
+import type { ApiWarehouse } from '@/features/warehouses/types';
 
-const PAGE_SIZE = 10
+const PAGE_SIZE = 10;
 
 export function TransfersListPage() {
-  const toast = useToast()
-  const [transfers, setTransfers] = useState<Transfer[]>(getMockTransfers())
-  const [currentPage, setCurrentPage] = useState(1)
+  const toast = useToast();
 
-  const [filters, setFilters] = useState<TransferFiltersState>({
-    search: '',
-    status: 'all',
-    sourceWarehouse: 'all',
-    destinationWarehouse: 'all',
-    dateFilter: 'all',
-  })
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sourceWarehouseFilter, setSourceWarehouseFilter] = useState('all');
+  const [destinationWarehouseFilter, setDestinationWarehouseFilter] = useState('all');
+  const [dateFilter, setDateFilter] = useState('all');
 
-  // ── Live Filters ──────────────────────────────────────────────────────────
-  const filteredTransfers = useMemo(() => {
-    const q = filters.search.toLowerCase().trim()
+  const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([]);
 
-    return transfers.filter((t) => {
-      // Search query across ref, source, dest, products
-      if (q) {
-        const matchesNum = t.transferNumber.toLowerCase().includes(q)
-        const matchesSrc = t.sourceLocation.toLowerCase().includes(q) || t.sourceWarehouseName.toLowerCase().includes(q)
-        const matchesDst = t.destinationLocation.toLowerCase().includes(q) || t.destinationWarehouseName.toLowerCase().includes(q)
-        const matchesProd = t.lines.some(
-          (l) => l.productName.toLowerCase().includes(q) || l.productSku.toLowerCase().includes(q)
-        )
-        if (!matchesNum && !matchesSrc && !matchesDst && !matchesProd) return false
-      }
-
-      // Status
-      if (filters.status !== 'all' && t.status !== filters.status) {
-        return false
-      }
-
-      // Source Warehouse
-      if (filters.sourceWarehouse !== 'all' && t.sourceWarehouseId !== filters.sourceWarehouse) {
-        return false
-      }
-
-      // Destination Warehouse
-      if (filters.destinationWarehouse !== 'all' && t.destinationWarehouseId !== filters.destinationWarehouse) {
-        return false
-      }
-
-      // Date Filter
-      if (filters.dateFilter === 'today') {
-        if (!t.scheduledDate.toLowerCase().includes('today')) return false
-      } else if (filters.dateFilter === 'active_only') {
-        if (t.status === 'done' || t.status === 'cancelled') return false
-      }
-
-      return true
-    })
-  }, [transfers, filters])
-
+  // Load warehouses for warehouse filter dropdowns
   useEffect(() => {
-    setCurrentPage(1)
-  }, [filters])
+    let isCancelled = false;
+    warehousesApi
+      .list({ isActive: true, limit: 100 })
+      .then((res) => {
+        if (!isCancelled && res.data) {
+          setWarehouses(res.data);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
 
-  const paginatedTransfers = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE
-    return filteredTransfers.slice(start, start + PAGE_SIZE)
-  }, [filteredTransfers, currentPage])
+  const {
+    transfers,
+    locationsMap,
+    pagination,
+    isLoading,
+    error,
+    currentPage,
+    setCurrentPage,
+    refetch,
+    updateTransferStatus,
+  } = useTransfers({
+    search,
+    status: statusFilter,
+    pageSize: PAGE_SIZE,
+  });
+
+  // Client-side warehouse association filter if specified
+  const filteredTransfers = useMemo(() => {
+    return transfers.filter((t) => {
+      if (sourceWarehouseFilter !== 'all') {
+        const srcWhId = locationsMap[t.sourceLocationId]?.warehouseId || t.sourceLocation?.warehouseId;
+        if (srcWhId !== sourceWarehouseFilter) return false;
+      }
+      if (destinationWarehouseFilter !== 'all') {
+        const dstWhId = locationsMap[t.destinationLocationId]?.warehouseId || t.destinationLocation?.warehouseId;
+        if (dstWhId !== destinationWarehouseFilter) return false;
+      }
+      if (dateFilter === 'active_only') {
+        if (t.status === 'DONE' || t.status === 'CANCELED') return false;
+      }
+      return true;
+    });
+  }, [transfers, sourceWarehouseFilter, destinationWarehouseFilter, dateFilter, locationsMap]);
 
   const isFiltered =
-    Boolean(filters.search.trim()) ||
-    filters.status !== 'all' ||
-    filters.sourceWarehouse !== 'all' ||
-    filters.destinationWarehouse !== 'all' ||
-    filters.dateFilter !== 'all'
+    Boolean(search.trim()) ||
+    statusFilter !== 'all' ||
+    sourceWarehouseFilter !== 'all' ||
+    destinationWarehouseFilter !== 'all' ||
+    dateFilter !== 'all';
 
   const handleResetFilters = () => {
-    setFilters({
-      search: '',
-      status: 'all',
-      sourceWarehouse: 'all',
-      destinationWarehouse: 'all',
-      dateFilter: 'all',
-    })
-    toast.info('Filters Reset', 'Showing all internal transfers.')
-  }
+    setSearch('');
+    setStatusFilter('all');
+    setSourceWarehouseFilter('all');
+    setDestinationWarehouseFilter('all');
+    setDateFilter('all');
+    toast.info('Filters Reset', 'Showing all internal transfers.');
+  };
 
-  const handleQuickValidate = (id: string, ref: string) => {
-    const updated = updateTransferStatus(id, 'done')
-    if (updated) {
-      setTransfers(getMockTransfers())
+  const handleQuickValidate = async (t: ApiTransfer) => {
+    try {
+      await transfersApi.process(t.id);
+      updateTransferStatus(t.id, 'DONE');
       toast.success(
         'Transfer Validated',
-        `${ref} items relocated to destination bin. Company on-hand stock remains unchanged.`
-      )
+        `${t.transferNumber} stock relocated to destination. Company total inventory remains unchanged.`
+      );
+    } catch (err: any) {
+      toast.error('Validation Failed', err?.message || 'Could not process transfer.');
     }
-  }
+  };
 
-  const getStatusBadge = (status: TransferStatus) => {
-    switch (status) {
-      case 'ready':
-        return <Badge variant="ready" dot>READY</Badge>
-      case 'done':
-        return <Badge variant="done" dot>DONE</Badge>
-      case 'cancelled':
-        return <Badge variant="cancelled" dot>CANCELED</Badge>
-      case 'draft':
+  const getStatusBadge = (status: ApiTransferStatus | string) => {
+    const s = String(status).toUpperCase();
+    switch (s) {
+      case 'READY':
+        return <Badge variant="ready" dot>READY</Badge>;
+      case 'DONE':
+        return <Badge variant="done" dot>DONE</Badge>;
+      case 'CANCELED':
+      case 'CANCELLED':
+        return <Badge variant="cancelled" dot>CANCELED</Badge>;
+      case 'WAITING':
+        return <Badge variant="warning" dot>WAITING</Badge>;
+      case 'DRAFT':
       default:
-        return <Badge variant="draft" dot>DRAFT</Badge>
+        return <Badge variant="draft" dot>DRAFT</Badge>;
     }
-  }
+  };
 
   // Summary counts
-  const readyCount = transfers.filter((t) => t.status === 'ready').length
-  const draftCount = transfers.filter((t) => t.status === 'draft').length
-  const doneCount = transfers.filter((t) => t.status === 'done').length
+  const readyCount = transfers.filter((t) => t.status === 'READY').length;
+  const draftCount = transfers.filter((t) => t.status === 'DRAFT').length;
+  const doneCount = transfers.filter((t) => t.status === 'DONE').length;
 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-5 pb-12">
@@ -163,7 +169,7 @@ export function TransfersListPage() {
         </div>
       </div>
 
-      {/* ── Informational Semantics Banner (Clearly Communicated) ─── */}
+      {/* ── Informational Semantics Banner ─── */}
       <div className="bg-[#ede9fe]/40 border border-[#71639e]/20 rounded-lg p-3 sm:px-4 sm:py-3 flex items-start gap-3 text-xs text-slate-700">
         <Info className="w-4 h-4 text-brand shrink-0 mt-0.5" />
         <div className="flex-1 leading-relaxed">
@@ -183,6 +189,19 @@ export function TransfersListPage() {
         </div>
       </div>
 
+      {/* ── Error Banner ────────────────────────────────────────────── */}
+      {error && (
+        <div className="p-3.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span className="truncate">{error}</span>
+          </div>
+          <Button variant="ghost" size="xs" onClick={refetch} className="shrink-0 text-rose-700 hover:bg-rose-100">
+            <RotateCcw className="w-3.5 h-3.5 mr-1" /> Retry
+          </Button>
+        </div>
+      )}
+
       {/* ── Toolbar & Filters ───────────────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg p-3 sm:px-4 sm:py-3 shadow-2xs space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
@@ -193,15 +212,15 @@ export function TransfersListPage() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="search"
-                value={filters.search}
-                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                placeholder="Search transfer #, location, product..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search transfer #, notes..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50/70 border border-slate-200 rounded-md placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
               />
-              {filters.search && (
+              {search && (
                 <button
                   type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+                  onClick={() => setSearch('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X className="w-3 h-3" />
@@ -211,12 +230,13 @@ export function TransfersListPage() {
 
             {/* Status Filter */}
             <select
-              value={filters.status}
-              onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="draft">Draft</option>
+              <option value="waiting">Waiting</option>
               <option value="ready">Ready</option>
               <option value="done">Done</option>
               <option value="cancelled">Canceled</option>
@@ -224,48 +244,47 @@ export function TransfersListPage() {
 
             {/* Source Warehouse Filter */}
             <select
-              value={filters.sourceWarehouse}
-              onChange={(e) => setFilters((prev) => ({ ...prev, sourceWarehouse: e.target.value }))}
+              value={sourceWarehouseFilter}
+              onChange={(e) => setSourceWarehouseFilter(e.target.value)}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">Source: All Warehouses</option>
-              {TRANSFER_WAREHOUSES.map((wh) => (
+              {warehouses.map((wh) => (
                 <option key={wh.id} value={wh.id}>
-                  From {wh.name.split(' — ')[0]}
+                  From {wh.name} ({wh.shortCode})
                 </option>
               ))}
             </select>
 
             {/* Destination Warehouse Filter */}
             <select
-              value={filters.destinationWarehouse}
-              onChange={(e) => setFilters((prev) => ({ ...prev, destinationWarehouse: e.target.value }))}
+              value={destinationWarehouseFilter}
+              onChange={(e) => setDestinationWarehouseFilter(e.target.value)}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">Dest: All Warehouses</option>
-              {TRANSFER_WAREHOUSES.map((wh) => (
+              {warehouses.map((wh) => (
                 <option key={wh.id} value={wh.id}>
-                  To {wh.name.split(' — ')[0]}
+                  To {wh.name} ({wh.shortCode})
                 </option>
               ))}
             </select>
 
-            {/* Date Filter */}
+            {/* Date / Timeline Filter */}
             <select
-              value={filters.dateFilter}
-              onChange={(e) => setFilters((prev) => ({ ...prev, dateFilter: e.target.value }))}
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">Any Timeline</option>
-              <option value="today">Scheduled Today</option>
-              <option value="active_only">Active Movements (Draft/Ready)</option>
+              <option value="active_only">Active Movements (Draft/Waiting/Ready)</option>
             </select>
           </div>
 
           {/* Right: Results Count & Reset */}
           <div className="flex items-center gap-3 shrink-0 text-xs">
             <span className="text-slate-500 font-mono">
-              <strong className="text-slate-900">{filteredTransfers.length}</strong> transfers
+              <strong className="text-slate-900">{pagination?.total ?? filteredTransfers.length}</strong> transfers
             </span>
             {isFiltered && (
               <button
@@ -298,7 +317,14 @@ export function TransfersListPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {filteredTransfers.length === 0 ? (
+              {isLoading ? (
+                <tr>
+                  <td colSpan={8} className="py-12 text-center text-slate-400">
+                    <Loader2 className="w-6 h-6 animate-spin mx-auto text-brand mb-2" />
+                    <span>Loading internal transfers...</span>
+                  </td>
+                </tr>
+              ) : filteredTransfers.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-0">
                     <EmptyState
@@ -315,118 +341,147 @@ export function TransfersListPage() {
                   </td>
                 </tr>
               ) : (
-                paginatedTransfers.map((item) => (
-                  <tr
-                    key={item.id}
-                    className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                  >
-                    {/* Transfer Number */}
-                    <td className="py-2.5 px-4 font-mono font-bold text-slate-900">
-                      <Link
-                        to={`/operations/transfers/${item.id}`}
-                        className="hover:text-brand transition-colors inline-flex items-center gap-1.5"
-                      >
-                        <span>{item.transferNumber}</span>
-                        <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-brand transition-colors" />
-                      </Link>
-                    </td>
+                filteredTransfers.map((item) => {
+                  const srcLocName =
+                    locationsMap[item.sourceLocationId]?.name ||
+                    item.sourceLocation?.name ||
+                    'Origin Location';
+                  const srcFullPath =
+                    locationsMap[item.sourceLocationId]?.fullPath ||
+                    item.sourceLocation?.fullPath ||
+                    '';
 
-                    {/* Source */}
-                    <td className="py-2.5 px-4 text-slate-700">
-                      <div className="font-medium text-slate-900 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span className="truncate max-w-[170px]" title={item.sourceLocation}>
-                          {item.sourceLocation}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate max-w-[170px]">
-                        {item.sourceWarehouseName.split(' — ')[1] || item.sourceWarehouseName}
-                      </div>
-                    </td>
+                  const dstLocName =
+                    locationsMap[item.destinationLocationId]?.name ||
+                    item.destinationLocation?.name ||
+                    'Target Location';
+                  const dstFullPath =
+                    locationsMap[item.destinationLocationId]?.fullPath ||
+                    item.destinationLocation?.fullPath ||
+                    '';
 
-                    {/* Destination */}
-                    <td className="py-2.5 px-4 text-slate-700">
-                      <div className="font-medium text-slate-900 flex items-center gap-1">
-                        <ArrowRight className="w-3 h-3 text-brand shrink-0" />
-                        <span className="truncate max-w-[170px]" title={item.destinationLocation}>
-                          {item.destinationLocation}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 truncate max-w-[170px]">
-                        {item.destinationWarehouseName.split(' — ')[1] || item.destinationWarehouseName}
-                      </div>
-                    </td>
+                  const totalQty = item.items?.reduce(
+                    (acc, it) => acc + (parseFloat(String(it.quantity)) || 0),
+                    0
+                  ) || 0;
 
-                    {/* Products */}
-                    <td className="py-2.5 px-4 text-slate-800">
-                      <div className="font-medium flex items-center gap-1.5">
-                        <Layers className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span className="truncate max-w-[200px]" title={item.lines[0]?.productName}>
-                          {item.lines[0]?.productName}
-                        </span>
-                      </div>
-                      {item.lines.length > 1 && (
-                        <div className="text-[10.5px] text-brand font-medium">
-                          +{item.lines.length - 1} other item{item.lines.length > 2 ? 's' : ''}
-                        </div>
-                      )}
-                    </td>
+                  const firstProduct = item.items?.[0]?.product;
+                  const firstProductName =
+                    firstProduct?.name || (item.items?.[0] ? `Product (${item.items[0].productId.slice(0, 8)})` : 'Empty Item');
 
-                    {/* Quantity */}
-                    <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-900">
-                      <span>{item.totalQuantity.toLocaleString()}</span>{' '}
-                      <span className="text-[10.5px] font-normal text-slate-500">
-                        {item.lines[0]?.unit || 'units'}
-                      </span>
-                    </td>
-
-                    {/* Status */}
-                    <td className="py-2.5 px-4 text-center">
-                      {getStatusBadge(item.status)}
-                    </td>
-
-                    {/* Date */}
-                    <td className="py-2.5 px-4 text-slate-600 font-sans">
-                      <div className="flex items-center gap-1 text-slate-700">
-                        <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                        <span>{item.scheduledDate}</span>
-                      </div>
-                      <div className="text-[10px] text-slate-400 font-mono">
-                        Created {item.createdDate}
-                      </div>
-                    </td>
-
-                    {/* Actions */}
-                    <td className="py-2.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        {item.status === 'ready' && (
-                          <Button
-                            variant="secondary"
-                            size="xs"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              handleQuickValidate(item.id, item.transferNumber)
-                            }}
-                            className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                          >
-                            <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                            Validate
-                          </Button>
-                        )}
-
+                  return (
+                    <tr
+                      key={item.id}
+                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                    >
+                      {/* Transfer Number */}
+                      <td className="py-2.5 px-4 font-mono font-bold text-slate-900">
                         <Link
                           to={`/operations/transfers/${item.id}`}
-                          onClick={(e) => e.stopPropagation()}
+                          className="hover:text-brand transition-colors inline-flex items-center gap-1.5"
                         >
-                          <Button variant="ghost" size="xs" className="h-7 px-2 text-slate-500 hover:text-slate-800">
-                            <Eye className="w-3.5 h-3.5 mr-1" />
-                            View
-                          </Button>
+                          <span>{item.transferNumber}</span>
+                          <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-brand transition-colors" />
                         </Link>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      {/* Source */}
+                      <td className="py-2.5 px-4 text-slate-700">
+                        <div className="font-medium text-slate-900 flex items-center gap-1">
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[170px]" title={srcFullPath || srcLocName}>
+                            {srcLocName}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate max-w-[170px]" title={srcFullPath}>
+                          {srcFullPath}
+                        </div>
+                      </td>
+
+                      {/* Destination */}
+                      <td className="py-2.5 px-4 text-slate-700">
+                        <div className="font-medium text-slate-900 flex items-center gap-1">
+                          <ArrowRight className="w-3 h-3 text-brand shrink-0" />
+                          <span className="truncate max-w-[170px]" title={dstFullPath || dstLocName}>
+                            {dstLocName}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 truncate max-w-[170px]" title={dstFullPath}>
+                          {dstFullPath}
+                        </div>
+                      </td>
+
+                      {/* Products */}
+                      <td className="py-2.5 px-4 text-slate-800">
+                        <div className="font-medium flex items-center gap-1.5">
+                          <Layers className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span className="truncate max-w-[200px]" title={firstProductName}>
+                            {firstProductName}
+                          </span>
+                        </div>
+                        {item.items && item.items.length > 1 && (
+                          <div className="text-[10.5px] text-brand font-medium">
+                            +{item.items.length - 1} other item{item.items.length > 2 ? 's' : ''}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Quantity */}
+                      <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-900">
+                        <span>{totalQty.toLocaleString()}</span>{' '}
+                        <span className="text-[10.5px] font-normal text-slate-500">
+                          {firstProduct?.uom?.abbreviation || 'units'}
+                        </span>
+                      </td>
+
+                      {/* Status */}
+                      <td className="py-2.5 px-4 text-center">
+                        {getStatusBadge(item.status)}
+                      </td>
+
+                      {/* Date */}
+                      <td className="py-2.5 px-4 text-slate-600 font-sans">
+                        <div className="flex items-center gap-1 text-slate-700">
+                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                          <span>{new Date(item.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-mono">
+                          {new Date(item.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-2.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {(item.status === 'READY' || item.status === 'DRAFT' || item.status === 'WAITING') && (
+                            <Button
+                              variant="secondary"
+                              size="xs"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleQuickValidate(item);
+                              }}
+                              className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+                            >
+                              <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
+                              Validate
+                            </Button>
+                          )}
+
+                          <Link
+                            to={`/operations/transfers/${item.id}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button variant="ghost" size="xs" className="h-7 px-2 text-slate-500 hover:text-slate-800">
+                              <Eye className="w-3.5 h-3.5 mr-1" />
+                              View
+                            </Button>
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -434,12 +489,12 @@ export function TransfersListPage() {
 
         <TablePagination
           currentPage={currentPage}
-          totalItems={filteredTransfers.length}
+          totalItems={pagination?.total ?? filteredTransfers.length}
           pageSize={PAGE_SIZE}
           onPageChange={setCurrentPage}
           itemLabel="transfers"
         />
       </div>
     </div>
-  )
+  );
 }
