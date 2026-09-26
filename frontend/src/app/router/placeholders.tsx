@@ -53,43 +53,51 @@ export function DashboardPlaceholder() {
 export function ProductsPlaceholder() {
   return (
     <PlaceholderPage
-      title="Product Master Catalog"
-      subtitle="Master SKU definitions, product categories, units of measure, and multi-location balances"
-      moduleCode="WH/PROD/CAT"
+      title="Products"
+      subtitle="SKU definitions, product categories, units of measure, and multi-location stock balances"
+      // moduleCode omitted — internal codes do not belong in the user-facing header
+      showCalendarView={false}
+      showPrintSlip={false}
+      searchPlaceholder="Search products, SKUs, categories..."
+      tableTitle="Product Catalog"
+      actionLabel="View"
+      // Map product lifecycle states (driven by products.is_active) to
+      // human-readable labels. 'active' = is_active true, 'archived' = false.
+      statusLabelMap={{ active: 'Active', archived: 'Archived' }}
       stats={[
-        { label: 'Catalog Items', value: '2,481', change: '100% active', trend: 'neutral' },
-        { label: 'Reorder Triggers', value: '142', change: 'Auto-PO enabled', trend: 'up' },
-        { label: 'Zero Stock Items', value: '8', change: 'Requires replenishment', trend: 'down' },
-        { label: 'Categories', value: '34', change: '6 primary families', trend: 'neutral' },
+        { label: 'Catalog Items',    value: '2,481', change: '2,473 active',          trend: 'neutral' },
+        { label: 'Reorder Triggers', value: '142',   change: 'Products below minimum', trend: 'down'    },
+        { label: 'Zero Stock',       value: '8',     change: 'Requires replenishment', trend: 'down'    },
+        { label: 'Categories',       value: '34',    change: '6 primary families',     trend: 'neutral' },
       ]}
-      columns={['Product SKU', 'Product Name & Spec', 'Current On-Hand', 'Status', 'Category']}
+      columns={['Product SKU', 'Product Name', 'On-Hand', 'Status', 'Category']}
       sampleRows={[
         {
-          ref: 'SKU-ERG-904',
-          desc: 'Ergonomic Task Chair (Mesh Black)',
-          qty: '142 pcs',
-          status: 'done',
+          ref:     'SKU-ERG-904',
+          desc:    'Ergonomic Task Chair (Mesh Black)',
+          qty:     '142 pcs',
+          status:  'active',
           updated: 'Furniture / Seating',
         },
         {
-          ref: 'SKU-DKS-301',
-          desc: 'Motorized Standing Desk Frame 140cm',
-          qty: '28 pcs',
-          status: 'ready',
+          ref:     'SKU-DKS-301',
+          desc:    'Motorized Standing Desk Frame 140cm',
+          qty:     '28 pcs',
+          status:  'active',
           updated: 'Furniture / Desks',
         },
         {
-          ref: 'SKU-MON-881',
-          desc: 'Dual Arm VESA Monitor Mount Heavy-Duty',
-          qty: '310 pcs',
-          status: 'confirmed',
+          ref:     'SKU-MON-881',
+          desc:    'Dual Arm VESA Monitor Mount Heavy-Duty',
+          qty:     '310 pcs',
+          status:  'active',
           updated: 'Accessories',
         },
         {
-          ref: 'SKU-CBL-102',
-          desc: 'Braided Thunderbolt 4 Cable 2m',
-          qty: '890 pcs',
-          status: 'done',
+          ref:     'SKU-CBL-102',
+          desc:    'Braided Thunderbolt 4 Cable 2m (Legacy)',
+          qty:     '0 pcs',
+          status:  'archived',
           updated: 'Electronics',
         },
       ]}

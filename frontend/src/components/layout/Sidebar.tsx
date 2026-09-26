@@ -16,7 +16,6 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   X,
-  Radio,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
@@ -41,7 +40,7 @@ export function Sidebar({
   const isSettingsActive = location.pathname.startsWith('/settings')
   const [settingsOpen, setSettingsOpen] = useState(true)
 
-  // Listen for Ctrl+B to toggle, or Esc to close mobile
+  // Ctrl+B toggles sidebar; Esc closes mobile drawer
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
@@ -57,44 +56,115 @@ export function Sidebar({
 
   // Prevent background scroll when mobile drawer is open
   useEffect(() => {
-    if (isMobileOpen) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => {
-      document.body.style.overflow = ''
-    }
+    document.body.style.overflow = isMobileOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
   }, [isMobileOpen])
 
   const operationsItems = [
-    { name: 'Receipts', href: '/operations/receipts', icon: ArrowDownToLine, count: '4' },
-    { name: 'Deliveries', href: '/operations/deliveries', icon: ArrowUpFromLine, count: '8' },
-    { name: 'Internal Transfers', href: '/operations/transfers', icon: ArrowLeftRight, count: '2' },
+    { name: 'Receipts',              href: '/operations/receipts',    icon: ArrowDownToLine,  count: '4' },
+    { name: 'Deliveries',            href: '/operations/deliveries',  icon: ArrowUpFromLine,  count: '8' },
+    { name: 'Internal Transfers',    href: '/operations/transfers',   icon: ArrowLeftRight,   count: '2' },
     { name: 'Inventory Adjustments', href: '/operations/adjustments', icon: SlidersHorizontal, count: '1' },
-    { name: 'Move History', href: '/operations/history', icon: History },
+    { name: 'Move History',          href: '/operations/history',     icon: History },
   ]
 
-  const settingsItems = [
+  const configItems = [
     { name: 'Warehouses', href: '/settings/warehouses', icon: Warehouse, count: '3' },
   ]
 
+  // ---------------------------------------------------------------------------
+  // Reusable section label
+  // ---------------------------------------------------------------------------
+  const SectionLabel = ({ label, active = false }: { label: string; active?: boolean }) =>
+    !isCollapsed ? (
+      <div
+        className={cn(
+          'px-2.5 py-1.5 text-[10.5px] font-semibold uppercase tracking-wider',
+          active ? 'text-brand-dark' : 'text-slate-400'
+        )}
+      >
+        {label}
+      </div>
+    ) : (
+      <div className="h-px bg-slate-200 my-2 mx-1" />
+    )
+
+  // ---------------------------------------------------------------------------
+  // Reusable nav link
+  // ---------------------------------------------------------------------------
+  const NavItem = ({
+    to,
+    icon: Icon,
+    label,
+    count,
+    tooltip,
+  }: {
+    to: string
+    icon: React.ElementType
+    label: string
+    count?: string
+    tooltip?: string
+  }) => (
+    <NavLink
+      to={to}
+      onClick={onCloseMobile}
+      className={({ isActive }) =>
+        cn(
+          'nav-item !mx-0 !px-2.5 !py-2 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
+          isActive
+            ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
+            : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
+          isCollapsed && 'justify-center !px-0'
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {isActive && (
+            <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
+          )}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Icon className="w-4 h-4 shrink-0 text-current" aria-hidden="true" />
+            {!isCollapsed && <span className="truncate">{label}</span>}
+          </div>
+          {/* Pending count badge — only meaningful counts, only when expanded */}
+          {!isCollapsed && count && (
+            <span className="text-[10px] font-mono px-1.5 rounded bg-slate-100 text-slate-600 border border-slate-200 shrink-0">
+              {count}
+            </span>
+          )}
+          {/* Collapsed tooltip */}
+          {isCollapsed && (
+            <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-gray-900 text-white text-[11px] font-medium rounded shadow-lg whitespace-nowrap pointer-events-none">
+              {tooltip ?? label}{count ? ` (${count})` : ''}
+            </div>
+          )}
+        </>
+      )}
+    </NavLink>
+  )
+
+  // ---------------------------------------------------------------------------
+  // Sidebar content (shared between desktop and mobile drawer)
+  // ---------------------------------------------------------------------------
   const sidebarContent = (
     <div className="flex flex-col h-full bg-sidebar border-r border-slate-200 select-none">
-      {/* Brand Header */}
+
+      {/* Brand header */}
       <div
         className={cn(
           'h-13 px-3.5 border-b border-slate-200/90 flex items-center justify-between shrink-0 bg-view',
-          isCollapsed ? 'justify-center px-2' : ''
+          isCollapsed && 'justify-center px-2'
         )}
       >
         <Link
           to="/dashboard"
           onClick={onCloseMobile}
           className="flex items-center gap-2.5 overflow-hidden group no-underline"
+          aria-label="StockSense — go to dashboard"
         >
           <div className="w-7 h-7 rounded-md bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover:scale-105">
-            <Boxes className="w-4 h-4 text-white" />
+            <Boxes className="w-4 h-4 text-white" aria-hidden="true" />
           </div>
           {!isCollapsed && (
             <div className="flex flex-col">
@@ -108,12 +178,12 @@ export function Sidebar({
           )}
         </Link>
 
-        {/* Desktop Collapse Button */}
+        {/* Desktop collapse toggle */}
         <button
           type="button"
           onClick={onToggleCollapse}
           className="hidden md:flex p-1.5 rounded-md hover:bg-slate-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
-          title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? (
@@ -123,318 +193,137 @@ export function Sidebar({
           )}
         </button>
 
-        {/* Mobile Close Button */}
+        {/* Mobile close */}
         <button
           type="button"
           onClick={onCloseMobile}
           className="md:hidden p-2 rounded-md hover:bg-slate-100 text-gray-500 hover:text-gray-900 transition-colors cursor-pointer"
-          aria-label="Close sidebar"
+          aria-label="Close navigation"
         >
           <X className="w-5 h-5" />
         </button>
       </div>
 
-      {/* Nav List */}
-      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-        {/* Core Items */}
-        <NavLink
-          to="/dashboard"
-          onClick={onCloseMobile}
-          className={({ isActive }) =>
-            cn(
-              'nav-item !mx-0 !px-2.5 !py-2 text-xs sm:text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
-              isActive
-                ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
-                : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
-              isCollapsed && 'justify-center !px-0'
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
-              )}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <LayoutDashboard className="w-4 h-4 shrink-0 text-current" />
-                {!isCollapsed && <span>Dashboard</span>}
-              </div>
+      {/* Navigation */}
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" aria-label="Main navigation">
 
-              {/* Floating Tooltip in Collapsed Mode */}
-              {isCollapsed && (
-                <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-gray-900 text-white text-[11px] font-medium rounded shadow-lg whitespace-nowrap pointer-events-none">
-                  Dashboard
-                </div>
-              )}
-            </>
-          )}
-        </NavLink>
+        {/* ── OVERVIEW ───────────────────────────────────────────────── */}
+        <SectionLabel label="Overview" />
+        <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
 
-        <NavLink
-          to="/products"
-          onClick={onCloseMobile}
-          className={({ isActive }) =>
-            cn(
-              'nav-item !mx-0 !px-2.5 !py-2 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
-              isActive
-                ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
-                : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
-              isCollapsed && 'justify-center !px-0'
-            )
-          }
-        >
-          {({ isActive }) => (
-            <>
-              {isActive && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
-              )}
-              <div className="flex items-center gap-2.5 min-w-0">
-                <Package className="w-4 h-4 shrink-0 text-current" />
-                {!isCollapsed && <span>Products</span>}
-              </div>
-              {!isCollapsed && (
-                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                  2.4k
-                </span>
-              )}
-
-              {/* Floating Tooltip in Collapsed Mode */}
-              {isCollapsed && (
-                <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-gray-900 text-white text-[11px] font-medium rounded shadow-lg whitespace-nowrap pointer-events-none">
-                  Products (2.4k SKUs)
-                </div>
-              )}
-            </>
-          )}
-        </NavLink>
-
-        {/* Operations Accordion */}
+        {/* ── INVENTORY ──────────────────────────────────────────────── */}
         <div className="pt-2">
-          {!isCollapsed ? (
-            <button
-              type="button"
-              onClick={() => setOperationsOpen(!operationsOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-700 cursor-pointer"
-            >
-              <span className={isOperationsActive ? 'text-brand-dark font-bold' : ''}>
-                Operations
-              </span>
-              {operationsOpen ? (
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              ) : (
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-              )}
-            </button>
-          ) : (
-            <div className="h-px bg-slate-200 my-2 mx-1" />
-          )}
+          <SectionLabel label="Inventory" active={location.pathname === '/products' || isOperationsActive} />
 
-          {(!isCollapsed && operationsOpen) || isCollapsed ? (
-            <div className={cn('space-y-0.5', !isCollapsed && 'mt-1 pl-1')}>
-              {operationsItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <NavLink
+          {/* Products — static link, no arbitrary count badge */}
+          <NavItem to="/products" icon={Package} label="Products" />
+
+          {/* Operations sub-group — collapsible */}
+          <div className="pt-1">
+            {!isCollapsed ? (
+              <button
+                type="button"
+                onClick={() => setOperationsOpen(!operationsOpen)}
+                className="w-full flex items-center justify-between px-2.5 py-1 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors cursor-pointer"
+                aria-expanded={operationsOpen}
+              >
+                <span className={cn(isOperationsActive && 'text-brand-dark')}>
+                  Operations
+                </span>
+                {operationsOpen
+                  ? <ChevronDown className="w-3 h-3" />
+                  : <ChevronRight className="w-3 h-3" />
+                }
+              </button>
+            ) : (
+              <div className="h-px bg-slate-100 my-1 mx-1" />
+            )}
+
+            {((!isCollapsed && operationsOpen) || isCollapsed) && (
+              <div className={cn('space-y-0.5', !isCollapsed && 'mt-0.5 pl-1')}>
+                {operationsItems.map((item) => (
+                  <NavItem
                     key={item.href}
                     to={item.href}
-                    onClick={onCloseMobile}
-                    className={({ isActive }) =>
-                      cn(
-                        'nav-item !mx-0 !px-2.5 !py-2 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
-                        isActive
-                          ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
-                          : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
-                        isCollapsed && 'justify-center !px-0'
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
-                        )}
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Icon className="w-4 h-4 shrink-0 text-current" />
-                          {!isCollapsed && <span className="truncate">{item.name}</span>}
-                        </div>
-
-                        {!isCollapsed && item.count && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                            {item.count}
-                          </span>
-                        )}
-
-                        {/* Floating Tooltip in Collapsed Mode */}
-                        {isCollapsed && (
-                          <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-gray-900 text-white text-[11px] font-medium rounded shadow-lg whitespace-nowrap pointer-events-none">
-                            {item.name} {item.count ? `(${item.count})` : ''}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                )
-              })}
-            </div>
-          ) : null}
+                    icon={item.icon}
+                    label={item.name}
+                    count={item.count}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        {/* Settings Accordion */}
+        {/* ── CONFIGURATION ──────────────────────────────────────────── */}
         <div className="pt-2">
+          <SectionLabel label="Configuration" active={isSettingsActive} />
+
           {!isCollapsed ? (
             <button
               type="button"
               onClick={() => setSettingsOpen(!settingsOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-1.5 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-700 cursor-pointer"
+              className="w-full flex items-center justify-between px-2.5 py-1 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors cursor-pointer"
+              aria-expanded={settingsOpen}
             >
-              <span className={isSettingsActive ? 'text-brand-dark font-bold' : ''}>
-                Settings
+              <span className={cn(isSettingsActive && 'text-brand-dark')}>
+                Warehouses &amp; Locations
               </span>
-              {settingsOpen ? (
-                <ChevronDown className="w-3 h-3 text-slate-400" />
-              ) : (
-                <ChevronRight className="w-3 h-3 text-slate-400" />
-              )}
+              {settingsOpen
+                ? <ChevronDown className="w-3 h-3" />
+                : <ChevronRight className="w-3 h-3" />
+              }
             </button>
           ) : (
-            <div className="h-px bg-slate-200 my-2 mx-1" />
+            <div className="h-px bg-slate-100 my-1 mx-1" />
           )}
 
-          {(!isCollapsed && settingsOpen) || isCollapsed ? (
-            <div className={cn('space-y-0.5', !isCollapsed && 'mt-1 pl-1')}>
-              {settingsItems.map((item) => {
-                const Icon = item.icon
-                return (
-                  <NavLink
-                    key={item.href}
-                    to={item.href}
-                    onClick={onCloseMobile}
-                    className={({ isActive }) =>
-                      cn(
-                        'nav-item !mx-0 !px-2.5 !py-2 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
-                        isActive
-                          ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
-                          : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
-                        isCollapsed && 'justify-center !px-0'
-                      )
-                    }
-                  >
-                    {({ isActive }) => (
-                      <>
-                        {isActive && (
-                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
-                        )}
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <Icon className="w-4 h-4 shrink-0 text-current" />
-                          {!isCollapsed && <span className="truncate">{item.name}</span>}
-                        </div>
-                        {!isCollapsed && item.count && (
-                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
-                            {item.count}
-                          </span>
-                        )}
-
-                        {/* Floating Tooltip in Collapsed Mode */}
-                        {isCollapsed && (
-                          <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-gray-900 text-white text-[11px] font-medium rounded shadow-lg whitespace-nowrap pointer-events-none">
-                            {item.name}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                )
-              })}
+          {((!isCollapsed && settingsOpen) || isCollapsed) && (
+            <div className={cn('space-y-0.5', !isCollapsed && 'mt-0.5 pl-1')}>
+              {configItems.map((item) => (
+                <NavItem
+                  key={item.href}
+                  to={item.href}
+                  icon={item.icon}
+                  label={item.name}
+                  count={item.count}
+                />
+              ))}
             </div>
-          ) : null}
+          )}
         </div>
 
-        {/* Profile Item */}
+        {/* ── ACCOUNT ────────────────────────────────────────────────── */}
         <div className="pt-2">
-          {!isCollapsed && (
-            <div className="px-2.5 py-1.5 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider">
-              Account
-            </div>
-          )}
-          <NavLink
-            to="/profile"
-            onClick={onCloseMobile}
-            className={({ isActive }) =>
-              cn(
-                'nav-item !mx-0 !px-2.5 !py-2 text-xs font-medium rounded transition-colors flex items-center gap-2.5 relative group',
-                isActive
-                  ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
-                  : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
-                isCollapsed && 'justify-center !px-0'
-              )
-            }
-          >
-            {({ isActive }) => (
-              <>
-                {isActive && (
-                  <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
-                )}
-                <User className="w-4 h-4 shrink-0 text-current" />
-                {!isCollapsed && <span>Profile</span>}
-
-                {/* Floating Tooltip in Collapsed Mode */}
-                {isCollapsed && (
-                  <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-gray-900 text-white text-[11px] font-medium rounded shadow-lg whitespace-nowrap pointer-events-none">
-                    Profile & Security
-                  </div>
-                )}
-              </>
-            )}
-          </NavLink>
+          <SectionLabel label="Account" />
+          <NavItem to="/profile" icon={User} label="Profile" tooltip="Profile & Security" />
         </div>
       </nav>
-
-      {/* Bottom Live System Indicator */}
-      {!isCollapsed ? (
-        <div className="p-3 border-t border-slate-200 bg-slate-50/70">
-          <div className="flex items-center justify-between text-[11px] text-gray-500">
-            <div className="flex items-center gap-1.5">
-              <Radio className="w-3 h-3 text-emerald-500 animate-pulse" />
-              <span className="font-semibold text-gray-800">WH01 Node Online</span>
-            </div>
-            <span className="font-mono text-emerald-600 font-medium">99.98%</span>
-          </div>
-          <div className="mt-1 text-[10px] text-gray-500 font-mono flex items-center justify-between">
-            <span>PostgreSQL 16</span>
-            <span className="text-gray-400">Ctrl+B toggle</span>
-          </div>
-        </div>
-      ) : (
-        <div className="p-2 border-t border-slate-200 flex justify-center">
-          <Radio className="w-3.5 h-3.5 text-emerald-500" title="WH01 Online" />
-        </div>
-      )}
+      {/* No debug / infrastructure information in the user-facing sidebar footer */}
     </div>
   )
 
   return (
     <>
-      {/* Desktop Persistent Sidebar */}
+      {/* Desktop persistent sidebar */}
       <aside
         className={cn(
           'hidden md:block transition-all duration-200 shrink-0 z-20',
           isCollapsed ? 'w-15' : 'w-60'
         )}
+        aria-label="Sidebar"
       >
         {sidebarContent}
       </aside>
 
-      {/* Mobile Drawer with Overlay */}
+      {/* Mobile drawer with overlay */}
       {isMobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden flex" role="dialog" aria-modal="true">
-          {/* Backdrop */}
+        <div className="fixed inset-0 z-50 md:hidden flex" role="dialog" aria-modal="true" aria-label="Navigation">
           <div
             className="fixed inset-0 bg-black/50 backdrop-blur-xs transition-opacity"
             onClick={onCloseMobile}
             aria-hidden="true"
           />
-
-          {/* Drawer container */}
           <aside className="relative flex flex-col w-72 max-w-[85vw] h-full shadow-2xl z-10 bg-view animate-[fadeIn_150ms_ease-out]">
             {sidebarContent}
           </aside>
