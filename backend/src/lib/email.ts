@@ -1,16 +1,26 @@
 import nodemailer from "nodemailer";
-import { config } from "../app/config";
+import { config } from "../app/config/index.js";
+import {
+  renderPasswordResetEmail,
+  renderVerificationEmail,
+  renderPasswordChangedEmail,
+  renderWelcomeEmail,
+  renderNotificationEmail,
+  type RenderedEmailResult,
+} from "./email/index.js";
 
 // ---------------------------------------------------------------------------
 // Email Dispatch Service
 // ---------------------------------------------------------------------------
-// Delivers transactional emails (Password Reset OTPs, notifications).
-// Uses SMTP via Nodemailer when configured, or logs formatted message to
-// console in development mode.
+// Delivers polished transactional emails (Verification, Password Resets, Security Alerts,
+// Welcome, Notifications) using Nodemailer SMTP or dev console fallback.
 // ---------------------------------------------------------------------------
 
 export class EmailService {
   private static getTransporter() {
+    if (config.env === "test" || process.env.NODE_ENV === "test" || process.env.DISABLE_SMTP_TEST === "true") {
+      return null;
+    }
     if (config.email.smtpHost && config.email.smtpUser) {
       const isGmail = config.email.smtpHost.includes("gmail.com");
 
@@ -37,59 +47,7 @@ export class EmailService {
     return null;
   }
 
-  /**
-   * Send Password Reset OTP Email
-   */
-  static async sendPasswordResetOTP(to: string, otp: string): Promise<boolean> {
-    const subject = "StockSense - Password Reset Verification Code";
-    
-    const textContent = `
-Hello,
-
-You requested a password reset for your StockSense account.
-Your 6-digit verification code is:
-
-${otp}
-
-This code will expire in ${config.otp.expiresInMinutes} minutes.
-If you did not request this password reset, please ignore this email or contact support.
-
-Regards,
-StockSense Security Team
-    `.trim();
-
-    const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f6f9; margin: 0; padding: 20px; }
-    .card { max-width: 500px; margin: 0 auto; background: #ffffff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-    .header { font-size: 20px; font-weight: bold; color: #1e293b; margin-bottom: 20px; text-align: center; }
-    .otp-box { background: #f1f5f9; border-radius: 6px; padding: 15px; text-align: center; font-size: 32px; font-weight: bold; letter-spacing: 6px; color: #0f172a; margin: 25px 0; border: 1px solid #e2e8f0; }
-    .footer { font-size: 13px; color: #64748b; margin-top: 25px; text-align: center; border-top: 1px solid #f1f5f9; padding-top: 15px; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="header">🔒 Password Reset Code</div>
-    <p style="color: #334155; font-size: 15px;">Hello,</p>
-    <p style="color: #334155; font-size: 15px;">You requested a password reset for your <strong>StockSense</strong> account. Use the verification code below to complete the reset process:</p>
-    
-    <div class="otp-box">${otp}</div>
-    
-    <p style="color: #64748b; font-size: 14px;">This code is valid for <strong>${config.otp.expiresInMinutes} minutes</strong> and can only be used once.</p>
-    <p style="color: #94a3b8; font-size: 13px;">If you did not request a password reset, you can safely ignore this email.</p>
-    
-    <div class="footer">
-      StockSense Inventory Management System
-    </div>
-  </div>
-</body>
-</html>
-    `.trim();
-
+  private static async dispatch(to: string, rendered: RenderedEmailResult): Promise<boolean> {
     const transporter = this.getTransporter();
 
     if (transporter) {
@@ -97,11 +55,11 @@ StockSense Security Team
         await transporter.sendMail({
           from: config.email.from,
           to,
-          subject,
-          text: textContent,
-          html: htmlContent,
+          subject: rendered.subject,
+          text: rendered.text,
+          html: rendered.html,
         });
-        console.log(`[EmailService] Password reset OTP sent successfully to ${to}`);
+        console.log(`[EmailService] Email '${rendered.subject}' sent successfully to ${to}`);
         return true;
       } catch (err) {
         console.error(`[EmailService] Failed to send email via SMTP to ${to}:`, err);
@@ -112,11 +70,81 @@ StockSense Security Team
       console.log("\n=======================================================");
       console.log(`📧 [EMAIL DISPATCH - DEV CONSOLE TRANSPORT]`);
       console.log(`To: ${to}`);
-      console.log(`Subject: ${subject}`);
-      console.log(`OTP Code: ${otp}`);
-      console.log(`Expires in: ${config.otp.expiresInMinutes} minutes`);
+      console.log(`Subject: ${rendered.subject}`);
+      console.log(`Text Payload:\n${rendered.text}`);
       console.log("=======================================================\n");
       return true;
     }
+  }
+
+  /**
+   * Send Password Reset OTP Email
+   */
+  static async sendPasswordResetOTP(to: string, otp: string, userName?: string): Promise<boolean> {
+    const rendered = renderPasswordResetEmail({
+      to,
+      otp,
+      userName,
+      expiresInMinutes: config.otp.expiresInMinutes,
+    });
+    return await this.dispatch(to, rendered);
+  }
+
+  /**
+   * Send Email Verification Link Email
+   */
+  static async sendEmailVerification(to: string, verificationUrl: string, userName?: string): Promise<boolean> {
+    const rendered = renderVerificationEmail({
+      to,
+      verificationUrl,
+      userName,
+    });
+    return await this.dispatch(to, rendered);
+  }
+
+  /**
+   * Send Security Alert: Password Changed Email
+   */
+  static async sendPasswordChangedNotification(to: string, userName?: string): Promise<boolean> {
+    const rendered = renderPasswordChangedEmail({
+      to,
+      userName,
+      changedAt: new Date().toUTCString(),
+    });
+    return await this.dispatch(to, rendered);
+  }
+
+  /**
+   * Send Account Welcome Email
+   */
+  static async sendWelcomeEmail(to: string, userName: string, loginUrl?: string): Promise<boolean> {
+    const rendered = renderWelcomeEmail({
+      to,
+      userName,
+      loginUrl,
+    });
+    return await this.dispatch(to, rendered);
+  }
+
+  /**
+   * Send Generic Operational Notification Email
+   */
+  static async sendNotificationEmail(
+    to: string,
+    title: string,
+    message: string,
+    ctaText?: string,
+    ctaUrl?: string,
+    userName?: string
+  ): Promise<boolean> {
+    const rendered = renderNotificationEmail({
+      to,
+      title,
+      message,
+      ctaText,
+      ctaUrl,
+      userName,
+    });
+    return await this.dispatch(to, rendered);
   }
 }

@@ -1170,3 +1170,84 @@ export class StockSenseWS {
 ### 12.4 Grounded Architecture Guarantee
 1. **Zero Hallucination**: Stock quantities, SKUs, warehouse names, and API specifications are retrieved directly from project database services and `docs/API_INTEGRATION.md`.
 2. **WebSocket Synchronization**: AI-triggered inventory mutations automatically publish post-commit WebSocket notifications (`stock.received`, `stock.delivered`, `stock.transferred`, `stock.adjusted`, `inventory.updated`) via the existing `EventBus`.
+
+---
+
+## 13. Transactional Email Template System
+
+### 13.1 System Architecture
+```text
+  Application Trigger (e.g. AuthService.forgotPassword, resetPassword, Register)
+                                  │
+                                  ▼
+                        EmailService Facade
+                                  │
+                       Template Rendering Engine
+                 (backend/src/lib/email/templates/*)
+                                  │
+                                  ├── Base Layout (Header, Container, Footer, Inline CSS)
+                                  ├── HTML Escaping & Injection Protection
+                                  └── Plain-Text Fallback Generator
+                                  │
+                                  ▼
+                        Nodemailer Transport
+              (SMTP / Dev Console Fallback Logger)
+```
+
+---
+
+### 13.2 Email Template Catalog
+
+| Template Name | Trigger Event | Primary Purpose | Key Variables / Inputs |
+| :--- | :--- | :--- | :--- |
+| **Email Verification** | User Signup / Email Verification | Confirm email ownership | `verificationUrl`, `userName`, `expiresIn` |
+| **Password Reset OTP** | POST `/api/auth/forgot-password` | Deliver 6-digit verification code | `otp`, `userName`, `expiresInMinutes` (10m) |
+| **Security Alert: Password Changed** | POST `/api/auth/reset-password` | Notify user of successful password update | `userName`, `changedAt` timestamp |
+| **Account Welcome** | User Registration / Activation | Welcome user & link to workspace dashboard | `userName`, `loginUrl` |
+| **General Notification** | Operational alerts & low-stock triggers | Deliver custom alerts & callout blocks | `title`, `message`, `infoBlock`, `ctaText`, `ctaUrl` |
+
+---
+
+### 13.3 Template Data Interfaces & Developer Usage
+
+#### 1. Password Reset OTP
+```typescript
+import { EmailService } from "./lib/email";
+
+await EmailService.sendPasswordResetOTP("user@example.com", "947663", "John Doe");
+```
+
+#### 2. Email Verification
+```typescript
+await EmailService.sendEmailVerification("user@example.com", "https://app.stocksense.com/verify?token=xyz123", "John Doe");
+```
+
+#### 3. Password Changed Notification
+```typescript
+await EmailService.sendPasswordChangedNotification("user@example.com", "John Doe");
+```
+
+#### 4. Welcome Email
+```typescript
+await EmailService.sendWelcomeEmail("user@example.com", "John Doe", "https://app.stocksense.com/login");
+```
+
+#### 5. Operational Alert Notification
+```typescript
+await EmailService.sendNotificationEmail(
+  "manager@example.com",
+  "Low Stock Alert: Organic Flour",
+  "Stock for Organic Flour at Location A-1 has crossed below threshold.",
+  "View Stock Details",
+  "https://app.stocksense.com/dashboard/low-stock",
+  "Sarah Manager"
+);
+```
+
+---
+
+### 13.4 Security & Compatibility Standards
+1. **XSS Protection**: All user-provided fields (`userName`, `title`, `message`, URLs) pass through `escapeHtml()` to prevent script & HTML injection.
+2. **Email Client Support**: Table-based responsive layout compatible with Outlook, Apple Mail, Gmail, Yahoo, and mobile web clients.
+3. **Multipart Support**: Automatically delivers dual HTML and Plain-Text representations for accessibility.
+4. **Dev Fallback**: In development or test environments without SMTP credentials, formatted email payloads log directly to console.

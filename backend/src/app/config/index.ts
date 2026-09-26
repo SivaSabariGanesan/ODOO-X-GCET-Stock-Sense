@@ -24,5 +24,10 @@ export const config = {
     smtpUser: process.env.SMTP_USER ?? "",
     smtpPass: process.env.SMTP_PASS ?? "",
     from: process.env.SMTP_FROM ?? "StockSense Security <noreply@stocksense.local>",
+    supportEmail: process.env.SUPPORT_EMAIL ?? "support@stocksense.local",
+  },
+  app: {
+    url: process.env.VITE_API_BASE_URL ?? "http://localhost:3000",
+    name: "StockSense",
   },
 };

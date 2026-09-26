@@ -208,7 +208,7 @@ export class AuthService {
     });
 
     // Send email (via SMTP or dev console transport)
-    await EmailService.sendPasswordResetOTP(normalizedEmail, otp);
+    await EmailService.sendPasswordResetOTP(normalizedEmail, otp, user.name);
 
     // Return debug OTP in non-production environments for automated integration testing
     const isDev = config.env === "development" || config.env === "test";
@@ -365,6 +365,9 @@ export class AuthService {
         })
         .where(eq(passwordResetOtps.id, latestOtp.id));
     });
+
+    // Send security notification email
+    await EmailService.sendPasswordChangedNotification(user.email, user.name);
 
     return { message: "Password reset successfully" };
   }
