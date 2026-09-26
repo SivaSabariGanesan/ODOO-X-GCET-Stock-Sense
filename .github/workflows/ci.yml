@@ -39,11 +39,11 @@ jobs:
         working-directory: ./backend
         run: bun install --frozen-lockfile || bun install
 
-      - name: Push Database Schema
+      - name: Run Database Migrations
         working-directory: ./backend
         env:
           DATABASE_URL: postgresql://stocksense:stocksense_pass@localhost:5432/stocksense_db
-        run: bun run db:push
+        run: bun run db:migrate
 
       - name: Execute Backend Test Cases
         working-directory: ./backend
