@@ -54,6 +54,21 @@ export interface TransferStockInput {
   createdBy?: string | null;
 }
 
+export interface AdjustStockItemInput {
+  productId: string;
+  locationId: string;
+  countedQuantity: string | number; // Physical count
+  notes?: string | null;
+}
+
+export interface AdjustStockInput {
+  items: AdjustStockItemInput[];
+  referenceType: ReferenceType; // e.g. "INVENTORY_ADJUSTMENT"
+  referenceId: string;          // e.g. adjustmentId
+  movementType?: MovementType;  // Default: "ADJUSTMENT"
+  createdBy?: string | null;
+}
+
 export interface StockBalanceDTO {
   id: string;
   productId: string;
@@ -62,5 +77,6 @@ export interface StockBalanceDTO {
   reservedQuantity: string;
   lastMovedAt: Date;
 }
+
 
 

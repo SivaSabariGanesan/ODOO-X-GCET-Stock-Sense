@@ -142,6 +142,38 @@ export const openApiSpec = {
           },
         },
       },
+      InventoryAdjustmentItem: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          adjustmentId: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          systemQuantity: { type: "string", example: "40.0000" },
+          countedQuantity: { type: "string", example: "37.0000" },
+          difference: { type: "string", example: "-3.0000" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      InventoryAdjustment: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          adjustmentNumber: { type: "string", example: "ADJ/20260926/9182" },
+          reason: { type: "string", nullable: true },
+          locationId: { type: "string", format: "uuid" },
+          status: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"], example: "DRAFT" },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          validatedAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          items: {
+            type: "array",
+            items: { $ref: "#/components/schemas/InventoryAdjustmentItem" },
+          },
+        },
+      },
+
 
       ErrorResponse: {
         type: "object",
@@ -730,7 +762,98 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/adjustments": {
+      post: {
+        summary: "Create Inventory Adjustment",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/InventoryAdjustment" } } },
+        },
+        responses: {
+          201: { description: "Inventory adjustment created successfully" },
+          400: { description: "Validation error or invalid location" },
+        },
+      },
+      get: {
+        summary: "List Inventory Adjustments",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          200: { description: "List of inventory adjustments" },
+        },
+      },
+    },
+    "/api/adjustments/{id}": {
+      get: {
+        summary: "Get Inventory Adjustment by ID",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Inventory adjustment details" },
+          404: { description: "Inventory adjustment not found" },
+        },
+      },
+      patch: {
+        summary: "Update Inventory Adjustment Header",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Inventory adjustment updated successfully" },
+        },
+      },
+    },
+    "/api/adjustments/{id}/preview": {
+      get: {
+        summary: "Preview Inventory Adjustment Differences (Read-Only)",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Read-only stock comparison preview (system stock, physical count, difference)" },
+        },
+      },
+    },
+    "/api/adjustments/{id}/validate": {
+      post: {
+        summary: "Validate Inventory Adjustment Document",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Inventory adjustment validated" },
+        },
+      },
+    },
+    "/api/adjustments/{id}/process": {
+      post: {
+        summary: "Process Inventory Adjustment (Mutates Stock)",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Inventory adjustment processed and stock balances updated" },
+          400: { description: "Invalid counted quantity or adjustment status" },
+          409: { description: "Adjustment already completed" },
+        },
+      },
+    },
+    "/api/adjustments/{id}/cancel": {
+      post: {
+        summary: "Cancel Inventory Adjustment",
+        tags: ["Inventory Adjustments"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Inventory adjustment cancelled" },
+        },
+      },
+    },
   },
 };
+
 
 

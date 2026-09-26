@@ -194,4 +194,37 @@ export class TransferValidationError extends AppError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Inventory Adjustment Domain Errors
+// ---------------------------------------------------------------------------
+
+export class AdjustmentNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Inventory adjustment with ID '${id}' was not found` : "Inventory adjustment not found", 404);
+    this.name = "AdjustmentNotFoundError";
+  }
+}
+
+export class AdjustmentItemNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Inventory adjustment item with ID '${id}' was not found` : "Inventory adjustment item not found", 404);
+    this.name = "AdjustmentItemNotFoundError";
+  }
+}
+
+export class AdjustmentLockedError extends AppError {
+  constructor(status: string) {
+    super(`Cannot modify inventory adjustment in '${status}' state. Completed or cancelled adjustments are locked from editing.`, 400);
+    this.name = "AdjustmentLockedError";
+  }
+}
+
+export class AdjustmentValidationError extends AppError {
+  constructor(message: string, errors: string[]) {
+    super(message, 400, errors);
+    this.name = "AdjustmentValidationError";
+  }
+}
+
+
 

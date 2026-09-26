@@ -8,9 +8,11 @@ import authRouter from "../modules/auth/route";
 import receiptsRouter from "../modules/receipts/route";
 import deliveriesRouter from "../modules/deliveries/route";
 import transfersRouter from "../modules/transfers/route";
+import adjustmentsRouter from "../modules/adjustments/route";
 import { AppError } from "../lib/errors";
 
 const app = new Hono();
+
 
 
 // ---------------------------------------------------------------------------
@@ -52,6 +54,8 @@ app.route("/api/auth", authRouter);
 app.route("/api/receipts", receiptsRouter);
 app.route("/api/deliveries", deliveriesRouter);
 app.route("/api/transfers", transfersRouter);
+app.route("/api/adjustments", adjustmentsRouter);
+
 
 
 // ---------------------------------------------------------------------------

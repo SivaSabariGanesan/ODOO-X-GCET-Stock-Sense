@@ -4,13 +4,14 @@ import { stockMovements } from "../../db/schema/stock-movements";
 import { products } from "../../db/schema/products";
 import { locations } from "../../db/schema/locations";
 import { eq, and, sql } from "drizzle-orm";
-import { ReceiveStockInput, DeliverStockInput, TransferStockInput } from "./types";
+import { ReceiveStockInput, DeliverStockInput, TransferStockInput, AdjustStockInput } from "./types";
 import {
   ProductNotFoundError,
   LocationNotFoundError,
   InsufficientStockError,
   AppError,
 } from "../../lib/errors";
+
 
 
 export class InventoryService {
@@ -335,6 +336,137 @@ export class InventoryService {
       });
     }
   }
+
+  /**
+   * Authoritative Inventory Method: Resolves current system stock balance for a product at a location.
+   */
+  static async getStockBalance(
+    productId: string,
+    locationId: string,
+    txContext?: any
+  ): Promise<number> {
+    const executor = txContext ?? db;
+    const [balance] = await executor
+      .select()
+      .from(stockBalances)
+      .where(
+        and(
+          eq(stockBalances.productId, productId),
+          eq(stockBalances.locationId, locationId)
+        )
+      )
+      .limit(1);
+
+    return balance ? parseFloat(balance.quantity) : 0;
+  }
+
+  /**
+   * Authoritative Inventory Method: Adjusts stock balance to match physical count.
+   * Calculates difference (countedQuantity - currentStock), updates stock balance,
+   * and logs immutable audit record in stock_movements.
+   */
+  static async adjustStock(
+    input: AdjustStockInput,
+    txContext?: any
+  ): Promise<void> {
+    const executor = txContext ?? db;
+
+    if (!input.items || input.items.length === 0) {
+      throw new AppError("No stock items provided for inventory adjustment", 400);
+    }
+
+    for (const item of input.items) {
+      const countedQtyNum = parseFloat(item.countedQuantity.toString());
+      if (isNaN(countedQtyNum) || countedQtyNum < 0) {
+        throw new AppError(`Invalid counted quantity '${item.countedQuantity}' for stock adjustment`, 400);
+      }
+
+      // 1. Verify Product existence
+      const [prod] = await executor
+        .select()
+        .from(products)
+        .where(eq(products.id, item.productId))
+        .limit(1);
+
+      if (!prod) {
+        throw new ProductNotFoundError(item.productId);
+      }
+
+      // 2. Verify Location existence
+      const [loc] = await executor
+        .select()
+        .from(locations)
+        .where(eq(locations.id, item.locationId))
+        .limit(1);
+
+      if (!loc) {
+        throw new LocationNotFoundError(item.locationId);
+      }
+
+      // 3. Fetch current stock balance (with row lock if within transaction)
+      const query = executor
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, item.productId),
+            eq(stockBalances.locationId, item.locationId)
+          )
+        );
+
+      const balanceQuery = txContext ? query.for("update").limit(1) : query.limit(1);
+      const [existingBalance] = await balanceQuery;
+
+      const currentQty = existingBalance ? parseFloat(existingBalance.quantity) : 0;
+      const difference = countedQtyNum - currentQty;
+
+      // 4. Update / Upsert Stock Balance to match physical counted quantity
+      if (existingBalance) {
+        await executor
+          .update(stockBalances)
+          .set({
+            quantity: countedQtyNum.toFixed(4),
+            lastMovedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(stockBalances.id, existingBalance.id));
+      } else {
+        await executor.insert(stockBalances).values({
+          productId: item.productId,
+          locationId: item.locationId,
+          quantity: countedQtyNum.toFixed(4),
+          reservedQuantity: "0.0000",
+          lastMovedAt: new Date(),
+        });
+      }
+
+      // 5. Log Immutable Stock Movement (Ledger Audit Record) if non-zero quantity was adjusted
+      if (Math.abs(difference) > 0) {
+        let srcLocId: string | null = null;
+        let destLocId: string | null = null;
+        let moveQty = Math.abs(difference).toFixed(4);
+
+        if (difference > 0) {
+          destLocId = item.locationId;
+        } else {
+          srcLocId = item.locationId;
+        }
+
+        await executor.insert(stockMovements).values({
+          productId: item.productId,
+          sourceLocationId: srcLocId,
+          destinationLocationId: destLocId,
+          quantity: moveQty,
+          movementType: input.movementType ?? "ADJUSTMENT",
+          referenceType: input.referenceType,
+          referenceId: input.referenceId,
+          createdBy: input.createdBy ?? null,
+        });
+      }
+    }
+  }
+
 }
+
 
 
