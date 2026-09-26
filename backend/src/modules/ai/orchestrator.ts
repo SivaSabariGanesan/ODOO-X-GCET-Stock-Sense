@@ -192,13 +192,16 @@ export class AiOrchestrator {
           ).join("\n");
       }
     }
-    // C. Specific Product Queries
-    else if (msg.includes("product") && (msg.includes("stock") || msg.includes("how much") || msg.includes("where"))) {
+    // C. Specific Product Stock Query (e.g. "How much stock do we have for Cotton T-Shirt?")
+    else if (
+      msg.includes("product") &&
+      (msg.includes("how much") || msg.includes("where is") || msg.includes("stock for") || msg.includes("balance for"))
+    ) {
       sources.add("Products");
       sources.add("StockBalanceService");
-      // Search products first
-      const prodList = await aiTools.list_products.handler({ search: message.replace(/what|how|much|stock|do|we|have|for|product|where|is|stored/gi, "").trim() }, user);
-      toolCalls.push({ tool: "list_products", params: {}, result: prodList });
+      const cleanSearch = message.replace(/\b(what|how|much|stock|do|we|have|for|product|products|where|is|stored|exist|in|stocksense)\b/gi, "").trim();
+      const prodList = await aiTools.list_products.handler({ search: cleanSearch.length > 0 ? cleanSearch : undefined, limit: 10 }, user);
+      toolCalls.push({ tool: "list_products", params: { search: cleanSearch }, result: prodList });
 
       if (prodList.products && prodList.products.length > 0) {
         const firstProd = prodList.products[0];
@@ -219,7 +222,7 @@ export class AiOrchestrator {
         answer = "I couldn't find matching products for your query in StockSense.";
       }
     }
-    // D. List Products
+    // D. List Products (e.g. "What products exist in StockSense?", "List products")
     else if (msg.includes("product")) {
       sources.add("Products");
       const res = await aiTools.list_products.handler({ limit: 20 }, user);
@@ -228,7 +231,7 @@ export class AiOrchestrator {
       if (res.total === 0) {
         answer = "No products currently exist in StockSense.";
       } else {
-        answer = `StockSense contains **${res.total} product(s)**:\n\n` +
+        answer = `StockSense contains **${res.total} product(s)** (${res.products.length} shown):\n\n` +
           res.products.map((p: any) => `- **${p.name}** (SKU: \`${p.sku}\`)`).join("\n");
       }
     }
@@ -307,10 +310,10 @@ export class AiOrchestrator {
       process.env.AI_MODEL,
       "llama-3.3-70b-versatile",
       "llama-3.1-8b-instant",
-      "deepseek-r1-distill-llama-70b",
-      "qwen-2.5-coder-32b",
-      "llama-3.1-70b-versatile",
-      "llama-3.2-11b-vision-preview",
+      "llama3-70b-8192",
+      "llama3-8b-8192",
+      "mixtral-8x7b-32768",
+      "gemma2-9b-it",
     ].filter(Boolean))) as string[];
 
     const endpoint = "https://api.groq.com/openai/v1/chat/completions";
