@@ -4,6 +4,7 @@ import { db } from "../../db/client";
 import { users, User } from "../../db/schema/users";
 import { passwordResetOtps } from "../../db/schema/password-reset-otps";
 import { config } from "../../app/config";
+import { EmailService } from "../../lib/email";
 import {
   RegisterInput,
   LoginInput,
@@ -205,6 +206,9 @@ export class AuthService {
       isUsed: false,
       attemptCount: 0,
     });
+
+    // Send email (via SMTP or dev console transport)
+    await EmailService.sendPasswordResetOTP(normalizedEmail, otp);
 
     // Return debug OTP in non-production environments for automated integration testing
     const isDev = config.env === "development" || config.env === "test";
