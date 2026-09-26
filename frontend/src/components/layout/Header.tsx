@@ -1,0 +1,296 @@
+import { useState, useRef, useEffect } from 'react'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
+import {
+  Menu,
+  Search,
+  Bell,
+  ChevronDown,
+  User as UserIcon,
+  Warehouse,
+  LogOut,
+  Check,
+  Shield,
+} from 'lucide-react'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { Badge } from '@/components/ui/Badge'
+
+interface HeaderProps {
+  onToggleMobileMenu: () => void
+}
+
+export function Header({ onToggleMobileMenu }: HeaderProps) {
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  const [isProfileOpen, setIsProfileOpen] = useState(false)
+  const [isWarehouseOpen, setIsWarehouseOpen] = useState(false)
+  const [activeWarehouse, setActiveWarehouse] = useState('WH01 - Main Central Hub')
+
+  const profileRef = useRef<HTMLDivElement>(null)
+  const warehouseRef = useRef<HTMLDivElement>(null)
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+        setIsProfileOpen(false)
+      }
+      if (warehouseRef.current && !warehouseRef.current.contains(event.target as Node)) {
+        setIsWarehouseOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Close on route change
+  useEffect(() => {
+    setIsProfileOpen(false)
+    setIsWarehouseOpen(false)
+  }, [location.pathname])
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
+  }
+
+  // Generate breadcrumbs from path
+  const getBreadcrumbs = () => {
+    const path = location.pathname.replace(/^\/|\/$/g, '')
+    if (!path || path === 'dashboard') {
+      return [{ label: 'StockSense', href: '/dashboard' }, { label: 'Dashboard' }]
+    }
+
+    const segments = path.split('/')
+    const crumbs = [{ label: 'StockSense', href: '/dashboard' }]
+
+    if (segments[0] === 'operations') {
+      crumbs.push({ label: 'Operations', href: '/operations/receipts' })
+      const opNames: Record<string, string> = {
+        receipts: 'Receipts',
+        deliveries: 'Deliveries',
+        transfers: 'Internal Transfers',
+        adjustments: 'Inventory Adjustments',
+        history: 'Move History',
+      }
+      if (segments[1] && opNames[segments[1]]) {
+        crumbs.push({ label: opNames[segments[1]] })
+      }
+    } else if (segments[0] === 'settings') {
+      crumbs.push({ label: 'Settings', href: '/settings/warehouses' })
+      if (segments[1] === 'warehouses') {
+        crumbs.push({ label: 'Warehouses' })
+      }
+    } else if (segments[0] === 'products') {
+      crumbs.push({ label: 'Products' })
+    } else if (segments[0] === 'profile') {
+      crumbs.push({ label: 'User Profile' })
+    }
+
+    return crumbs
+  }
+
+  const breadcrumbs = getBreadcrumbs()
+
+  const warehouses = [
+    { id: 'WH01', name: 'WH01 - Main Central Hub', location: 'Section A-D' },
+    { id: 'WH02', name: 'WH02 - North Distribution', location: 'Bulk Staging' },
+    { id: 'WH03', name: 'WH03 - Cold Storage Unit', location: 'Zone C' },
+  ]
+
+  return (
+    <header className="page-topbar h-13 px-4 border-b border-gray-200 bg-view flex items-center justify-between gap-4 sticky top-0 z-30 select-none">
+      {/* Left: Mobile hamburger & Breadcrumbs */}
+      <div className="flex items-center gap-3 min-w-0">
+        <button
+          type="button"
+          onClick={onToggleMobileMenu}
+          className="md:hidden p-1.5 rounded text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+          aria-label="Toggle navigation menu"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+
+        {/* Dynamic Breadcrumbs */}
+        <nav className="breadcrumb hidden sm:flex items-center gap-1.5 text-xs text-gray-500 font-sans truncate">
+          {breadcrumbs.map((crumb, idx) => (
+            <div key={idx} className="flex items-center gap-1.5">
+              {idx > 0 && <span className="breadcrumb-sep text-gray-300">/</span>}
+              {crumb.href ? (
+                <Link
+                  to={crumb.href}
+                  className="hover:text-brand transition-colors text-gray-600 font-medium"
+                >
+                  {crumb.label}
+                </Link>
+              ) : (
+                <span className="font-semibold text-gray-900">{crumb.label}</span>
+              )}
+            </div>
+          ))}
+        </nav>
+      </div>
+
+      {/* Middle: Quick Search */}
+      <div className="hidden lg:flex items-center flex-1 max-w-md mx-4">
+        <div className="relative w-full">
+          <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+          <input
+            type="text"
+            placeholder="Search SKUs, receipts, transfers... (Ctrl+K)"
+            className="w-full pl-8 pr-12 py-1 text-xs bg-gray-100/80 border border-gray-300 rounded focus:bg-view focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand placeholder:text-gray-400 transition-all"
+          />
+          <kbd className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1 py-0.2 bg-gray-200 text-gray-600 rounded border border-gray-300 pointer-events-none">
+            Ctrl K
+          </kbd>
+        </div>
+      </div>
+
+      {/* Right Actions: Warehouse switcher, Notifications, Profile */}
+      <div className="flex items-center gap-2.5 shrink-0">
+        {/* Warehouse Selector Dropdown */}
+        <div className="relative" ref={warehouseRef}>
+          <button
+            type="button"
+            onClick={() => setIsWarehouseOpen(!isWarehouseOpen)}
+            className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 text-xs bg-gray-100 hover:bg-gray-200/80 border border-gray-300 rounded text-gray-700 transition-colors cursor-pointer"
+          >
+            <Warehouse className="w-3.5 h-3.5 text-brand" />
+            <span className="font-medium max-w-[130px] truncate">{activeWarehouse}</span>
+            <ChevronDown className="w-3 h-3 text-gray-400" />
+          </button>
+
+          {isWarehouseOpen && (
+            <div className="dropdown-menu absolute right-0 mt-1.5 w-64 bg-view border border-gray-200 rounded shadow-lg py-1 z-50 text-xs">
+              <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                Active Warehouse Facility
+              </div>
+              {warehouses.map((wh) => (
+                <button
+                  key={wh.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveWarehouse(wh.name)
+                    setIsWarehouseOpen(false)
+                  }}
+                  className="w-full text-left px-3 py-2 hover:bg-gray-100 flex items-center justify-between transition-colors cursor-pointer"
+                >
+                  <div>
+                    <div className="font-medium text-gray-800">{wh.name}</div>
+                    <div className="text-[11px] text-gray-500">{wh.location}</div>
+                  </div>
+                  {activeWarehouse === wh.name && (
+                    <Check className="w-3.5 h-3.5 text-brand shrink-0" />
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Notifications Button */}
+        <button
+          type="button"
+          aria-label="View notifications"
+          className="relative p-1.5 rounded text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+        >
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-brand rounded-full ring-2 ring-view" />
+        </button>
+
+        <div className="h-4 w-px bg-gray-300 mx-0.5" />
+
+        {/* User Profile Menu */}
+        <div className="relative" ref={profileRef}>
+          <button
+            type="button"
+            onClick={() => setIsProfileOpen(!isProfileOpen)}
+            className="flex items-center gap-2 p-1 rounded hover:bg-gray-100 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand"
+            aria-expanded={isProfileOpen}
+            aria-haspopup="true"
+          >
+            {/* Avatar with Initials */}
+            <div className="w-7 h-7 rounded bg-brand/10 border border-brand/20 text-brand font-semibold text-xs flex items-center justify-center font-heading">
+              {user?.name
+                ? user.name
+                    .split(' ')
+                    .map((n) => n[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()
+                : 'AM'}
+            </div>
+
+            {/* Name & Role (Hidden on mobile) */}
+            <div className="hidden md:flex flex-col text-left leading-tight">
+              <span className="text-xs font-semibold text-gray-800 truncate max-w-[120px]">
+                {user?.name || 'Alex Mercer'}
+              </span>
+              <span className="text-[10px] text-gray-500 font-sans">
+                {user?.role === 'admin' ? 'Administrator' : 'Inventory Mgr'}
+              </span>
+            </div>
+
+            <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+          </button>
+
+          {/* Profile Dropdown Menu */}
+          {isProfileOpen && (
+            <div className="dropdown-menu absolute right-0 mt-1.5 w-60 bg-view border border-gray-200 rounded shadow-lg py-1 z-50 text-xs">
+              {/* User Info Header */}
+              <div className="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50/70">
+                <div className="font-semibold text-gray-900 text-sm">
+                  {user?.name || 'Alex Mercer'}
+                </div>
+                <div className="text-[11px] text-gray-500 font-mono truncate">
+                  {user?.email || 'alex.mercer@stocksense.io'}
+                </div>
+                <div className="mt-1.5 flex items-center gap-1.5">
+                  <Badge variant="brand" className="text-[10px]">
+                    <Shield className="w-2.5 h-2.5 mr-0.5" />
+                    Manager
+                  </Badge>
+                  <span className="text-[10px] text-gray-500">WH01 Node</span>
+                </div>
+              </div>
+
+              {/* Links */}
+              <div className="py-1">
+                <Link
+                  to="/profile"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <UserIcon className="w-3.5 h-3.5 text-gray-500" />
+                  <span>Account & Profile</span>
+                </Link>
+
+                <Link
+                  to="/settings/warehouses"
+                  className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <Warehouse className="w-3.5 h-3.5 text-gray-500" />
+                  <span>Warehouse Configuration</span>
+                </Link>
+              </div>
+
+              <div className="dropdown-divider" />
+
+              {/* Logout Action */}
+              <div className="py-1">
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-2.5 px-3.5 py-2 text-danger-text hover:bg-danger-bg/50 transition-colors text-left cursor-pointer"
+                >
+                  <LogOut className="w-3.5 h-3.5 text-danger-DEFAULT" />
+                  <span className="font-medium">Sign Out</span>
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </header>
+  )
+}
