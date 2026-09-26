@@ -51,10 +51,10 @@ export function StockBalancesListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Stock Balances & Inventory
+            Stock Balances
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Authoritative physical inventory ledger: multi-location on-hand balances, reserved allocations, and net available stock.
+            Current on-hand, reserved, and available stock quantities by location.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export function StockBalancesListPage() {
             onClick={refetch}
             disabled={isLoading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-medium transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
-            title="Refresh inventory balances"
+            title="Refresh stock balances"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand' : 'text-slate-400'}`} />
             <span>Refresh</span>
@@ -102,21 +102,21 @@ export function StockBalancesListPage() {
               Total On-Hand
             </span>
             <span className="text-[10px] font-medium px-1.5 py-0.2 rounded text-brand-dark bg-[#ede9fe] border border-brand/20">
-              Ledger
+              In Stock
             </span>
           </div>
           <div className="text-2xl font-bold font-mono tracking-tight text-slate-900 mt-2">
             {metrics.totalOnHand.toLocaleString()}{' '}
             <span className="text-xs font-sans font-normal text-slate-400">units</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Aggregate physical stock in locations</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Physical stock across locations</p>
         </div>
 
         {/* Metric 2: Reserved Buffer */}
         <div className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Allocated Reserved
+              Reserved
             </span>
             <span className="text-[10px] font-medium px-1.5 py-0.2 rounded text-amber-700 bg-amber-50 border border-amber-200">
               Orders
@@ -126,14 +126,14 @@ export function StockBalancesListPage() {
             {metrics.totalReserved.toLocaleString()}{' '}
             <span className="text-xs font-sans font-normal text-slate-400">units</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Committed to pending pick & dispatches</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Reserved for pending deliveries</p>
         </div>
 
         {/* Metric 3: Net Available */}
         <div className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Net Available
+              Available
             </span>
             <span className="text-[10px] font-medium px-1.5 py-0.2 rounded text-emerald-700 bg-emerald-50 border border-emerald-200">
               Uncommitted
@@ -143,14 +143,14 @@ export function StockBalancesListPage() {
             {metrics.totalAvailable.toLocaleString()}{' '}
             <span className="text-xs font-sans font-normal text-slate-400">units</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Free stock ready for immediate delivery</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Available for new orders</p>
         </div>
 
         {/* Metric 4: Active Locations */}
         <div className="p-4">
           <div className="flex items-center justify-between">
             <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-              Storage Bins
+              Locations
             </span>
             <span className="text-[10px] font-medium px-1.5 py-0.2 rounded text-slate-600 bg-slate-100">
               Active
@@ -160,11 +160,11 @@ export function StockBalancesListPage() {
             {metrics.trackedLocationsCount}{' '}
             <span className="text-xs font-sans font-normal text-slate-400">locations</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-0.5">Bins holding positive stock</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Locations holding positive stock</p>
         </div>
       </div>
 
-      {/* ── Filter Toolbar ───────────────────────────────────────────── */}
+      {/* ── Filter Toolbar ───────────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg p-3 sm:px-4 sm:py-3 shadow-2xs space-y-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           {/* Controls Group */}
@@ -228,7 +228,7 @@ export function StockBalancesListPage() {
                 )}
                 aria-label="Filter by Location"
               >
-                <option value="all">All Storage Bins</option>
+                <option value="all">All Locations</option>
                 {locationOptions.map((loc) => (
                   <option key={loc.id} value={loc.id}>
                     {loc.fullPath || loc.name}
@@ -309,15 +309,15 @@ export function StockBalancesListPage() {
             <table className="w-full text-left border-collapse text-xs">
               <thead>
                 <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider select-none">
-                  <th className="px-4 py-3 sm:px-5">Product SKU & Name</th>
-                  <th className="px-3 py-3">Warehouse Node</th>
-                  <th className="px-3 py-3">Storage Bin Location</th>
-                  <th className="px-3 py-3 text-right">On-Hand Stock</th>
+                  <th className="px-4 py-3 sm:px-5">Product</th>
+                  <th className="px-3 py-3">Warehouse</th>
+                  <th className="px-3 py-3">Location</th>
+                  <th className="px-3 py-3 text-right">On Hand</th>
                   <th className="px-3 py-3 text-right">Reserved</th>
-                  <th className="px-3 py-3 text-right">Available Stock</th>
-                  <th className="px-3 py-3 text-center">UOM</th>
+                  <th className="px-3 py-3 text-right">Available</th>
+                  <th className="px-3 py-3 text-center">UoM</th>
                   <th className="px-3 py-3">Last Movement</th>
-                  <th className="px-4 py-3 sm:pr-5 text-right">Operations</th>
+                  <th className="px-4 py-3 sm:pr-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -340,7 +340,7 @@ export function StockBalancesListPage() {
                           </Link>
                           {isOutOfStock && (
                             <Badge variant="danger" dot className="text-[10px]">
-                              EMPTY
+                              Out of Stock
                             </Badge>
                           )}
                         </div>
@@ -364,7 +364,7 @@ export function StockBalancesListPage() {
                       <td className="px-3 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-1.5 font-mono text-[11px] text-slate-800">
                           <MapPin className="w-3 h-3 text-brand shrink-0" />
-                          <span>{b.locationFullPath || b.locationName || 'Bin Location'}</span>
+                          <span>{b.locationFullPath || b.locationName || 'Location'}</span>
                         </div>
                       </td>
 

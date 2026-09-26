@@ -46,13 +46,13 @@ export function ProductsListPage() {
   const getStatusBadge = (status: StockStatus) => {
     switch (status) {
       case 'in_stock':
-        return <Badge variant="success" dot>IN STOCK</Badge>
+        return <Badge variant="success" dot>In Stock</Badge>
       case 'low_stock':
-        return <Badge variant="warning" dot>LOW STOCK</Badge>
+        return <Badge variant="warning" dot>Low Stock</Badge>
       case 'out_of_stock':
-        return <Badge variant="danger" dot>OUT OF STOCK</Badge>
+        return <Badge variant="danger" dot>Out of Stock</Badge>
       case 'inactive':
-        return <Badge variant="neutral" dot>INACTIVE</Badge>
+        return <Badge variant="neutral" dot>Inactive</Badge>
     }
   }
 
@@ -180,7 +180,7 @@ export function ProductsListPage() {
             Products
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Master catalog: SKU definitions, category classifications, and multi-location on-hand balances.
+            Manage products, SKUs, categories, and stock information.
           </p>
         </div>
 

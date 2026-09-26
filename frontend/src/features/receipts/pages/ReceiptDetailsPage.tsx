@@ -352,7 +352,7 @@ export function ReceiptDetailsPage() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-brand" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Receipt Product Lines ({receipt.items.length})
+              Product Lines ({receipt.items.length})
             </h2>
           </div>
           <span className="text-xs font-mono font-medium text-slate-500">
@@ -366,7 +366,7 @@ export function ReceiptDetailsPage() {
               <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
                 <th className="px-4 py-2.5 sm:px-5">Product SKU</th>
                 <th className="px-3 py-2.5">Product Name</th>
-                <th className="px-3 py-2.5">Destination Bay</th>
+                <th className="px-3 py-2.5">Destination</th>
                 <th className="px-3 py-2.5 text-right">Expected Qty</th>
                 <th className="px-4 py-2.5 text-right sm:pr-5">Status</th>
               </tr>
@@ -375,7 +375,7 @@ export function ReceiptDetailsPage() {
               {receipt.items.length === 0 ? (
                 <tr>
                   <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
-                    No product lines yet.
+                    No product lines.
                   </td>
                 </tr>
               ) : (
@@ -426,7 +426,7 @@ export function ReceiptDetailsPage() {
 
         {receipt.notes && (
           <div className="p-4 bg-slate-50/60 border-t border-slate-100 text-xs text-slate-600">
-            <span className="font-semibold text-slate-800">Receiving Instructions: </span>
+            <span className="font-semibold text-slate-800">Notes: </span>
             {receipt.notes}
           </div>
         )}
@@ -438,7 +438,7 @@ export function ReceiptDetailsPage() {
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-slate-500" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Receipt Audit Info
+              Audit Information
             </h2>
           </div>
         </div>

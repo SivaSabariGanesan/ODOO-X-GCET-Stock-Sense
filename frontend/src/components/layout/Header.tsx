@@ -54,7 +54,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         const mapped = res.data.map((w) => ({
           id: w.id,
           name: `${w.shortCode} — ${w.name}`,
-          location: w.address || 'Standard Hub Node',
+          location: w.address || '',
         }))
         if (mapped.length > 0) {
           setWarehousesList(mapped)
@@ -124,7 +124,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
   const handleLogout = () => {
     logout()
-    toast.info('Session Terminated', 'You have been signed out of the terminal.')
+    toast.info('Signed Out', 'You have been signed out.')
     navigate('/login')
   }
 
@@ -136,7 +136,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
       // ignore
     }
     setIsWarehouseOpen(false)
-    toast.success('Active Warehouse Changed', `Switched routing context to ${whName}`)
+    toast.success('Warehouse Selected', whName)
   }
 
   // Generate breadcrumbs from path
@@ -192,7 +192,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           href: hasSub ? '/settings/warehouses' : undefined,
         })
         if (segments[2]) {
-          crumbs.push({ label: `${segments[2]} Facility Details` })
+          crumbs.push({ label: 'Warehouse Details' })
         }
       }
     } else if (segments[0] === 'products') {
@@ -324,9 +324,8 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
             {isWarehouseOpen && (
               <div className="dropdown-menu absolute right-0 mt-1.5 w-80 max-w-[calc(100vw-1.5rem)] bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
-                <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 flex items-center justify-between">
-                  <span>Warehouse Facility</span>
-                  <span className="text-[10px] text-brand">{availableWarehouses.length} Online</span>
+                <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200">
+                  <span>Warehouses</span>
                 </div>
                 {availableWarehouses.map((wh) => (
                   <button
@@ -337,9 +336,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                   >
                     <div>
                       <div className="font-medium text-gray-800">{wh.name}</div>
-                      <div className="text-[11px] text-gray-500 flex items-center gap-2">
-                        <span className="truncate max-w-[200px]">{wh.location}</span>
-                      </div>
+                      {wh.location && (
+                        <div className="text-[11px] text-gray-500 flex items-center gap-2">
+                          <span className="truncate max-w-[200px]">{wh.location}</span>
+                        </div>
+                      )}
                     </div>
                     {activeWarehouse === wh.name && (
                       <Check className="w-4 h-4 text-brand shrink-0" />
@@ -402,10 +403,10 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
               {/* Name & Role (Hidden on mobile) */}
               <div className="hidden md:flex flex-col text-left leading-tight">
                 <span className="text-xs font-semibold text-gray-800 truncate max-w-[120px]">
-                  {user?.name || 'Alex Mercer'}
+                  {user?.name || 'User'}
                 </span>
                 <span className="text-[10px] text-gray-500 font-sans">
-                  {user?.role === 'admin' ? 'Administrator' : 'Inventory Mgr'}
+                  {user?.role === 'admin' ? 'Administrator' : 'Inventory Manager'}
                 </span>
               </div>
 
@@ -418,20 +419,16 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 {/* User Info Header */}
                 <div className="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50/70">
                   <div className="font-semibold text-gray-900 text-sm">
-                    {user?.name || 'Alex Mercer'}
+                    {user?.name || 'User'}
                   </div>
                   <div className="text-[11px] text-gray-500 font-mono truncate">
-                    {user?.email || 'alex.mercer@stocksense.io'}
+                    {user?.email || ''}
                   </div>
                   <div className="mt-1.5 flex items-center gap-1.5">
                     <Badge variant="brand" className="text-[10px]">
                       <Shield className="w-2.5 h-2.5 mr-0.5" />
-                      Manager
+                      {user?.role === 'admin' ? 'Admin' : 'Manager'}
                     </Badge>
-                    <span className="text-[10px] text-success-text font-mono flex items-center gap-1">
-                      <CheckCircle2 className="w-2.5 h-2.5" />
-                      Online
-                    </span>
                   </div>
                 </div>
 
@@ -442,7 +439,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                     className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     <UserIcon className="w-3.5 h-3.5 text-gray-500" />
-                    <span>Account Profile & Security</span>
+                    <span>Profile</span>
                   </Link>
 
                   <Link
@@ -450,7 +447,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                     className="flex items-center gap-2.5 px-3.5 py-2 text-gray-700 hover:bg-gray-100 transition-colors"
                   >
                     <Warehouse className="w-3.5 h-3.5 text-gray-500" />
-                    <span>Warehouse Configuration</span>
+                    <span>Warehouses</span>
                   </Link>
                 </div>
 

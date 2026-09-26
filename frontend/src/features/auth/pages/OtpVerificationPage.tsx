@@ -188,8 +188,8 @@ export function OtpVerificationPage() {
 
   return (
     <AuthLayout
-      title="Verify Six-Digit OTP"
-      subtitle="Enter the one-time authentication code dispatched to your email address"
+      title="Verify code"
+      subtitle="Enter the 6-digit code sent to your email address"
     >
       <div className="space-y-4">
         {/* Recipient Details Card */}
@@ -220,7 +220,7 @@ export function OtpVerificationPage() {
         {resendSuccess && (
           <div className="p-3 rounded bg-success-bg border border-success-DEFAULT/20 text-xs text-success-text flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 shrink-0 text-success-DEFAULT" />
-            <span>A new six-digit verification code has been dispatched.</span>
+            <span>A new verification code has been sent.</span>
           </div>
         )}
 
@@ -228,11 +228,8 @@ export function OtpVerificationPage() {
         <div>
           <div className="flex items-center justify-between mb-2">
             <label className="text-xs font-semibold text-gray-700">
-              One-Time Passcode (6 Digits)
+              Verification Code (6 Digits)
             </label>
-            <span className="text-[11px] text-gray-400 font-mono">
-              Auto-advancing
-            </span>
           </div>
           <div className="flex items-center justify-between gap-1 sm:gap-2 w-full" onPaste={handlePaste}>
             {otpDigits.map((digit, index) => (

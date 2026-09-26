@@ -99,10 +99,10 @@ export function DashboardPage() {
         {/* Title & Purpose */}
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Inventory Operations Dashboard
+            Dashboard
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Real-time operational view: stock velocity, intake/dispatch backlogs, and replenishment alerts.
+            Overview of stock levels, pending operations, and inventory movements.
           </p>
         </div>
 
@@ -114,7 +114,7 @@ export function DashboardPage() {
             onClick={handleRefresh}
             disabled={isLoading}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-medium transition-colors cursor-pointer shadow-2xs disabled:opacity-50"
-            title="Refresh inventory telemetry"
+            title="Refresh data"
           >
             <RotateCcw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin text-brand' : 'text-slate-400'}`} />
             <span className="hidden sm:inline">Refresh</span>
@@ -140,7 +140,7 @@ export function DashboardPage() {
                 />
                 <div className="absolute right-0 mt-1.5 w-48 bg-white border border-slate-200 rounded-md shadow-lg z-50 py-1 text-xs animate-[fadeIn_100ms_ease-out]">
                   <div className="px-3 py-1.5 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider">
-                    Create Document
+                    New Operation
                   </div>
                   <Link
                     to="/operations/receipts"
@@ -148,7 +148,7 @@ export function DashboardPage() {
                     className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-[#ede9fe]/50 hover:text-brand-dark transition-colors"
                   >
                     <ArrowDownToLine className="w-3.5 h-3.5 text-brand" />
-                    <span>Inbound Receipt (PO)</span>
+                    <span>Receipt</span>
                   </Link>
                   <Link
                     to="/operations/deliveries"
@@ -156,7 +156,7 @@ export function DashboardPage() {
                     className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:bg-[#ede9fe]/50 hover:text-brand-dark transition-colors"
                   >
                     <ArrowUpFromLine className="w-3.5 h-3.5 text-sky-600" />
-                    <span>Delivery Order (SO)</span>
+                    <span>Delivery Order</span>
                   </Link>
                   <Link
                     to="/operations/transfers"

@@ -253,20 +253,17 @@ export function UomsListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
         <div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-0.5">
-            <span>Settings</span>
+            <span>Configuration</span>
             <span>/</span>
             <span className="text-slate-800 font-medium">Units of Measure</span>
           </div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
-              Units of Measure (UOM)
+              Units of Measure
             </h1>
-            <Badge variant="neutral" size="sm">
-              Live API
-            </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Manage standard quantity measurement units, mass, volume, and packaging dimensions across products.
+            Manage units of measure for inventory products.
           </p>
         </div>
 
@@ -291,31 +288,31 @@ export function UomsListPage() {
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
             {totalCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured measurement units</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured units</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Active Status</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Active</span>
           <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 block">
-            {activeCount} Active
+            {activeCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Available for stock balances</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">In active use</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Inactive / Archived</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Inactive</span>
           <span className="text-lg font-bold font-mono text-slate-500 mt-0.5 block">
-            {inactiveCount} Inactive
+            {inactiveCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Preserved for historical ledger</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Archived</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Measure Types</span>
           <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block">
-            {distinctTypes} Dimensions
+            {distinctTypes}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Count, weight, volume, length</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Unit, weight, volume, length</span>
         </div>
       </div>
 

@@ -54,19 +54,19 @@ export function SignupPage() {
   if (isSuccess) {
     return (
       <AuthLayout
-        title="Account Provisioned"
-        subtitle="Your operator credentials have been configured"
+        title="Account Created"
+        subtitle="Your account has been created successfully"
       >
         <div className="py-6 text-center space-y-4 animate-[fadeIn_200ms_ease-out]">
-          <div className="w-12 h-12 rounded-full bg-success-bg border border-success-DEFAULT/30 flex items-center justify-center mx-auto text-success-DEFAULT shadow-sm">
+          <div className="w-12 h-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto text-emerald-600 shadow-sm">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
             <h2 className="text-base font-heading font-semibold text-gray-900">
-              Welcome to StockSense Terminal
+              Welcome to StockSense
             </h2>
             <p className="text-xs text-gray-600 mt-1 max-w-xs mx-auto">
-              Operator profile assigned to <strong>WH01 (Main Central Hub)</strong>. Redirecting you to the live dashboard...
+              Your account is ready. Redirecting you to the dashboard...
             </p>
           </div>
           <div className="pt-2">
@@ -75,7 +75,7 @@ export function SignupPage() {
               className="w-full"
               onClick={() => navigate('/dashboard')}
             >
-              Enter Dashboard Now
+              Go to Dashboard
             </Button>
           </div>
         </div>
@@ -85,8 +85,8 @@ export function SignupPage() {
 
   return (
     <AuthLayout
-      title="Register Operator"
-      subtitle="Create a verified account for warehouse and stock management access"
+      title="Create an account"
+      subtitle="Sign up to access StockSense"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3" noValidate>
         {formError && (
@@ -99,7 +99,7 @@ export function SignupPage() {
         <Input
           label="Full Name"
           type="text"
-          placeholder="e.g. Marcus Vance"
+          placeholder="e.g. Alex Mercer"
           required
           leftIcon={<UserIcon className="w-4 h-4" />}
           error={errors.name?.message}
@@ -107,10 +107,10 @@ export function SignupPage() {
         />
 
         <Input
-          label="Work Email Address"
+          label="Work Email"
           type="email"
           autoComplete="email"
-          placeholder="m.vance@company.com"
+          placeholder="name@company.com"
           required
           leftIcon={<Mail className="w-4 h-4" />}
           error={errors.email?.message}
@@ -150,13 +150,13 @@ export function SignupPage() {
               {...register('termsAccepted')}
             />
             <span>
-              I agree to the StockSense{' '}
+              I agree to the{' '}
               <a href="#terms" className="text-brand hover:underline font-medium">
-                Operational Terms
+                Terms of Service
               </a>{' '}
               and{' '}
               <a href="#privacy" className="text-brand hover:underline font-medium">
-                Security Policy
+                Privacy Policy
               </a>
             </span>
           </label>
@@ -175,12 +175,12 @@ export function SignupPage() {
             isLoading={isSubmitting}
             rightIcon={<UserPlus className="w-4 h-4" />}
           >
-            Create Operator Account
+            Create Account
           </Button>
         </div>
 
         <div className="pt-3 border-t border-gray-200 text-center text-xs text-gray-600">
-          <span>Already registered? </span>
+          <span>Already have an account? </span>
           <Link
             to="/login"
             className="text-brand hover:text-brand-dark font-semibold hover:underline"

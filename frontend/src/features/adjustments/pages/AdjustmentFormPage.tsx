@@ -206,10 +206,10 @@ export function AdjustmentFormPage() {
           </Link>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading">
-              Record Physical Inventory Adjustment
+              New Inventory Adjustment
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Input physical cycle count results to reconcile warehouse stock differences.
+              Reconcile physical stock with system quantities.
             </p>
           </div>
         </div>
@@ -225,14 +225,14 @@ export function AdjustmentFormPage() {
         <div className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-1.5">
             <Package className="w-3.5 h-3.5 text-brand" />
-            <span>1. Target Product & Audit Location</span>
+            <span>Product & Location</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Product Selection */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 select-none">
-                Audited Product <span className="text-brand ml-0.5">*</span>
+                Product <span className="text-brand ml-0.5">*</span>
               </label>
               <select
                 value={selectedProductId}
@@ -250,7 +250,7 @@ export function AdjustmentFormPage() {
             {/* Location Selection */}
             <div>
               <label className="block text-xs font-semibold text-slate-700 select-none">
-                Warehouse Location <span className="text-brand ml-0.5">*</span>
+                Location <span className="text-brand ml-0.5">*</span>
               </label>
               <select
                 value={selectedLocationId}
@@ -267,18 +267,18 @@ export function AdjustmentFormPage() {
           </div>
         </div>
 
-        {/* Section 2: Counted Quantities & Live Variance Calculation */}
+        {/* Section 2: Counted Quantities */}
         <div className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-1.5">
             <MapPin className="w-3.5 h-3.5 text-brand" />
-            <span>2. Quantities & Discrepancy Reconciliation</span>
+            <span>Quantities</span>
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {/* Theoretical System Qty (Read-Only) */}
             <div>
               <label className="block text-xs font-semibold text-slate-600 select-none">
-                System Theoretical Quantity ({activeProduct.unit})
+                System Quantity ({activeProduct.unit})
               </label>
               <Input
                 type="number"
@@ -287,14 +287,14 @@ export function AdjustmentFormPage() {
                 className="mt-1.5 font-mono bg-slate-50/80 text-slate-700 cursor-not-allowed"
               />
               <span className="text-[10.5px] text-slate-400 mt-1 block">
-                Theoretical ledger balance resolved by Inventory Engine
+                Current stock recorded in system
               </span>
             </div>
 
             {/* Physical Counted Qty */}
             <div>
               <label className="block text-xs font-semibold text-slate-800 select-none">
-                Physical Counted Quantity ({activeProduct.unit}) <span className="text-brand ml-0.5">*</span>
+                Counted Quantity ({activeProduct.unit}) <span className="text-brand ml-0.5">*</span>
               </label>
               <Input
                 type="number"
@@ -306,7 +306,7 @@ export function AdjustmentFormPage() {
                 required
               />
               <span className="text-[10.5px] text-slate-400 mt-1 block">
-                Audited stock physically counted on shelves (must be ≥ 0)
+                Physical count (must be ≥ 0)
               </span>
             </div>
           </div>
@@ -326,13 +326,13 @@ export function AdjustmentFormPage() {
                 {isPositive && <TrendingUp className="w-4 h-4 text-emerald-600" />}
                 {isZero && <Minus className="w-4 h-4 text-slate-400" />}
                 <span>
-                  {isNegative && 'Stock Deficit (Loss / Shrinkage)'}
-                  {isPositive && 'Stock Surplus (Unrecorded Stock Found)'}
-                  {isZero && 'Exact Physical Match (No Variance)'}
+                  {isNegative && 'Deficit'}
+                  {isPositive && 'Surplus'}
+                  {isZero && 'Matched'}
                 </span>
               </div>
               <div className="text-[11px] opacity-75 mt-0.5">
-                Calculated adjustment delta: counted ({countedQuantity}) − system ({systemQuantity})
+                Difference: {countedQuantity} − {systemQuantity}
               </div>
             </div>
 
@@ -346,13 +346,13 @@ export function AdjustmentFormPage() {
         {/* Section 3: Reason & Notes */}
         <div className="space-y-4">
           <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-            3. Audit Classification & Documentation
+            Reason & Notes
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-700 select-none">
-                Adjustment Reason <span className="text-brand ml-0.5">*</span>
+                Reason <span className="text-brand ml-0.5">*</span>
               </label>
               <select
                 value={reason}
@@ -369,12 +369,12 @@ export function AdjustmentFormPage() {
 
             <div>
               <label className="block text-xs font-semibold text-slate-700 select-none">
-                Audit Notes / Investigation
+                Notes
               </label>
               <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="e.g. Broken box found in aisle 3"
+                placeholder="Additional notes or remarks..."
                 className="mt-1.5 text-xs"
               />
             </div>

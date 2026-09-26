@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -19,7 +20,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { useDelivery } from '../hooks/useDelivery'
-import { ApiDeliveryStatus } from '../api'
+import { deliveriesApi, ApiDeliveryStatus } from '../api'
 import { cn } from '@/lib/cn'
 
 export function DeliveryDetailsPage() {
@@ -39,16 +40,40 @@ export function DeliveryDetailsPage() {
     refetch,
   } = useDelivery(id)
 
+  const [isPrinting, setIsPrinting] = useState(false)
+
   const copyText = (txt: string, label: string) => {
     navigator.clipboard.writeText(txt)
     toast.info('Copied', `${label} (${txt}) copied to clipboard.`)
   }
 
-  const handlePrintSlip = () => {
-    toast.info(
-      'Printing Slip',
-      `Delivery Note & Packing List for ${delivery?.deliveryNumber} sent to printer.`
-    )
+  const handlePrintSlip = async () => {
+    if (!delivery || isPrinting) return
+    setIsPrinting(true)
+    let objectUrl: string | null = null
+    try {
+      const blob = await deliveriesApi.generatePdf(delivery.id)
+      objectUrl = URL.createObjectURL(blob)
+      const tab = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+      if (!tab) {
+        // Pop-up blocked — fall back to a programmatic download
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = `Delivery-Note-${delivery.deliveryNumber}.pdf`
+        a.click()
+        toast.info('PDF Downloaded', `Delivery Note for ${delivery.deliveryNumber} has been downloaded.`)
+      }
+      // Revoke the object URL after a short delay so the tab can finish loading
+      setTimeout(() => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+      }, 60_000)
+    } catch (err: unknown) {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      const msg = err instanceof Error ? err.message : 'Failed to generate PDF.'
+      toast.error('PDF Generation Failed', msg)
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   const handlePick = async () => {
@@ -230,8 +255,14 @@ export function DeliveryDetailsPage() {
                 dot
               >
                 {delivery.status === 'WAITING'
-                  ? 'WAITING AVAILABILITY'
-                  : delivery.status}
+                  ? 'Waiting Stock'
+                  : delivery.status === 'DONE'
+                  ? 'Done'
+                  : delivery.status === 'READY'
+                  ? 'Ready'
+                  : delivery.status === 'CANCELED'
+                  ? 'Cancelled'
+                  : 'Draft'}
               </Badge>
             </div>
 
@@ -260,8 +291,15 @@ export function DeliveryDetailsPage() {
             size="sm"
             leftIcon={<Printer className="w-3.5 h-3.5" />}
             onClick={handlePrintSlip}
+            disabled={delivery.status !== 'DONE' || isPrinting}
+            isLoading={isPrinting}
+            title={
+              delivery.status !== 'DONE'
+                ? 'Delivery Note PDF is only available once the delivery is DONE'
+                : 'Open Delivery Note PDF in a new tab'
+            }
           >
-            Print Slip
+            {isPrinting ? 'Generating…' : 'Print Slip'}
           </Button>
 
           {delivery.status === 'DRAFT' && (
@@ -394,12 +432,12 @@ export function DeliveryDetailsPage() {
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900">
-                  Step 1: Warehouse Picking
+                  1. Picking
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {delivery.status === 'DRAFT'
-                    ? 'Awaiting pick execution'
-                    : 'Items picked from racks'}
+                    ? 'Pending item pick'
+                    : 'Items picked from locations'}
                 </div>
               </div>
             </div>
@@ -419,12 +457,12 @@ export function DeliveryDetailsPage() {
               </div>
               <div>
                 <div className="text-xs font-bold text-slate-900">
-                  Step 2: Carton Packing
+                  2. Packing
                 </div>
                 <div className="text-[11px] text-slate-500">
                   {delivery.status === 'READY' || delivery.status === 'DONE'
-                    ? 'Packed & labeled for shipment'
-                    : 'Cartons pending seal'}
+                    ? 'Packed and ready for delivery'
+                    : 'Pending pack'}
                 </div>
               </div>
             </div>
@@ -438,7 +476,7 @@ export function DeliveryDetailsPage() {
                 onClick={handlePick}
                 disabled={isActioning}
               >
-                {isActioning ? 'Updating…' : 'Complete Picking'}
+                {isActioning ? 'Updating…' : 'Mark as Picked'}
               </Button>
             )}
             {delivery.status === 'WAITING' && (
@@ -448,7 +486,7 @@ export function DeliveryDetailsPage() {
                 onClick={handlePack}
                 disabled={isActioning}
               >
-                {isActioning ? 'Updating…' : 'Seal Cartons (Pack)'}
+                {isActioning ? 'Updating…' : 'Mark as Packed'}
               </Button>
             )}
           </div>
@@ -464,7 +502,7 @@ export function DeliveryDetailsPage() {
               <div className="flex items-center gap-2">
                 <Box className="w-4 h-4 text-brand" />
                 <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                  Outbound Product Lines ({items.length})
+                  Products ({items.length})
                 </h2>
               </div>
               <span className="font-mono text-xs text-slate-500">
@@ -548,7 +586,7 @@ export function DeliveryDetailsPage() {
         <div className="space-y-5">
           <div className="bg-white border border-slate-200/80 rounded-lg p-4 shadow-2xs space-y-4">
             <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
-              Shipment Logistics
+              Logistics & Details
             </h3>
 
             <div className="space-y-3 text-xs">
@@ -565,7 +603,7 @@ export function DeliveryDetailsPage() {
               </div>
 
               <div>
-                <span className="text-slate-400 block text-[11px]">Staging Source</span>
+                <span className="text-slate-400 block text-[11px]">Source Location</span>
                 <span className="font-mono text-slate-700">
                   {delivery.defaultSourceLocation?.fullPath ||
                     delivery.defaultSourceLocation?.name ||
@@ -601,7 +639,7 @@ export function DeliveryDetailsPage() {
             {delivery.notes && (
               <div className="pt-2 border-t border-slate-100">
                 <span className="text-slate-400 block text-[11px] mb-1">
-                  Dispatch Instructions
+                  Notes
                 </span>
                 <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic">
                   "{delivery.notes}"

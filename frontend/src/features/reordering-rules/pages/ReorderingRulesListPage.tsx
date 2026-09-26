@@ -286,20 +286,17 @@ export function ReorderingRulesListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-slate-200/80">
         <div>
           <div className="flex items-center gap-1.5 text-xs text-slate-500 mb-0.5">
-            <span>Operations</span>
+            <span>Configuration</span>
             <span>/</span>
             <span className="text-slate-800 font-medium">Reordering Rules</span>
           </div>
           <div className="flex items-center gap-2.5">
             <h1 className="text-lg sm:text-xl font-bold text-slate-900 font-heading">
-              Reordering Rules & Stock Thresholds
+              Reordering Rules
             </h1>
-            <Badge variant="neutral" size="sm">
-              MRP Engine
-            </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Configure automated replenishment triggers with minimum safety margins, target maximums, and replenishment batch quantities.
+            Define minimum and maximum stock rules to trigger replenishment.
           </p>
         </div>
 
@@ -324,31 +321,31 @@ export function ReorderingRulesListPage() {
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
             {totalCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured reorder limits</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured reorder rules</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Active Automation</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Active</span>
           <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 block">
-            {activeCount} Active
+            {activeCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Monitoring replenishment</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Rules active</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Paused Rules</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Inactive</span>
           <span className="text-lg font-bold font-mono text-slate-500 mt-0.5 block">
-            {inactiveCount} Inactive
+            {inactiveCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Temporarily bypassed</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Rules paused</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Monitored Products</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Products</span>
           <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block">
-            {distinctProductsCount} SKUs
+            {distinctProductsCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Protected across inventory</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured products</span>
         </div>
       </div>
 

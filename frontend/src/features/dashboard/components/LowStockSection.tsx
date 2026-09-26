@@ -28,7 +28,7 @@ export function LowStockSection({ products, onReorderProduct }: LowStockSectionP
         <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full bg-amber-500" />
           <h2 className="text-sm font-semibold text-slate-900 font-heading">
-            Low Stock & Reorder Triggers
+            Low Stock Items
           </h2>
           <span className="text-xs font-mono font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
             {products.length} alerts
@@ -48,8 +48,8 @@ export function LowStockSection({ products, onReorderProduct }: LowStockSectionP
       {products.length === 0 ? (
         <div className="p-8 text-center text-slate-500 flex-1 flex flex-col items-center justify-center">
           <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2" />
-          <p className="text-xs font-medium text-slate-700">All inventory levels above safety thresholds</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">No immediate replenishment or reorders required.</p>
+          <p className="text-xs font-medium text-slate-700">No low stock items</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">All products are at or above minimum stock levels.</p>
         </div>
       ) : (
         <div className="overflow-x-auto flex-1">
@@ -120,11 +120,11 @@ export function LowStockSection({ products, onReorderProduct }: LowStockSectionP
                     <td className="px-3 py-3 whitespace-nowrap">
                       {isOutOfStock ? (
                         <Badge variant="danger" dot>
-                          OUT OF STOCK
+                          Out of Stock
                         </Badge>
                       ) : (
                         <Badge variant="warning" dot>
-                          LOW STOCK
+                          Low Stock
                         </Badge>
                       )}
                     </td>
@@ -151,7 +151,7 @@ export function LowStockSection({ products, onReorderProduct }: LowStockSectionP
 
       {/* Footer summary */}
       <div className="px-4 py-2 sm:px-5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-        <span>Automatic reorder suggestions based on safety lead times</span>
+        <span>Products below minimum quantity</span>
         <span className="font-mono font-medium text-slate-700">
           {products.reduce((acc, p) => acc + Math.max(0, p.minLevel - p.onHand), 0)} total units deficit
         </span>

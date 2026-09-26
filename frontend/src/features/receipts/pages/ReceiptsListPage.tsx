@@ -70,16 +70,16 @@ export function ReceiptsListPage() {
   const getStatusBadge = (status: ApiReceiptStatus) => {
     switch (status) {
       case 'READY':
-        return <Badge variant="ready" dot>READY</Badge>
+        return <Badge variant="ready" dot>Ready</Badge>
       case 'WAITING':
-        return <Badge variant="warning" dot>WAITING</Badge>
+        return <Badge variant="warning" dot>Waiting</Badge>
       case 'DONE':
-        return <Badge variant="done" dot>DONE</Badge>
+        return <Badge variant="done" dot>Done</Badge>
       case 'CANCELED':
-        return <Badge variant="cancelled" dot>CANCELED</Badge>
+        return <Badge variant="cancelled" dot>Cancelled</Badge>
       case 'DRAFT':
       default:
-        return <Badge variant="draft" dot>DRAFT</Badge>
+        return <Badge variant="draft" dot>Draft</Badge>
     }
   }
 
@@ -99,10 +99,10 @@ export function ReceiptsListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Inbound Receipts
+            Receipts
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Vendor purchase order receipts, unloading dock queues, and goods receiving inspection.
+            Record and process incoming stock.
           </p>
         </div>
 

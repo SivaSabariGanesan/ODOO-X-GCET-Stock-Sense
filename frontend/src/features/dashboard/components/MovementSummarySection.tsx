@@ -42,7 +42,7 @@ export function MovementSummarySection({ data }: MovementSummarySectionProps) {
               +{data.inboundUnits.toLocaleString()}
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {data.inboundCount} receipts intake
+              {data.inboundCount} receipts
             </div>
           </div>
 
@@ -56,7 +56,7 @@ export function MovementSummarySection({ data }: MovementSummarySectionProps) {
               -{data.outboundUnits.toLocaleString()}
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {data.outboundCount} orders shipped
+              {data.outboundCount} deliveries
             </div>
           </div>
 
@@ -68,7 +68,7 @@ export function MovementSummarySection({ data }: MovementSummarySectionProps) {
               ) : (
                 <TrendingDown className="w-3.5 h-3.5 text-rose-600" />
               )}
-              <span>Net Velocity</span>
+              <span>Net Change</span>
             </div>
             <div
               className={cn(
@@ -79,7 +79,7 @@ export function MovementSummarySection({ data }: MovementSummarySectionProps) {
               {isNetPositive ? `+${data.netChange}` : data.netChange}
             </div>
             <div className="text-[11px] text-slate-400 mt-0.5">
-              {data.internalUnits} relocated
+              {data.internalUnits} internal
             </div>
           </div>
         </div>
@@ -130,7 +130,7 @@ export function MovementSummarySection({ data }: MovementSummarySectionProps) {
         {/* Warehouse Volume Breakdown Table */}
         <div className="pt-2 border-t border-slate-100 space-y-2">
           <div className="text-xs font-semibold text-slate-700">
-            Movement by Warehouse Node
+            Movement by Warehouse
           </div>
 
           <div className="space-y-2">

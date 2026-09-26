@@ -124,17 +124,17 @@ export function TransfersListPage() {
     const s = String(status).toUpperCase();
     switch (s) {
       case 'READY':
-        return <Badge variant="ready" dot>READY</Badge>;
+        return <Badge variant="ready" dot>Ready</Badge>;
       case 'DONE':
-        return <Badge variant="done" dot>DONE</Badge>;
+        return <Badge variant="done" dot>Done</Badge>;
       case 'CANCELED':
       case 'CANCELLED':
-        return <Badge variant="cancelled" dot>CANCELED</Badge>;
+        return <Badge variant="cancelled" dot>Cancelled</Badge>;
       case 'WAITING':
-        return <Badge variant="warning" dot>WAITING</Badge>;
+        return <Badge variant="warning" dot>Waiting</Badge>;
       case 'DRAFT':
       default:
-        return <Badge variant="draft" dot>DRAFT</Badge>;
+        return <Badge variant="draft" dot>Draft</Badge>;
     }
   };
 
@@ -149,10 +149,10 @@ export function TransfersListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Internal Stock Transfers
+            Internal Transfers
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Rack-to-rack replenishment, inter-warehouse transit, and production floor stock routing.
+            Move stock between locations.
           </p>
         </div>
 
@@ -173,8 +173,8 @@ export function TransfersListPage() {
       <div className="bg-[#ede9fe]/40 border border-[#71639e]/20 rounded-lg p-3 sm:px-4 sm:py-3 flex items-start gap-3 text-xs text-slate-700">
         <Info className="w-4 h-4 text-brand shrink-0 mt-0.5" />
         <div className="flex-1 leading-relaxed">
-          <span className="font-semibold text-brand-dark">Stock Routing Rule: </span>
-          Internal transfers change location, not total inventory. When items move between racks or warehouse facilities, physical balances are updated without altering company-wide on-hand totals.
+          <span className="font-semibold text-brand-dark">Note: </span>
+          Internal transfers move stock between locations without changing overall inventory levels.
         </div>
         <div className="hidden md:flex items-center gap-2 shrink-0 font-mono text-[11px] text-slate-500">
           <span className="px-2 py-0.5 bg-white rounded border border-slate-200">

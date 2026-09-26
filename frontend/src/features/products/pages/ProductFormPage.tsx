@@ -177,8 +177,8 @@ export function ProductFormPage({ isEdit = false }: ProductFormPageProps) {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
               {isEdit
-                ? 'Update master product classification and SKU identifiers.'
-                : 'Define SKU parameters, category grouping, and initial warehouse stock placement.'}
+                ? 'Update product details.'
+                : 'Manage products, SKUs, categories, and stock information.'}
             </p>
           </div>
         </div>
@@ -219,7 +219,7 @@ export function ProductFormPage({ isEdit = false }: ProductFormPageProps) {
               {/* SKU */}
               <div>
                 <Input
-                  label="Stock Keeping Unit (SKU)"
+                  label="SKU"
                   required
                   id="product-sku"
                   placeholder="e.g. SKU-ERG-904"
@@ -228,7 +228,6 @@ export function ProductFormPage({ isEdit = false }: ProductFormPageProps) {
                   onBlur={() => handleBlur('sku')}
                   error={touched.sku ? errors.sku : undefined}
                   className="font-mono uppercase"
-                  hint="Unique product identifier code"
                 />
               </div>
 
@@ -301,14 +300,14 @@ export function ProductFormPage({ isEdit = false }: ProductFormPageProps) {
           {/* Section 2: Initial Inventory Placement */}
           <div className="space-y-4 pt-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
-              {isEdit ? 'Current Stock Summary' : 'Initial Stock Placement'}
+              {isEdit ? 'Current Stock' : 'Initial Stock'}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {/* Initial Stock */}
               <div>
                 <Input
-                  label={isEdit ? 'Current On-Hand Balance' : 'Initial Stock Quantity'}
+                  label={isEdit ? 'On-Hand Quantity' : 'Initial Stock Quantity'}
                   type="number"
                   min="0"
                   required={!isEdit}
@@ -361,7 +360,7 @@ export function ProductFormPage({ isEdit = false }: ProductFormPageProps) {
         {/* ── Form Actions Bar ────────────────────────────────────────── */}
         <div className="px-5 py-3.5 sm:px-6 bg-slate-50/80 border-t border-slate-200/80 flex items-center justify-between gap-3">
           <div className="text-xs text-slate-500">
-            <span className="text-brand">*</span> Required catalog attributes
+            <span className="text-brand">*</span> Required fields
           </div>
 
           <div className="flex items-center gap-2">

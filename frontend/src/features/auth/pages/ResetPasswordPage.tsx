@@ -59,9 +59,8 @@ export function ResetPasswordPage() {
   if (isSuccess) {
     return (
       <AuthLayout
-        title="Password Restored"
-        subtitle="Your operator credentials have been refreshed across all terminal instances"
-        badgeText="CREDENTIALS-ACTIVE"
+        title="Password Reset Successful"
+        subtitle="Your password has been reset successfully"
       >
         <div className="py-6 text-center space-y-4 animate-[fadeIn_200ms_ease-out]">
           <div className="w-14 h-14 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center mx-auto text-emerald-600 shadow-sm">
@@ -69,10 +68,10 @@ export function ResetPasswordPage() {
           </div>
           <div>
             <h2 className="text-base font-heading font-bold text-gray-900">
-              Security Key Refreshed
+              Password Updated
             </h2>
             <p className="text-xs text-gray-600 mt-1 max-w-xs mx-auto leading-relaxed">
-              Your new password is now active. You can now authenticate with your updated credentials on all warehouse terminal instances.
+              Your password has been updated. You can now sign in with your new password.
             </p>
           </div>
           <div className="pt-2">
@@ -83,7 +82,7 @@ export function ResetPasswordPage() {
               onClick={() => navigate('/login')}
               rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Proceed to Sign In
+              Sign In
             </Button>
           </div>
         </div>
@@ -93,9 +92,8 @@ export function ResetPasswordPage() {
 
   return (
     <AuthLayout
-      title="Create New Password"
-      subtitle="Finalize security recovery by establishing your new operator access key"
-      badgeText="STEP-3-SECURE"
+      title="Reset Password"
+      subtitle="Enter your new password below"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {/* Recovery Stepper */}

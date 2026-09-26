@@ -168,7 +168,7 @@ export function WarehouseDetailsPage() {
           <Link
             to="/settings/warehouses"
             className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors mt-0.5"
-            title="Back to warehouses list"
+            title="Back to warehouses"
             aria-label="Back"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -179,33 +179,36 @@ export function WarehouseDetailsPage() {
                 {warehouse.shortCode}
               </span>
               <Badge variant={warehouse.isActive ? 'done' : 'neutral'} dot>
-                {warehouse.isActive ? 'ACTIVE FACILITY' : 'INACTIVE'}
+                {warehouse.isActive ? 'Active' : 'Inactive'}
               </Badge>
-              <span className="text-[11px] text-slate-400 font-mono">
-                {totalLocations} Registered Bins
-              </span>
             </div>
 
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading mt-1">
               {warehouse.name}
             </h1>
-            <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>{warehouse.address || 'Standard Multi-Facility Distribution Node'}</span>
-              {warehouse.description && (
-                <>
-                  <span className="text-slate-300">&middot;</span>
-                  <span>{warehouse.description}</span>
-                </>
-              )}
-            </p>
+            {warehouse.address ? (
+              <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
+                <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                <span>{warehouse.address}</span>
+                {warehouse.description && (
+                  <>
+                    <span className="text-slate-300">&middot;</span>
+                    <span>{warehouse.description}</span>
+                  </>
+                )}
+              </p>
+            ) : warehouse.description ? (
+              <p className="text-xs text-slate-500 mt-0.5">
+                {warehouse.description}
+              </p>
+            ) : null}
           </div>
         </div>
 
         <div className="flex items-center gap-2.5 shrink-0">
           <Link to="/settings/warehouses">
             <Button variant="secondary" size="sm">
-              All Facilities
+              All Warehouses
             </Button>
           </Link>
 
@@ -222,34 +225,34 @@ export function WarehouseDetailsPage() {
         </div>
       </div>
 
-      {/* ── 4 Key Required Metrics ──────────────────────────────────── */}
+      {/* ── Summary ──────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* 1. Location Inventory Summary */}
+        {/* 1. Total On-hand */}
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Location Inventory Summary</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Total On-hand</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {totalStockUnits.toLocaleString()} Units
+            {totalStockUnits.toLocaleString()} units
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            Across {totalLocations} storage locations
+            Across {totalLocations} locations
           </span>
         </div>
 
-        {/* 2. Product Count */}
+        {/* 2. Products */}
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Product Count</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Products</span>
           <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block flex items-center gap-1">
             <Package className="w-4 h-4 text-brand" />
-            {productCount} SKUs
+            {productCount}
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            Distinct catalog items stored
+            Catalog items stored
           </span>
         </div>
 
-        {/* 3. Low-Stock Count */}
+        {/* 3. Low Stock */}
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Low-Stock Count</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Low Stock</span>
           <span
             className={cn(
               'text-lg font-bold font-mono mt-0.5 block flex items-center gap-1',
@@ -257,16 +260,16 @@ export function WarehouseDetailsPage() {
             )}
           >
             {lowStockCount > 0 && <AlertTriangle className="w-4 h-4 text-amber-500" />}
-            {lowStockCount} SKU{lowStockCount === 1 ? '' : 's'}
+            {lowStockCount}
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            {lowStockCount > 0 ? 'Below safety replenishment threshold' : 'All items above safety line'}
+            Below reorder threshold
           </span>
         </div>
 
-        {/* 4. Out-of-Stock Count */}
+        {/* 4. Out of Stock */}
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Out-of-Stock Count</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Out of Stock</span>
           <span
             className={cn(
               'text-lg font-bold font-mono mt-0.5 block flex items-center gap-1',
@@ -274,23 +277,23 @@ export function WarehouseDetailsPage() {
             )}
           >
             {outOfStockCount > 0 && <TrendingDown className="w-4 h-4 text-rose-500" />}
-            {outOfStockCount} SKU{outOfStockCount === 1 ? '' : 's'}
+            {outOfStockCount}
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            {outOfStockCount > 0 ? 'Zero on-hand inventory balance' : 'Zero depleted items'}
+            Zero quantity on hand
           </span>
         </div>
       </div>
 
       {/* ── Main Two-Column Structure: Location Tree & Inventory Table ─ */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* ── Left Column: Clean Hierarchy / Tree / List UI (5 cols) ─── */}
+        {/* ── Left Column: Clean Location Hierarchy (5 cols) ─── */}
         <div className="lg:col-span-5 bg-white border border-slate-200/80 rounded-lg shadow-2xs p-4 space-y-3">
           <div className="flex items-center justify-between pb-2 border-b border-slate-100">
             <div className="flex items-center gap-1.5">
               <FolderTree className="w-4 h-4 text-brand" />
               <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
-                Location Hierarchy Tree
+                Location Hierarchy
               </h2>
             </div>
             <div className="flex items-center gap-2">
@@ -304,14 +307,14 @@ export function WarehouseDetailsPage() {
                     : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
                 )}
               >
-                View All
+                All Locations
               </button>
             </div>
           </div>
 
-          {/* Clean ASCII Tree Representation */}
+          {/* Tree Representation */}
           <div className="font-mono text-xs text-slate-700 bg-slate-50/70 p-3 rounded-md border border-slate-200/70 space-y-0.5">
-            {/* Root Facility Node */}
+            {/* Root Warehouse */}
             <div
               onClick={() => setSelectedLocationId('all')}
               className={cn(
@@ -334,7 +337,7 @@ export function WarehouseDetailsPage() {
             <div className="pl-2 pt-0.5 space-y-0.5">
               {locationNodes.length === 0 ? (
                 <div className="py-4 text-center text-slate-400 font-sans text-xs">
-                  No storage locations registered in this facility.
+                  No storage locations found in this warehouse.
                 </div>
               ) : (
                 locationNodes.map((loc, idx) => {
@@ -384,38 +387,32 @@ export function WarehouseDetailsPage() {
             </div>
           </div>
 
-          {/* Node Inspector Helper */}
           <div className="pt-2 text-[11px] text-slate-400 leading-normal flex items-start gap-1.5">
             <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
             <span>
-              Click any location in the branch tree to filter the inventory list to that specific bin.
+              Select a location in the tree to filter the stock list.
             </span>
           </div>
         </div>
 
-        {/* ── Right Column: Location Inventory Summary Table (7 cols) ─ */}
+        {/* ── Right Column: Stock by Location (7 cols) ─ */}
         <div className="lg:col-span-7 bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-200/80 bg-slate-50/70 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Boxes className="w-4 h-4 text-brand" />
               <div>
                 <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
-                  {activeNode ? `Bin Stock: ${activeNode.name}` : `All Bin Inventory: ${warehouse.shortCode}`}
+                  Stock by Location
                 </h3>
                 <span className="text-[10.5px] text-slate-400">
-                  {activeNode ? activeNode.fullPath : `${locations.length} total facility bins`}
+                  {activeNode ? activeNode.fullPath : `All locations in ${warehouse.name}`}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <Link to={`/inventory?warehouseId=${warehouse.id}`}>
-                <Button variant="secondary" size="xs" leftIcon={<Boxes className="w-3 h-3" />}>
-                  Live Stock Ledger
-                </Button>
-              </Link>
               <span className="font-mono text-xs text-slate-500">
-                <strong className="text-slate-900">{displayedProducts.length}</strong> product lines
+                <strong className="text-slate-900">{displayedProducts.length}</strong> items
               </span>
             </div>
           </div>
@@ -438,9 +435,6 @@ export function WarehouseDetailsPage() {
                     <td colSpan={6} className="py-10 text-center text-slate-400">
                       <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
                       <p className="font-medium text-slate-600">No stock stored in this location</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        This location is currently empty or utilized exclusively as transit staging.
-                      </p>
                     </td>
                   </tr>
                 ) : (
@@ -487,10 +481,10 @@ export function WarehouseDetailsPage() {
                           dot
                         >
                           {p.status === 'in_stock'
-                            ? 'IN STOCK'
+                            ? 'In Stock'
                             : p.status === 'low_stock'
-                            ? 'LOW STOCK'
-                            : 'OUT OF STOCK'}
+                            ? 'Low Stock'
+                            : 'Out of Stock'}
                         </Badge>
                       </td>
 
@@ -511,10 +505,10 @@ export function WarehouseDetailsPage() {
 
           <div className="px-4 py-2.5 border-t border-slate-200/80 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
             <span>
-              {activeNode ? `Filtered by ${activeNode.fullPath}` : 'Facility aggregate view'}
+              {activeNode ? `Filtered by ${activeNode.fullPath}` : 'All warehouse locations'}
             </span>
             <span className="font-mono text-[11px]">
-              Subtotal: <strong>{displayedProducts.reduce((a, c) => a + c.quantity, 0).toLocaleString()}</strong> units
+              Total on-hand: <strong>{displayedProducts.reduce((a, c) => a + c.quantity, 0).toLocaleString()}</strong> units
             </span>
           </div>
         </div>

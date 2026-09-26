@@ -33,11 +33,7 @@ export function Sidebar({
   isMobileOpen,
   onCloseMobile,
 }: SidebarProps) {
-  const location = useLocation()
-
   const isOperationsActive = location.pathname.startsWith('/operations')
-  const [operationsOpen, setOperationsOpen] = useState(true)
-
   const isSettingsActive = location.pathname.startsWith('/settings')
 
   // Ctrl+B toggles sidebar; Esc closes mobile drawer
@@ -59,15 +55,6 @@ export function Sidebar({
     document.body.style.overflow = isMobileOpen ? 'hidden' : ''
     return () => { document.body.style.overflow = '' }
   }, [isMobileOpen])
-
-  const operationsItems = [
-    { name: 'Receipts',              href: '/operations/receipts',    icon: ArrowDownToLine,  count: '4' },
-    { name: 'Deliveries',            href: '/operations/deliveries',  icon: ArrowUpFromLine,  count: '8' },
-    { name: 'Internal Transfers',    href: '/operations/transfers',   icon: ArrowLeftRight,   count: '2' },
-    { name: 'Inventory Adjustments', href: '/operations/adjustments', icon: SlidersHorizontal, count: '1' },
-    { name: 'Reordering Rules',      href: '/operations/reordering-rules', icon: Repeat },
-    { name: 'Move History',          href: '/operations/moves',       icon: History },
-  ]
 
 
   // ---------------------------------------------------------------------------
@@ -206,70 +193,28 @@ export function Sidebar({
 
         {/* ── INVENTORY ──────────────────────────────────────────────── */}
         <div className="pt-2">
-          <SectionLabel label="Inventory" active={location.pathname === '/products' || location.pathname.startsWith('/inventory') || isOperationsActive} />
-
-          {/* Stock Balances */}
-          <NavItem to="/inventory" icon={Boxes} label="Stock Balances" />
-
-          {/* Products — static link */}
+          <SectionLabel label="Inventory" active={location.pathname === '/products' || location.pathname.startsWith('/inventory')} />
           <NavItem to="/products" icon={Package} label="Products" />
+          <NavItem to="/inventory" icon={Boxes} label="Stock Balances" />
+        </div>
 
-          {/* Operations sub-group — collapsible */}
-          <div className="pt-1">
-            {!isCollapsed ? (
-              <button
-                type="button"
-                onClick={() => setOperationsOpen(!operationsOpen)}
-                className="w-full flex items-center justify-between px-3 py-1.5 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-700 transition-colors cursor-pointer"
-                aria-expanded={operationsOpen}
-              >
-                <span className={cn(isOperationsActive && 'text-brand-dark font-semibold')}>
-                  Operations
-                </span>
-                {operationsOpen
-                  ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                  : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-                }
-              </button>
-            ) : (
-              <div className="h-px bg-slate-100 my-1.5 mx-1" />
-            )}
-
-            {((!isCollapsed && operationsOpen) || isCollapsed) && (
-              <div className={cn('space-y-1', !isCollapsed && 'mt-0.5 pl-2.5 border-l border-slate-100 ml-3.5')}>
-                {operationsItems.map((item) => (
-                  <NavItem
-                    key={item.href}
-                    to={item.href}
-                    icon={item.icon}
-                    label={item.name}
-                    count={item.count}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+        {/* ── OPERATIONS ─────────────────────────────────────────────── */}
+        <div className="pt-2">
+          <SectionLabel label="Operations" active={isOperationsActive} />
+          <NavItem to="/operations/receipts" icon={ArrowDownToLine} label="Receipts" />
+          <NavItem to="/operations/deliveries" icon={ArrowUpFromLine} label="Deliveries" />
+          <NavItem to="/operations/transfers" icon={ArrowLeftRight} label="Internal Transfers" />
+          <NavItem to="/operations/adjustments" icon={SlidersHorizontal} label="Inventory Adjustments" />
+          <NavItem to="/operations/moves" icon={History} label="Move History" />
         </div>
 
         {/* ── CONFIGURATION ──────────────────────────────────────────── */}
         <div className="pt-2">
-          <SectionLabel label="Configuration" active={isSettingsActive} />
-          <NavItem
-            to="/settings/warehouses"
-            icon={Warehouse}
-            label="Warehouses"
-            count="3"
-          />
-          <NavItem
-            to="/settings/categories"
-            icon={Tag}
-            label="Categories"
-          />
-          <NavItem
-            to="/settings/uoms"
-            icon={Scale}
-            label="Units of Measure"
-          />
+          <SectionLabel label="Configuration" active={isSettingsActive || location.pathname.startsWith('/operations/reordering-rules')} />
+          <NavItem to="/settings/warehouses" icon={Warehouse} label="Warehouses" />
+          <NavItem to="/settings/categories" icon={Tag} label="Categories" />
+          <NavItem to="/settings/uoms" icon={Scale} label="Units of Measure" />
+          <NavItem to="/operations/reordering-rules" icon={Repeat} label="Reordering Rules" />
         </div>
       </nav>
 
@@ -296,16 +241,13 @@ export function Sidebar({
               {!isCollapsed && (
                 <div className="flex flex-col min-w-0 flex-1">
                   <span className={cn('text-xs font-medium truncate', isActive ? 'text-brand-dark font-semibold' : 'text-slate-800')}>
-                    Profile & Account
-                  </span>
-                  <span className="text-[10px] text-slate-400 truncate">
-                    Settings & Security
+                    Profile
                   </span>
                 </div>
               )}
               {isCollapsed && (
                 <div className="hidden md:group-hover:block absolute left-full ml-2.5 z-50 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
-                  Profile & Account
+                  Profile
                 </div>
               )}
             </>

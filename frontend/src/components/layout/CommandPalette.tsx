@@ -41,19 +41,19 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null)
 
   const items: CommandItem[] = [
-    { id: 'dash', title: 'Dashboard & KPIs', category: 'Navigation', href: '/dashboard', icon: LayoutDashboard },
-    { id: 'inv', title: 'Stock Balances & On-Hand Inventory', category: 'Navigation', href: '/inventory', icon: Boxes },
-    { id: 'prod', title: 'Products Master Catalog', category: 'Navigation', href: '/products', icon: Package, badge: '2,481 SKUs' },
-    { id: 'rec', title: 'Incoming Receipts (Dock Intake)', category: 'Operations', href: '/operations/receipts', icon: ArrowDownToLine, badge: '4 Pending' },
-    { id: 'del', title: 'Outgoing Delivery Orders', category: 'Operations', href: '/operations/deliveries', icon: ArrowUpFromLine, badge: '8 Dispatches' },
-    { id: 'trf', title: 'Internal Stock Transfers', category: 'Operations', href: '/operations/transfers', icon: ArrowLeftRight },
-    { id: 'adj', title: 'Inventory Adjustments & Counts', category: 'Operations', href: '/operations/adjustments', icon: SlidersHorizontal },
-    { id: 'reorder', title: 'Reordering Rules & Stock Thresholds', category: 'Operations', href: '/operations/reordering-rules', icon: Repeat },
-    { id: 'hist', title: 'Stock Move History Ledger', category: 'Operations', href: '/operations/moves', icon: History },
-    { id: 'wh', title: 'Warehouse Facilities Configuration', category: 'Configuration', href: '/settings/warehouses', icon: Warehouse, badge: '3 Nodes' },
-    { id: 'cat', title: 'Product Categories Taxonomy', category: 'Configuration', href: '/settings/categories', icon: Tag },
-    { id: 'uom', title: 'Units of Measure (UOM) Catalog', category: 'Configuration', href: '/settings/uoms', icon: Scale },
-    { id: 'prof', title: 'Operator Profile & Node Security', category: 'Configuration', href: '/profile', icon: User },
+    { id: 'dash', title: 'Dashboard', category: 'Navigation', href: '/dashboard', icon: LayoutDashboard },
+    { id: 'inv', title: 'Stock Balances', category: 'Navigation', href: '/inventory', icon: Boxes },
+    { id: 'prod', title: 'Products', category: 'Navigation', href: '/products', icon: Package },
+    { id: 'rec', title: 'Receipts', category: 'Operations', href: '/operations/receipts', icon: ArrowDownToLine },
+    { id: 'del', title: 'Deliveries', category: 'Operations', href: '/operations/deliveries', icon: ArrowUpFromLine },
+    { id: 'trf', title: 'Internal Transfers', category: 'Operations', href: '/operations/transfers', icon: ArrowLeftRight },
+    { id: 'adj', title: 'Inventory Adjustments', category: 'Operations', href: '/operations/adjustments', icon: SlidersHorizontal },
+    { id: 'reorder', title: 'Reordering Rules', category: 'Operations', href: '/operations/reordering-rules', icon: Repeat },
+    { id: 'hist', title: 'Move History', category: 'Operations', href: '/operations/moves', icon: History },
+    { id: 'wh', title: 'Warehouses', category: 'Configuration', href: '/settings/warehouses', icon: Warehouse },
+    { id: 'cat', title: 'Categories', category: 'Configuration', href: '/settings/categories', icon: Tag },
+    { id: 'uom', title: 'Units of Measure', category: 'Configuration', href: '/settings/uoms', icon: Scale },
+    { id: 'prof', title: 'Profile', category: 'Configuration', href: '/profile', icon: User },
   ]
 
   const filtered = items.filter(
