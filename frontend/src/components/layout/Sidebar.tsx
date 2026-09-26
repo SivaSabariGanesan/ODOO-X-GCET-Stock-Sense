@@ -13,8 +13,6 @@ import {
   Boxes,
   ChevronDown,
   ChevronRight,
-  PanelLeftClose,
-  PanelLeftOpen,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
@@ -75,14 +73,14 @@ export function Sidebar({
     !isCollapsed ? (
       <div
         className={cn(
-          'px-2.5 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider',
+          'px-3 pt-3 pb-1 text-[10.5px] font-semibold uppercase tracking-wider',
           active ? 'text-brand-dark' : 'text-slate-400'
         )}
       >
         {label}
       </div>
     ) : (
-      <div className="h-px bg-slate-100 my-2 mx-1" />
+      <div className="h-px bg-slate-100 my-2 mx-1.5" />
     )
 
   // ---------------------------------------------------------------------------
@@ -106,29 +104,42 @@ export function Sidebar({
       onClick={onCloseMobile}
       className={({ isActive }) =>
         cn(
-          'nav-item !mx-0 px-2.5 py-1.5 text-xs rounded-md transition-colors flex items-center justify-between group relative',
+          'nav-item !mx-0 px-3 py-2 text-xs rounded-md transition-colors flex items-center justify-between group relative select-none',
           isActive
-            ? 'bg-brand-light/70 text-brand-dark font-medium'
-            : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-normal',
-          isCollapsed && 'justify-center !px-0 py-2'
+            ? 'bg-[#ede9fe]/80 text-[#5a4f80] font-semibold shadow-2xs'
+            : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900 font-medium',
+          isCollapsed && 'justify-center !px-0 py-2.5'
         )
       }
     >
       {({ isActive }) => (
         <>
           <div className="flex items-center gap-2.5 min-w-0">
-            <Icon className="w-4 h-4 shrink-0 text-current" aria-hidden="true" />
+            <Icon
+              className={cn(
+                'w-4 h-4 shrink-0 transition-colors',
+                isActive ? 'text-brand-dark' : 'text-slate-400 group-hover:text-slate-600'
+              )}
+              aria-hidden="true"
+            />
             {!isCollapsed && <span className="truncate">{label}</span>}
           </div>
           {/* Pending count badge */}
           {!isCollapsed && count && (
-            <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium shrink-0">
+            <span
+              className={cn(
+                'text-[10.5px] font-mono px-1.5 py-0.2 rounded-full font-medium shrink-0 transition-colors',
+                isActive
+                  ? 'bg-brand/15 text-brand-dark font-semibold'
+                  : 'bg-slate-100 text-slate-500 group-hover:bg-slate-200/80 group-hover:text-slate-700'
+              )}
+            >
               {count}
             </span>
           )}
           {/* Collapsed tooltip */}
           {isCollapsed && (
-            <div className="hidden md:group-hover:block absolute left-full ml-2 z-50 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+            <div className="hidden md:group-hover:block absolute left-full ml-2.5 z-50 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
               {tooltip ?? label}{count ? ` (${count})` : ''}
             </div>
           )}
@@ -146,8 +157,8 @@ export function Sidebar({
       {/* Brand header */}
       <div
         className={cn(
-          'h-13 px-4 border-b border-slate-200/80 flex items-center justify-between shrink-0 bg-white',
-          isCollapsed && 'justify-center px-2'
+          'h-14 px-3.5 border-b border-slate-200/80 flex items-center shrink-0 bg-white',
+          isCollapsed ? 'justify-center px-0' : 'justify-between'
         )}
       >
         <Link
@@ -156,35 +167,20 @@ export function Sidebar({
           className="flex items-center gap-2.5 overflow-hidden group no-underline"
           aria-label="StockSense — go to dashboard"
         >
-          <div className="w-7 h-7 rounded-md bg-brand text-white flex items-center justify-center shrink-0 shadow-2xs">
-            <Boxes className="w-4 h-4 text-white" aria-hidden="true" />
+          <div className="w-8 h-8 rounded-lg bg-brand text-white flex items-center justify-center shrink-0 shadow-2xs">
+            <Boxes className="w-4.5 h-4.5 text-white" aria-hidden="true" />
           </div>
           {!isCollapsed && (
-            <div className="flex flex-col">
-              <span className="font-heading font-semibold text-slate-900 text-sm tracking-tight leading-none">
+            <div className="flex flex-col min-w-0">
+              <span className="font-heading font-semibold text-slate-900 text-sm tracking-tight leading-tight">
                 StockSense
               </span>
-              <span className="text-[10px] text-slate-400 font-sans tracking-wider uppercase mt-0.5">
+              <span className="text-[10px] text-slate-400 font-medium tracking-wide uppercase mt-0.5">
                 Inventory Operations
               </span>
             </div>
           )}
         </Link>
-
-        {/* Desktop collapse toggle */}
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="hidden md:flex p-1.5 rounded-md hover:bg-slate-50 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          {isCollapsed ? (
-            <PanelLeftOpen className="w-4 h-4" />
-          ) : (
-            <PanelLeftClose className="w-4 h-4" />
-          )}
-        </button>
 
         {/* Mobile close */}
         <button
@@ -198,42 +194,42 @@ export function Sidebar({
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-2.5 px-2 space-y-0.5" aria-label="Main navigation">
+      <nav className="flex-1 overflow-y-auto pl-3 pr-6 py-3 space-y-1" aria-label="Main navigation">
 
         {/* ── OVERVIEW ───────────────────────────────────────────────── */}
         <SectionLabel label="Overview" />
         <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
 
         {/* ── INVENTORY ──────────────────────────────────────────────── */}
-        <div className="pt-1.5">
+        <div className="pt-2">
           <SectionLabel label="Inventory" active={location.pathname === '/products' || isOperationsActive} />
 
           {/* Products — static link */}
           <NavItem to="/products" icon={Package} label="Products" />
 
           {/* Operations sub-group — collapsible */}
-          <div className="pt-0.5">
+          <div className="pt-1">
             {!isCollapsed ? (
               <button
                 type="button"
                 onClick={() => setOperationsOpen(!operationsOpen)}
-                className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-medium text-slate-400 uppercase tracking-wider hover:text-slate-600 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-700 transition-colors cursor-pointer"
                 aria-expanded={operationsOpen}
               >
-                <span className={cn(isOperationsActive && 'text-brand-dark font-medium')}>
+                <span className={cn(isOperationsActive && 'text-brand-dark font-semibold')}>
                   Operations
                 </span>
                 {operationsOpen
-                  ? <ChevronDown className="w-3 h-3 text-slate-400" />
-                  : <ChevronRight className="w-3 h-3 text-slate-400" />
+                  ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                 }
               </button>
             ) : (
-              <div className="h-px bg-slate-100 my-1 mx-1" />
+              <div className="h-px bg-slate-100 my-1.5 mx-1" />
             )}
 
             {((!isCollapsed && operationsOpen) || isCollapsed) && (
-              <div className={cn('space-y-0.5', !isCollapsed && 'mt-0.5 pl-1')}>
+              <div className={cn('space-y-1', !isCollapsed && 'mt-0.5 pl-2.5 border-l border-slate-100 ml-3.5')}>
                 {operationsItems.map((item) => (
                   <NavItem
                     key={item.href}
@@ -258,14 +254,47 @@ export function Sidebar({
             count="3"
           />
         </div>
-
-        {/* ── ACCOUNT ────────────────────────────────────────────────── */}
-        <div className="pt-2">
-          <SectionLabel label="Account" />
-          <NavItem to="/profile" icon={User} label="Profile" tooltip="Profile & Security" />
-        </div>
       </nav>
-      {/* No debug / infrastructure information in the user-facing sidebar footer */}
+
+      {/* Pinned User Profile Footer */}
+      <div className="mt-auto border-t border-slate-200/80 p-2.5 pr-6 shrink-0 bg-white">
+        <NavLink
+          to="/profile"
+          onClick={onCloseMobile}
+          className={({ isActive }) =>
+            cn(
+              'flex items-center gap-2.5 px-2.5 py-2 rounded-md transition-colors group relative select-none',
+              isActive
+                ? 'bg-[#ede9fe]/80 text-[#5a4f80] font-semibold shadow-2xs'
+                : 'text-slate-600 hover:bg-slate-100/70 hover:text-slate-900 font-medium',
+              isCollapsed && 'justify-center !px-0 py-2'
+            )
+          }
+        >
+          {({ isActive }) => (
+            <>
+              <div className="w-7 h-7 rounded-full bg-brand-light/90 text-brand-dark flex items-center justify-center shrink-0">
+                <User className="w-4 h-4 text-brand-dark" aria-hidden="true" />
+              </div>
+              {!isCollapsed && (
+                <div className="flex flex-col min-w-0 flex-1">
+                  <span className={cn('text-xs font-medium truncate', isActive ? 'text-brand-dark font-semibold' : 'text-slate-800')}>
+                    Profile & Account
+                  </span>
+                  <span className="text-[10px] text-slate-400 truncate">
+                    Settings & Security
+                  </span>
+                </div>
+              )}
+              {isCollapsed && (
+                <div className="hidden md:group-hover:block absolute left-full ml-2.5 z-50 px-2.5 py-1 bg-slate-900 text-white text-[11px] font-medium rounded-md shadow-md whitespace-nowrap pointer-events-none">
+                  Profile & Account
+                </div>
+              )}
+            </>
+          )}
+        </NavLink>
+      </div>
     </div>
   )
 
@@ -274,13 +303,40 @@ export function Sidebar({
       {/* Desktop persistent sidebar */}
       <aside
         className={cn(
-          'hidden md:block transition-all duration-200 shrink-0 z-20',
-          isCollapsed ? 'w-15' : 'w-60'
+          'hidden md:block transition-[width] duration-200 [transition-timing-function:cubic-bezier(0.2,0,0,1)] shrink-0 z-20 overflow-hidden',
+          isCollapsed ? 'w-[60px]' : 'w-60'
         )}
         aria-label="Sidebar"
       >
         {sidebarContent}
       </aside>
+
+      {/* Collapse button — sibling of aside, NOT inside it.
+         Sits half-inside / half-outside the sidebar edge at the vertical center (50%). */}
+      <button
+        type="button"
+        onClick={onToggleCollapse}
+        className={cn(
+          'collapse-btn hidden md:flex fixed top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-white border border-slate-300 text-slate-500 hover:bg-[#ede9fe] hover:text-brand hover:border-brand items-center justify-center cursor-pointer z-40 shadow-[0_1px_4px_rgba(0,0,0,0.12)] transition-[left,background-color,color,border-color] duration-200 [transition-timing-function:cubic-bezier(0.2,0,0,1)]',
+          isCollapsed ? 'left-[48px]' : 'left-[228px]'
+        )}
+        aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+      >
+        <svg
+          width="13"
+          height="13"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="shrink-0"
+        >
+          <polyline points={isCollapsed ? '9 18 15 12 9 6' : '15 18 9 12 15 6'} />
+        </svg>
+      </button>
 
       {/* Mobile drawer with overlay */}
       {isMobileOpen && (
