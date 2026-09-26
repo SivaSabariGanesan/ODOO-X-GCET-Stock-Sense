@@ -117,9 +117,21 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           href: hasSub ? `/operations/${segments[1]}` : undefined,
         })
         if (segments[2] === 'new') {
-          crumbs.push({ label: segments[1] === 'receipts' ? 'New Receipt' : 'New Delivery' })
+          const newLabels: Record<string, string> = {
+            receipts: 'New Receipt',
+            deliveries: 'New Delivery',
+            transfers: 'New Transfer',
+            adjustments: 'New Adjustment',
+          }
+          crumbs.push({ label: newLabels[segments[1]] || 'New Operation' })
         } else if (segments[2]) {
-          crumbs.push({ label: segments[1] === 'receipts' ? 'Receipt Details' : 'Delivery Details' })
+          const detailLabels: Record<string, string> = {
+            receipts: 'Receipt Details',
+            deliveries: 'Delivery Details',
+            transfers: 'Transfer Details',
+            adjustments: 'Adjustment Details',
+          }
+          crumbs.push({ label: detailLabels[segments[1]] || 'Operation Details' })
         }
       }
     } else if (segments[0] === 'settings') {
