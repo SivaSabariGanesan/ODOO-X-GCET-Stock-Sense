@@ -177,7 +177,7 @@ export class AiOrchestrator {
       }
     }
     // B. Low Stock Queries
-    else if (msg.includes("low stock") || msg.includes("reorder") || msg.includes("below threshold")) {
+    else if (msg.includes("low stock") || msg.includes("low in stock") || msg.includes("reorder") || msg.includes("below threshold")) {
       sources.add("StockBalanceService");
       sources.add("ReorderRules");
       const res = await aiTools.get_low_stock_items.handler({ limit: 20 }, user);
