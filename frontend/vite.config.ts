@@ -16,11 +16,16 @@ export default defineConfig({
 
   server: {
     host: '127.0.0.1',
-    port: 3000,
-    // Proxy API requests to the Hono backend (Bun, port 8000)
+    port: 5173,
+    // Proxy API and WebSocket requests to the Hono backend (Bun, port 3001)
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
+        target: 'http://127.0.0.1:3001',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'http://127.0.0.1:3001',
+        ws: true,
         changeOrigin: true,
       },
     },
