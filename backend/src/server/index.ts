@@ -1,7 +1,9 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
+import { swaggerUI } from "@hono/swagger-ui";
 import { config } from "../app/config";
+import { openApiSpec } from "../app/config/swagger";
 import authRouter from "../modules/auth/route";
 import { AppError } from "../lib/errors";
 
@@ -31,6 +33,13 @@ app.get("/health", (c) => {
     timestamp: new Date().toISOString(),
   });
 });
+
+// ---------------------------------------------------------------------------
+// Swagger OpenAPI Documentation UI Endpoints
+// ---------------------------------------------------------------------------
+app.get("/swagger.json", (c) => c.json(openApiSpec));
+app.get("/docs", swaggerUI({ url: "/swagger.json" }));
+app.get("/ui", swaggerUI({ url: "/swagger.json" }));
 
 // ---------------------------------------------------------------------------
 // API Route Modules
