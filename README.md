@@ -11,10 +11,11 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 - **Immutable Audit Movement Ledger**: Unalterable movement history logged to `stock_movements` for every physical stock change.
 - **Grounded AI Assistant Orchestrator**: Project AI Assistant powered by Groq LLMs (`llama-3.3-70b-versatile`) backed by a grounded tool execution engine (`list_products`, `get_stock_movements`, `get_low_stock_items`, `get_dashboard_summary`, `search_project_documentation`).
 - **AI Action Confirmation Safeguard**: Multi-step user confirmation required before the AI executes stock-mutating actions (receipts, deliveries, transfers, adjustments).
-- **Real-Time WebSocket Pub/Sub Layer**: Authenticated WebSocket server (`GET /ws`) broadcasting live stock events after database transaction commits to `inventory`, `user:id`, and `role:admin` channels.
+- **Real-Time WebSocket Pub/Sub Layer**: Authenticated WebSocket server (`GET /ws`) with live header status indicator (`LIVE STREAM`), auto-reconnects, and post-commit event broadcasting to `inventory`, `user:id`, and `role:admin` channels.
+- **Production Observability Stack**: Prometheus metrics collector (`GET /metrics`), auto-provisioned Grafana dashboards (Overview, AI Cost, Loki Logs), Loki log shipping via Promtail, and 8 Prometheus alert rules.
 - **Transactional Email Notification System**: Responsive HTML email rendering via Nodemailer for email verification and 6-digit OTP password resets with 10-minute expiry windows.
 - **50-Product Extended Seed Dataset**: Comprehensive database seeder (`bun run db:seed`) populating 50+ diverse industrial products, categories, UOMs, warehouses, locations, reorder rules, and initial stock balances.
-- **255 End-to-End Tests**: Complete test suite across 18 backend module test files built using Bun's native test runner (`bun test`).
+- **266 End-to-End Tests**: Complete test suite across 20 backend module test files built using Bun's native test runner (`bun test`).
 
 ---
 
@@ -27,11 +28,12 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 | **Frontend UI** | React 18 + Vite 5 | SPA built with Custom CSS Design System & Lucide Icons |
 | **Database** | PostgreSQL 16 | Relational database containerized via Docker Compose |
 | **ORM** | [Drizzle ORM](https://orm.drizzle.team) | Type-safe SQL builder & schema manager |
-| **Real-Time Messaging** | WebSockets (Hono + Bun WS) | Event-driven WebSocket pub/sub broadcasting |
-| **AI Assistant** | Groq API (`llama-3.3-70b`) | AI Orchestrator with grounded tool execution & fallbacks |
+| **Real-Time Messaging** | WebSockets (Hono + Bun WS) | Event-driven WebSocket pub/sub broadcasting with live header status |
+| **AI Assistant** | Groq API (`llama-3.3-70b`) | AI Orchestrator with grounded tool execution & confirmation safeguards |
+| **Observability Stack** | Prometheus + Grafana + Loki | Operational metrics (`GET /metrics`), auto-provisioned dashboards & logs |
 | **Mail Service** | Nodemailer | Transactional HTML email rendering & SMTP delivery |
 | **Validation** | Zod + React Hook Form | End-to-end request schema validation |
-| **Testing** | `bun:test` | Native test execution runner for 255 integration tests |
+| **Testing** | `bun:test` | Native test execution runner for 266 integration tests |
 
 ---
 
@@ -55,6 +57,11 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 ### 4. Why Grounded AI Assistant with System Tools instead of Generic RAG/Chatbots?
 - **Zero Hallucination Guarantee**: Generic LLM chatbots invent product names and quantities. StockSense's AI Orchestrator executes deterministic backend service calls (`StockBalanceService`, `StockLedgerService`) for factual queries.
 - **Action Confirmation Safeguard**: Prevents unauthorized or accidental stock mutations by requiring explicit confirmation before calling write services.
+
+### 5. Why Prometheus + Grafana + Loki for Production Observability?
+- **Low-Cardinality Metrics Security**: `GET /metrics` collects real-time API, DB, AI token, AI cost ($), WebSocket, and stock movement metrics without exposing secrets, JWTs, or user IDs.
+- **Centralized Log Aggregation**: Loki and Promtail aggregate container logs with automated 7-day retention, avoiding disk exhaustion.
+- **Zero Runtime Single Point of Failure**: Monitoring runs asynchronously inside non-blocking try-catch guards. If Prometheus or Grafana go down, StockSense remains 100% operational.
 
 ---
 
@@ -266,14 +273,14 @@ All REST endpoints are prefixed with `/api`. Complete documentation lives in [`d
 
 ## 🧪 Testing & Quality Assurance
 
-StockSense includes **255 end-to-end integration tests** across 18 backend test files:
+StockSense includes **266 end-to-end integration tests** across 20 backend test files:
 
 ```bash
-# Execute full backend test suite (255 tests across 18 files)
+# Execute full backend test suite (266 tests across 20 files)
 bun --cwd backend test
 
 # Run specific module tests
-bun --cwd backend test tests/inventory.test.ts
+bun --cwd backend test tests/observability.test.ts
 bun --cwd backend test tests/ai.test.ts
 bun --cwd backend test tests/websocket.test.ts
 ```
@@ -298,6 +305,8 @@ bun --cwd backend test tests/websocket.test.ts
 | `ai.test.ts` | AI Orchestrator intent routing, tool execution, action confirmation |
 | `websocket.test.ts` | WebSocket handshake, authentication, channel subscriptions, post-commit events |
 | `inventory.test.ts` | E2E inventory orchestration lifecycle: Receipt → Transfer → Delivery |
+| `security.test.ts` | Security hardening, Argon2id, rate limiting (`429`), request size limits (`413`), RBAC |
+| `observability.test.ts` | Prometheus metrics (`GET /metrics`), AI token/cost metrics, secret audit |
 
 ---
 
