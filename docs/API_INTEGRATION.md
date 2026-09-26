@@ -27,7 +27,7 @@
 | **Inventory Service** | Integrated | Handled in `/process` | Central orchestration engine linking operation processing to balance & ledger. |
 | **Dashboard** | Implemented | `/api/dashboard` | Read-only metrics: Summary, Stock breakdown, Low-Stock items, Movements, Warehouses. |
 | **WebSockets** | Implemented | `/ws` | Centralized real-time event broadcasting for stock updates, dashboard invalidation, low stock alerts, and role/room channels. |
-| **AI Features** | *Not Implemented* | N/A | AI-based demand forecasting is **not implemented yet**. |
+| **AI Assistant** | Implemented | `/api/ai` | Grounded natural-language assistant (`/api/ai/chat`) with tool execution across master data, inventory, ledger, docs, and RBAC action tools. |
 
 ---
 
@@ -1080,3 +1080,93 @@ export class StockSenseWS {
   }
 }
 ```
+
+---
+
+## 12. AI Assistant API (Grounded Intelligent Assistant)
+
+### 12.1 Overview & Endpoints
+- **Base Path**: `/api/ai`
+- **POST `/api/ai/chat`**: Grounded natural-language query endpoint.
+- **GET `/api/ai/tools`**: List registered tools and permissions.
+- **Authentication**: Required (`Authorization: Bearer <token>` or `stocksense_token` cookie).
+
+---
+
+### 12.2 POST `/api/ai/chat` Contract
+
+#### Request Payload
+```json
+{
+  "message": "Which products are low in stock?",
+  "conversationId": "optional-uuid",
+  "confirmAction": false
+}
+```
+
+#### Response Payload (Success - Read Query)
+```json
+{
+  "success": true,
+  "data": {
+    "answer": "There are currently 2 product(s) low in stock:\n- Coffee Beans (SKU: COF-001): Current Stock = 15, Min Required = 50",
+    "sources": ["StockBalanceService", "ReorderRules"],
+    "toolCalls": [
+      {
+        "tool": "get_low_stock_items",
+        "params": { "limit": 20 }
+      }
+    ],
+    "confirmationRequired": false,
+    "actionPending": null,
+    "conversationId": "conv_1790415700000_abc123"
+  },
+  "message": "AI response generated successfully"
+}
+```
+
+#### Response Payload (Inventory Action - Confirmation Pending)
+```json
+{
+  "success": true,
+  "data": {
+    "answer": "I can process Receipt 'REC-20260926-0001'. Are you sure you want to proceed? This will permanently mutate stock balances and create immutable ledger entries. Please reply 'confirm' or set confirmAction: true to execute.",
+    "sources": ["InventoryService"],
+    "toolCalls": [],
+    "confirmationRequired": true,
+    "actionPending": {
+      "tool": "process_receipt",
+      "params": { "receiptId": "REC-20260926-0001" },
+      "description": "process Receipt 'REC-20260926-0001'"
+    },
+    "conversationId": "conv_1790415700000_abc123"
+  },
+  "message": "AI response generated successfully"
+}
+```
+
+---
+
+### 12.3 Action Confirmation & RBAC Enforcement Matrix
+
+| AI Tool | Description | Requires Confirmation? | Required Role | Execution Engine |
+| :--- | :--- | :--- | :--- | :--- |
+| `search_project_documentation` | Search API contracts & docs | No | Any | `DocumentationSearchService` |
+| `list_products` | Search/list product catalog | No | Any | `ProductService` |
+| `get_product_details` | Get product info & location stock breakdown | No | Any | `StockBalanceService` |
+| `get_stock_balance` | Query location stock balances | No | Any | `StockBalanceService` |
+| `get_low_stock_items` | Query items below reorder thresholds | No | Any | `DashboardService` / `ReorderRules` |
+| `get_stock_movements` | Query immutable audit ledger history | No | Any | `StockLedgerService` |
+| `get_dashboard_summary` | Get aggregated dashboard metrics | No | Any | `DashboardService` |
+| `process_receipt` | Execute receipt stock mutation | **YES** | `admin`, `manager` | `ReceiptProcessingService` + `InventoryService` |
+| `process_delivery` | Execute delivery stock mutation | **YES** | `admin`, `manager` | `DeliveryProcessingService` + `InventoryService` |
+| `process_transfer` | Execute internal transfer stock mutation | **YES** | `admin`, `manager` | `TransferService` + `InventoryService` |
+| `process_adjustment` | Execute physical count adjustment mutation | **YES** | `admin`, `manager` | `AdjustmentService` + `InventoryService` |
+
+> **RBAC Guard**: Staff users attempting to execute inventory action tools receive **HTTP 403 Forbidden**. Unconfirmed action requests return `confirmationRequired: true` without mutating database state.
+
+---
+
+### 12.4 Grounded Architecture Guarantee
+1. **Zero Hallucination**: Stock quantities, SKUs, warehouse names, and API specifications are retrieved directly from project database services and `docs/API_INTEGRATION.md`.
+2. **WebSocket Synchronization**: AI-triggered inventory mutations automatically publish post-commit WebSocket notifications (`stock.received`, `stock.delivered`, `stock.transferred`, `stock.adjusted`, `inventory.updated`) via the existing `EventBus`.
