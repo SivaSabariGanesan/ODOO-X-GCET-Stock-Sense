@@ -267,8 +267,46 @@ app.onError((err, c) => {
   );
 });
 
+import { handleWsLifecycle } from "../modules/websocket/route.js";
+
 // ---------------------------------------------------------------------------
-// 8. Graceful Process Shutdown Handler (SIGINT & SIGTERM)
+// 8. Bun Native Server Instantiation with WebSocket Upgrade Support
+// ---------------------------------------------------------------------------
+const serverOptions = {
+  port: config.port,
+  fetch(req: Request, server: any) {
+    if (server) {
+      (globalThis as any).server = server;
+    }
+    return app.fetch(req, { server });
+  },
+  websocket: {
+    open(ws: any) {
+      const { user, connectionId } = ws.data ?? {};
+      if (user && connectionId) {
+        ws.handlers = handleWsLifecycle(ws, user, connectionId);
+      }
+    },
+    message(ws: any, message: any) {
+      ws.handlers?.onMessage?.(message);
+    },
+    close(ws: any) {
+      ws.handlers?.onClose?.();
+    },
+    error(ws: any, error: any) {
+      ws.handlers?.onError?.(error);
+    },
+  },
+};
+
+// Explicitly start Bun server when run directly (development / production runtime)
+if (typeof Bun !== "undefined" && process.env.NODE_ENV !== "test") {
+  const server = Bun.serve(serverOptions as any);
+  (globalThis as any).server = server;
+}
+
+// ---------------------------------------------------------------------------
+// 9. Graceful Process Shutdown Handler (SIGINT & SIGTERM)
 // ---------------------------------------------------------------------------
 const gracefulShutdown = async (signal: string) => {
   console.log(`\nReceived ${signal}. Initiating graceful shutdown...`);
@@ -289,5 +327,5 @@ process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 // Export app for testing and server instantiation
-export { app };
+export { app, serverOptions };
 export default app;

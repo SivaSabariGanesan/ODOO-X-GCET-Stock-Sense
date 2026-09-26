@@ -14,8 +14,10 @@ import {
   CheckCircle2,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { useWebSocket } from '@/hooks/useWebSocket'
 import { useToast } from '@/context/ToastContext'
 import { warehousesApi } from '@/features/warehouses/api'
+import { cn } from '@/lib/cn'
 import { Badge } from '@/components/ui/Badge'
 import { CommandPalette } from './CommandPalette'
 import { NotificationsDropdown } from './NotificationsDropdown'
@@ -26,6 +28,7 @@ interface HeaderProps {
 
 export function Header({ onToggleMobileMenu }: HeaderProps) {
   const { user, logout } = useAuth()
+  const { isConnected } = useWebSocket()
   const navigate = useNavigate()
   const location = useLocation()
   const toast = useToast()
@@ -280,6 +283,32 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
         {/* Right Actions */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Live WebSocket Event Stream Status Indicator */}
+          <div
+            className={cn(
+              "hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors shadow-2xs",
+              isConnected
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                : "bg-amber-50 text-amber-700 border-amber-200"
+            )}
+            title={isConnected ? "WebSocket Event Stream Connected" : "Connecting to WebSocket Event Stream..."}
+          >
+            <span className="relative flex h-2 w-2">
+              {isConnected && (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              )}
+              <span
+                className={cn(
+                  "relative inline-flex rounded-full h-2 w-2",
+                  isConnected ? "bg-emerald-500" : "bg-amber-500 animate-pulse"
+                )}
+              ></span>
+            </span>
+            <span className="font-mono text-[10px] tracking-tight">
+              {isConnected ? "LIVE STREAM" : "RECONNECTING"}
+            </span>
+          </div>
+
           {/* Mobile Search Button */}
           <button
             type="button"
