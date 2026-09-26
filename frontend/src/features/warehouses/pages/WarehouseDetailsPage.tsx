@@ -289,9 +289,16 @@ export function WarehouseDetailsPage() {
               </div>
             </div>
 
-            <span className="font-mono text-xs text-slate-500">
-              <strong className="text-slate-900">{displayedProducts.length}</strong> product lines
-            </span>
+            <div className="flex items-center gap-2.5">
+              <Link to="/inventory">
+                <Button variant="secondary" size="xs" leftIcon={<Boxes className="w-3 h-3" />}>
+                  Live Stock Ledger
+                </Button>
+              </Link>
+              <span className="font-mono text-xs text-slate-500">
+                <strong className="text-slate-900">{displayedProducts.length}</strong> product lines
+              </span>
+            </div>
           </div>
 
           <div className="overflow-x-auto">

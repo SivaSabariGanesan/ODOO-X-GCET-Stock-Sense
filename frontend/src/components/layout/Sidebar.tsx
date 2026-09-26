@@ -206,7 +206,10 @@ export function Sidebar({
 
         {/* ── INVENTORY ──────────────────────────────────────────────── */}
         <div className="pt-2">
-          <SectionLabel label="Inventory" active={location.pathname === '/products' || isOperationsActive} />
+          <SectionLabel label="Inventory" active={location.pathname === '/products' || location.pathname.startsWith('/inventory') || isOperationsActive} />
+
+          {/* Stock Balances */}
+          <NavItem to="/inventory" icon={Boxes} label="Stock Balances" />
 
           {/* Products — static link */}
           <NavItem to="/products" icon={Package} label="Products" />

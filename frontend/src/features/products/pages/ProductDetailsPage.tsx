@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -19,14 +20,83 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockProductById } from '../mockProducts'
-import { StockStatus } from '../types'
+import { StockStatus, Product } from '../types'
 import { cn } from '@/lib/cn'
+import { stockBalancesApi, ApiProductStockSummary } from '@/features/inventory'
+import { apiClient } from '@/lib/apiClient'
 
 export function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const toast = useToast()
-  const product = id ? getMockProductById(id) : undefined
+
+  const [productData, setProductData] = useState<Product | undefined>(() => (id ? getMockProductById(id) : undefined))
+  const [liveStock, setLiveStock] = useState<ApiProductStockSummary | null>(null)
+  const [isLoading, setIsLoading] = useState(!productData && Boolean(id))
+
+  useEffect(() => {
+    if (!id) return
+    let isCancelled = false
+
+    const loadData = async () => {
+      try {
+        // 1. Fetch real stock summary from stock balances backend
+        try {
+          const stockRes = await stockBalancesApi.getProductStock(id)
+          if (!isCancelled && stockRes.data) {
+            setLiveStock(stockRes.data)
+          }
+        } catch {
+          // If product has no stock records or endpoint error, keep liveStock null
+        }
+
+        // 2. If product not found in mock, load from backend /api/products/:id
+        const mockP = getMockProductById(id)
+        if (!mockP) {
+          try {
+            const pRes = await apiClient.get<{ data: any }>(`/api/products/${id}`)
+            if (!isCancelled && pRes.data) {
+              const raw = pRes.data
+              setProductData({
+                id: raw.id,
+                sku: raw.sku,
+                name: raw.name,
+                category: raw.category?.name ?? 'General',
+                unit: raw.uom?.abbreviation ?? raw.uom?.name ?? 'Units',
+                onHand: 0,
+                status: 'in_stock',
+                warehouseId: '',
+                warehouseName: 'Main Hub',
+                minReorderLevel: 0,
+                targetStock: 0,
+                reorderQuantity: 0,
+                initialLocation: '',
+                locations: [],
+                recentMovements: [],
+                createdAt: raw.createdAt ?? new Date().toISOString(),
+                updatedAt: raw.updatedAt ?? new Date().toISOString(),
+              })
+            }
+          } catch {
+            // Keep productData undefined to trigger EmptyState
+          }
+        } else {
+          setProductData(mockP)
+        }
+      } finally {
+        if (!isCancelled) {
+          setIsLoading(false)
+        }
+      }
+    }
+
+    loadData()
+    return () => {
+      isCancelled = true
+    }
+  }, [id])
+
+  const product = productData
 
   const copySku = (sku: string) => {
     navigator.clipboard.writeText(sku)
@@ -35,6 +105,15 @@ export function ProductDetailsPage() {
 
   const handlePrintLabel = () => {
     toast.info('Printing Label', `Barcode and thermal label dispatched for ${product?.sku}.`)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-5xl mx-auto py-12 flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+        <span className="text-xs text-slate-500 font-medium">Loading product & stock balance details...</span>
+      </div>
+    )
   }
 
   if (!product) {
@@ -48,6 +127,11 @@ export function ProductDetailsPage() {
       />
     )
   }
+
+  const effectiveOnHand = liveStock ? liveStock.totalQuantity : product.onHand
+  const effectiveStatus: StockStatus = liveStock
+    ? (liveStock.totalQuantity <= 0 ? 'out_of_stock' : 'in_stock')
+    : product.status
 
   const getStatusBadge = (status: StockStatus) => {
     switch (status) {
@@ -88,7 +172,7 @@ export function ProductDetailsPage() {
               >
                 <Copy className="w-3 h-3" />
               </button>
-              {getStatusBadge(product.status)}
+              {getStatusBadge(effectiveStatus)}
             </div>
 
             {/* Product Name — Strong Visual Hierarchy */}
@@ -103,6 +187,16 @@ export function ProductDetailsPage() {
 
         {/* Header Actions */}
         <div className="flex items-center gap-2 shrink-0 self-start sm:self-auto">
+          <Link to={`/inventory?search=${encodeURIComponent(product.sku)}`}>
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={<Boxes className="w-3.5 h-3.5" />}
+            >
+              Stock Balances
+            </Button>
+          </Link>
+
           <Button
             variant="secondary"
             size="sm"
@@ -131,11 +225,17 @@ export function ProductDetailsPage() {
             Total On-Hand Stock
           </div>
           <div className="text-2xl font-bold font-mono tracking-tight text-slate-900 mt-1">
-            {product.onHand}{' '}
+            {effectiveOnHand}{' '}
             <span className="text-sm font-sans font-normal text-slate-400">{product.unit}</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5">
-            Physical stock across all bins
+            {liveStock ? (
+              <span>
+                Avail: <strong className="text-emerald-700 font-mono">{liveStock.totalAvailable}</strong> &middot; Reserved: <strong className="text-amber-700 font-mono">{liveStock.totalReserved}</strong>
+              </span>
+            ) : (
+              'Physical stock across all bins'
+            )}
           </div>
         </div>
 
@@ -197,50 +297,77 @@ export function ProductDetailsPage() {
           </div>
 
           <div className="p-5 font-mono text-xs space-y-3 flex-1">
-            {product.locations.map((locRoot) => (
-              <div key={locRoot.id} className="space-y-1.5">
-                {/* Warehouse Root Level */}
-                <div className="flex items-center justify-between py-1 px-2.5 rounded bg-slate-50 border border-slate-200/60 font-medium text-slate-800 font-sans">
-                  <div className="flex items-center gap-2">
-                    <Warehouse className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="font-semibold">{locRoot.name}</span>
+            {liveStock && liveStock.locationBalances && liveStock.locationBalances.length > 0 ? (
+              liveStock.locationBalances.map((loc) => (
+                <div key={loc.id} className="space-y-1.5">
+                  <div className="flex items-center justify-between py-1.5 px-2.5 rounded bg-slate-50 border border-slate-200/60 font-medium text-slate-800 font-sans">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Warehouse className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                      <span className="font-semibold text-slate-900">{loc.warehouseName || loc.warehouseShortCode}</span>
+                      <span className="text-slate-300">/</span>
+                      <span className="text-slate-600 text-xs font-mono truncate">{loc.locationFullPath || loc.locationName}</span>
+                    </div>
+                    <div className="flex items-center gap-3 shrink-0">
+                      <span className="text-[11px] text-slate-500 font-sans">
+                        Avail: <strong className="text-emerald-700 font-mono">{loc.availableQuantity}</strong>
+                      </span>
+                      <span className="font-mono text-xs font-bold text-slate-900">
+                        {loc.quantity} {loc.uomAbbreviation || loc.uomName || product.unit}
+                      </span>
+                    </div>
                   </div>
-                  <span className="font-mono text-xs font-bold text-slate-900">
-                    {locRoot.quantity} {locRoot.unit}
-                  </span>
                 </div>
+              ))
+            ) : product.locations && product.locations.length > 0 ? (
+              product.locations.map((locRoot) => (
+                <div key={locRoot.id} className="space-y-1.5">
+                  {/* Warehouse Root Level */}
+                  <div className="flex items-center justify-between py-1 px-2.5 rounded bg-slate-50 border border-slate-200/60 font-medium text-slate-800 font-sans">
+                    <div className="flex items-center gap-2">
+                      <Warehouse className="w-3.5 h-3.5 text-slate-500" />
+                      <span className="font-semibold">{locRoot.name}</span>
+                    </div>
+                    <span className="font-mono text-xs font-bold text-slate-900">
+                      {locRoot.quantity} {locRoot.unit}
+                    </span>
+                  </div>
 
-                {/* Sub-Location Tree Structure */}
-                {locRoot.children && locRoot.children.length > 0 && (
-                  <div className="pl-6 space-y-1 text-slate-600">
-                    {locRoot.children.map((child, idx) => {
-                      const isLast = idx === (locRoot.children?.length ?? 0) - 1
-                      return (
-                        <div
-                          key={child.id}
-                          className="flex items-center justify-between py-1 px-2 hover:bg-slate-50 rounded transition-colors group"
-                        >
-                          <div className="flex items-center gap-2">
-                            <span className="text-slate-300 font-sans">
-                              {isLast ? '└──' : '├──'}
-                            </span>
-                            <span className="font-sans font-medium text-slate-800 group-hover:text-brand">
-                              {child.name}
+                  {/* Sub-Location Tree Structure */}
+                  {locRoot.children && locRoot.children.length > 0 && (
+                    <div className="pl-6 space-y-1 text-slate-600">
+                      {locRoot.children.map((child, idx) => {
+                        const isLast = idx === (locRoot.children?.length ?? 0) - 1
+                        return (
+                          <div
+                            key={child.id}
+                            className="flex items-center justify-between py-1 px-2 hover:bg-slate-50 rounded transition-colors group"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-slate-300 font-sans">
+                                {isLast ? '└──' : '├──'}
+                              </span>
+                              <span className="font-sans font-medium text-slate-800 group-hover:text-brand">
+                                {child.name}
+                              </span>
+                            </div>
+                            <span className="font-mono text-xs font-bold text-slate-700">
+                              {child.quantity}{' '}
+                              <span className="text-[10px] text-slate-400 font-normal font-sans">
+                                {child.unit}
+                              </span>
                             </span>
                           </div>
-                          <span className="font-mono text-xs font-bold text-slate-700">
-                            {child.quantity}{' '}
-                            <span className="text-[10px] text-slate-400 font-normal font-sans">
-                              {child.unit}
-                            </span>
-                          </span>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-center py-6 text-slate-400 text-xs font-sans">
+                No location balances recorded for this product in active warehouses.
               </div>
-            ))}
+            )}
           </div>
         </div>
 

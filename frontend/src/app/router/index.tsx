@@ -41,6 +41,7 @@ import {
 import { CategoriesListPage } from '@/features/categories'
 import { UomsListPage } from '@/features/uoms'
 import { ReorderingRulesListPage } from '@/features/reordering-rules'
+import { StockBalancesListPage } from '@/features/inventory'
 import { ProfilePage } from '@/features/profile'
 
 export const router = createBrowserRouter([
@@ -99,6 +100,14 @@ export const router = createBrowserRouter([
             element: <ProductFormPage isEdit />,
           },
         ],
+      },
+      {
+        path: 'inventory',
+        element: <StockBalancesListPage />,
+      },
+      {
+        path: 'stock-balances',
+        element: <Navigate to="/inventory" replace />,
       },
       {
         path: 'operations',
@@ -186,6 +195,14 @@ export const router = createBrowserRouter([
           {
             path: 'history',
             element: <Navigate to="/operations/moves" replace />,
+          },
+          {
+            path: 'inventory',
+            element: <Navigate to="/inventory" replace />,
+          },
+          {
+            path: 'stock-balances',
+            element: <Navigate to="/inventory" replace />,
           },
         ],
       },
