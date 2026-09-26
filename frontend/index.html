@@ -20,28 +20,24 @@
     -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
 
     <!--
       Meta description for SEO / link previews
     -->
     <meta
       name="description"
-      content="StockSense — Real-time inventory management powered by Odoo"
+      content="StockSense — Precision inventory management and operations"
     />
 
-    <!--
-      Theme color — matches $o-community-color (Odoo brand purple).
-      Controls browser chrome on mobile (address bar, task switcher).
-    -->
-    <meta name="theme-color" content="#71639e" />
+    <meta name="theme-color" content="#69529b" />
   </head>
-  <body>
-    <!--
-      React mounts here.
-      Background color set inline so there's no flash of white
-      before the CSS loads — matches --color-app-bg.
-    -->
-    <div id="root" style="background-color: #f0eeee; min-height: 100vh;"></div>
+  <body class="bg-app text-gray-800 antialiased selection:bg-brand-light selection:text-brand-dark">
+    <!-- React mounts here -->
+    <div id="root" style="background-color: #f8fafc; min-height: 100vh;"></div>
 
     <!-- Vite entry point -->
     <script type="module" src="/src/main.tsx"></script>

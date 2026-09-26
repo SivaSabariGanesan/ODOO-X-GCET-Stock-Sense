@@ -35,14 +35,12 @@ export function Sidebar({
 }: SidebarProps) {
   const location = useLocation()
 
-  // Track operations expanded accordion
   const isOperationsActive = location.pathname.startsWith('/operations')
   const [operationsOpen, setOperationsOpen] = useState(true)
 
   const isSettingsActive = location.pathname.startsWith('/settings')
   const [settingsOpen, setSettingsOpen] = useState(true)
 
-  // Listen for Ctrl+B shortcut to toggle sidebar
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
@@ -67,11 +65,11 @@ export function Sidebar({
   ]
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-sidebar border-r border-gray-200 select-none">
+    <div className="flex flex-col h-full bg-sidebar border-r border-slate-200 select-none">
       {/* Brand Header */}
       <div
         className={cn(
-          'h-13 px-3.5 border-b border-gray-200 flex items-center justify-between shrink-0',
+          'h-13 px-3.5 border-b border-slate-200/90 flex items-center justify-between shrink-0 bg-view',
           isCollapsed ? 'justify-center px-2' : ''
         )}
       >
@@ -80,7 +78,7 @@ export function Sidebar({
           onClick={onCloseMobile}
           className="flex items-center gap-2.5 overflow-hidden group no-underline"
         >
-          <div className="w-7 h-7 rounded bg-brand flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover:scale-105">
+          <div className="w-7 h-7 rounded bg-gradient-to-br from-brand to-brand-dark flex items-center justify-center text-white shrink-0 shadow-sm transition-transform group-hover:scale-105">
             <Boxes className="w-4 h-4 text-white" />
           </div>
           {!isCollapsed && (
@@ -99,7 +97,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="hidden md:flex p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+          className="hidden md:flex p-1 rounded hover:bg-slate-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
           title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
         >
           {isCollapsed ? (
@@ -113,7 +111,7 @@ export function Sidebar({
         <button
           type="button"
           onClick={onCloseMobile}
-          className="md:hidden p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
+          className="md:hidden p-1 rounded hover:bg-slate-100 text-gray-400 hover:text-gray-700 transition-colors cursor-pointer"
           aria-label="Close sidebar"
         >
           <X className="w-5 h-5" />
@@ -128,19 +126,26 @@ export function Sidebar({
           onClick={onCloseMobile}
           className={({ isActive }) =>
             cn(
-              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
+              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
               isActive
-                ? 'bg-brand-light text-brand font-semibold shadow-xs'
-                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
+                ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
+                : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
               isCollapsed && 'justify-center !px-0'
             )
           }
           title={isCollapsed ? 'Dashboard' : undefined}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <LayoutDashboard className="w-4 h-4 shrink-0 text-current" />
-            {!isCollapsed && <span>Dashboard</span>}
-          </div>
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
+              )}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <LayoutDashboard className="w-4 h-4 shrink-0 text-current" />
+                {!isCollapsed && <span>Dashboard</span>}
+              </div>
+            </>
+          )}
         </NavLink>
 
         <NavLink
@@ -148,23 +153,30 @@ export function Sidebar({
           onClick={onCloseMobile}
           className={({ isActive }) =>
             cn(
-              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
+              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
               isActive
-                ? 'bg-brand-light text-brand font-semibold shadow-xs'
-                : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
+                ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
+                : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
               isCollapsed && 'justify-center !px-0'
             )
           }
           title={isCollapsed ? 'Products' : undefined}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Package className="w-4 h-4 shrink-0 text-current" />
-            {!isCollapsed && <span>Products</span>}
-          </div>
-          {!isCollapsed && (
-            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-200/80 text-gray-600 group-hover:bg-gray-300">
-              2.4k
-            </span>
+          {({ isActive }) => (
+            <>
+              {isActive && (
+                <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
+              )}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <Package className="w-4 h-4 shrink-0 text-current" />
+                {!isCollapsed && <span>Products</span>}
+              </div>
+              {!isCollapsed && (
+                <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                  2.4k
+                </span>
+              )}
+            </>
           )}
         </NavLink>
 
@@ -174,19 +186,19 @@ export function Sidebar({
             <button
               type="button"
               onClick={() => setOperationsOpen(!operationsOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-900 cursor-pointer"
+              className="w-full flex items-center justify-between px-2.5 py-1 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-700 cursor-pointer"
             >
-              <span className={isOperationsActive ? 'text-brand font-bold' : ''}>
+              <span className={isOperationsActive ? 'text-brand-dark font-bold' : ''}>
                 Operations
               </span>
               {operationsOpen ? (
-                <ChevronDown className="w-3 h-3 text-gray-400" />
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               ) : (
-                <ChevronRight className="w-3 h-3 text-gray-400" />
+                <ChevronRight className="w-3 h-3 text-slate-400" />
               )}
             </button>
           ) : (
-            <div className="h-px bg-gray-200 my-2 mx-1" />
+            <div className="h-px bg-slate-200 my-2 mx-1" />
           )}
 
           {(!isCollapsed && operationsOpen) || isCollapsed ? (
@@ -200,24 +212,31 @@ export function Sidebar({
                     onClick={onCloseMobile}
                     className={({ isActive }) =>
                       cn(
-                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
+                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
                         isActive
-                          ? 'bg-brand-light text-brand font-semibold shadow-xs'
-                          : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
+                          ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
+                          : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
                         isCollapsed && 'justify-center !px-0'
                       )
                     }
                     title={isCollapsed ? `${item.name} ${item.count ? `(${item.count})` : ''}` : undefined}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon className="w-4 h-4 shrink-0 text-current" />
-                      {!isCollapsed && <span className="truncate">{item.name}</span>}
-                    </div>
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
+                        )}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon className="w-4 h-4 shrink-0 text-current" />
+                          {!isCollapsed && <span className="truncate">{item.name}</span>}
+                        </div>
 
-                    {!isCollapsed && item.count && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-200/80 text-gray-600 group-hover:bg-gray-300">
-                        {item.count}
-                      </span>
+                        {!isCollapsed && item.count && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {item.count}
+                          </span>
+                        )}
+                      </>
                     )}
                   </NavLink>
                 )
@@ -232,19 +251,19 @@ export function Sidebar({
             <button
               type="button"
               onClick={() => setSettingsOpen(!settingsOpen)}
-              className="w-full flex items-center justify-between px-2.5 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider hover:text-gray-900 cursor-pointer"
+              className="w-full flex items-center justify-between px-2.5 py-1 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-700 cursor-pointer"
             >
-              <span className={isSettingsActive ? 'text-brand font-bold' : ''}>
+              <span className={isSettingsActive ? 'text-brand-dark font-bold' : ''}>
                 Settings
               </span>
               {settingsOpen ? (
-                <ChevronDown className="w-3 h-3 text-gray-400" />
+                <ChevronDown className="w-3 h-3 text-slate-400" />
               ) : (
-                <ChevronRight className="w-3 h-3 text-gray-400" />
+                <ChevronRight className="w-3 h-3 text-slate-400" />
               )}
             </button>
           ) : (
-            <div className="h-px bg-gray-200 my-2 mx-1" />
+            <div className="h-px bg-slate-200 my-2 mx-1" />
           )}
 
           {(!isCollapsed && settingsOpen) || isCollapsed ? (
@@ -258,23 +277,30 @@ export function Sidebar({
                     onClick={onCloseMobile}
                     className={({ isActive }) =>
                       cn(
-                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
+                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group relative',
                         isActive
-                          ? 'bg-brand-light text-brand font-semibold shadow-xs'
-                          : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
+                          ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
+                          : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
                         isCollapsed && 'justify-center !px-0'
                       )
                     }
                     title={isCollapsed ? item.name : undefined}
                   >
-                    <div className="flex items-center gap-2.5 min-w-0">
-                      <Icon className="w-4 h-4 shrink-0 text-current" />
-                      {!isCollapsed && <span className="truncate">{item.name}</span>}
-                    </div>
-                    {!isCollapsed && item.count && (
-                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-200/80 text-gray-600">
-                        {item.count}
-                      </span>
+                    {({ isActive }) => (
+                      <>
+                        {isActive && (
+                          <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
+                        )}
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <Icon className="w-4 h-4 shrink-0 text-current" />
+                          {!isCollapsed && <span className="truncate">{item.name}</span>}
+                        </div>
+                        {!isCollapsed && item.count && (
+                          <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            {item.count}
+                          </span>
+                        )}
+                      </>
                     )}
                   </NavLink>
                 )
@@ -286,7 +312,7 @@ export function Sidebar({
         {/* Profile Item */}
         <div className="pt-2">
           {!isCollapsed && (
-            <div className="px-2.5 py-1 text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+            <div className="px-2.5 py-1 text-[10.5px] font-semibold text-slate-400 uppercase tracking-wider">
               Account
             </div>
           )}
@@ -295,30 +321,37 @@ export function Sidebar({
             onClick={onCloseMobile}
             className={({ isActive }) =>
               cn(
-                'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-2.5',
+                'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-2.5 relative',
                 isActive
-                  ? 'bg-brand-light text-brand font-semibold shadow-xs'
-                  : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
+                  ? 'bg-brand-light text-brand-dark font-semibold shadow-xs'
+                  : 'text-gray-700 hover:bg-slate-100 hover:text-gray-900',
                 isCollapsed && 'justify-center !px-0'
               )
             }
             title={isCollapsed ? 'Profile' : undefined}
           >
-            <User className="w-4 h-4 shrink-0 text-current" />
-            {!isCollapsed && <span>Profile</span>}
+            {({ isActive }) => (
+              <>
+                {isActive && (
+                  <span className="absolute left-0 top-1.5 bottom-1.5 w-1 bg-brand rounded-r" />
+                )}
+                <User className="w-4 h-4 shrink-0 text-current" />
+                {!isCollapsed && <span>Profile</span>}
+              </>
+            )}
           </NavLink>
         </div>
       </nav>
 
       {/* Bottom Live System Indicator */}
       {!isCollapsed ? (
-        <div className="p-3 border-t border-gray-200 bg-gray-50/70">
+        <div className="p-3 border-t border-slate-200 bg-slate-50/70">
           <div className="flex items-center justify-between text-[11px] text-gray-500">
             <div className="flex items-center gap-1.5">
-              <Radio className="w-3 h-3 text-success-DEFAULT animate-pulse" />
+              <Radio className="w-3 h-3 text-emerald-500 animate-pulse" />
               <span className="font-semibold text-gray-800">WH01 Node Online</span>
             </div>
-            <span className="font-mono text-gray-500">99.98% SLA</span>
+            <span className="font-mono text-emerald-600 font-medium">99.98%</span>
           </div>
           <div className="mt-1 text-[10px] text-gray-500 font-mono flex items-center justify-between">
             <span>PostgreSQL 16</span>
@@ -326,8 +359,8 @@ export function Sidebar({
           </div>
         </div>
       ) : (
-        <div className="p-2 border-t border-gray-200 flex justify-center">
-          <Radio className="w-3.5 h-3.5 text-success-DEFAULT" title="WH01 Online" />
+        <div className="p-2 border-t border-slate-200 flex justify-center">
+          <Radio className="w-3.5 h-3.5 text-emerald-500" title="WH01 Online" />
         </div>
       )}
     </div>
@@ -356,7 +389,7 @@ export function Sidebar({
           />
 
           {/* Drawer container */}
-          <aside className="relative flex flex-col w-64 max-w-[80vw] h-full shadow-xl z-10 animate-[fadeIn_150ms_ease-out]">
+          <aside className="relative flex flex-col w-64 max-w-[80vw] h-full shadow-2xl z-10 animate-[fadeIn_150ms_ease-out]">
             {sidebarContent}
           </aside>
         </div>
