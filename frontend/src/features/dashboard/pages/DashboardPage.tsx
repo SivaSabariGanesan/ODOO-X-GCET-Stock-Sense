@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   RotateCcw,
@@ -18,256 +18,77 @@ import { MovementSummarySection } from '../components/MovementSummarySection'
 import { RecentActivitySection } from '../components/RecentActivitySection'
 import { Button } from '@/components/ui/Button'
 import { useToast } from '@/context/ToastContext'
-import {
-  DEFAULT_FILTERS,
-  INITIAL_PENDING_OPERATIONS,
-  INITIAL_LOW_STOCK_PRODUCTS,
-  INITIAL_RECENT_ACTIVITIES,
-  INITIAL_MOVEMENT_DATA,
-} from '../mockData'
-import { DashboardFiltersState, PendingOperation, LowStockProduct } from '../types'
+import { useDashboardData } from '../hooks'
+import { PendingOperation, LowStockProduct } from '../types'
 
 export function DashboardPage() {
   const toast = useToast()
-
-  // ── States ────────────────────────────────────────────────────────────────
-  const [filters, setFilters] = useState<DashboardFiltersState>(DEFAULT_FILTERS)
-  const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
   const [isNewOpOpen, setIsNewOpOpen] = useState(false)
 
-  // Local state for interactive operations (e.g. validating/reordering updates live)
-  const [pendingOps, setPendingOps] = useState<PendingOperation[]>(INITIAL_PENDING_OPERATIONS)
-  const [lowStockList, setLowStockList] = useState<LowStockProduct[]>(INITIAL_LOW_STOCK_PRODUCTS)
-  const [lastRefreshed, setLastRefreshed] = useState<string>('Just now')
+  // ── Real Backend Dashboard State ──────────────────────────────────────────
+  const {
+    filters,
+    isLoading,
+    error,
+    lastRefreshed,
+    warehouseOptions,
+    categoryOptions,
+    summaryMetrics,
+    pendingOperations,
+    lowStockProducts,
+    recentActivities,
+    movementData,
+    totalResultsCount,
+    handleFilterChange,
+    handleResetFilters,
+    handleRefresh,
+    handleValidateOperation,
+    handleReorderProduct,
+  } = useDashboardData()
 
-  // ── Filter Handlers ────────────────────────────────────────────────────────
-  const handleFilterChange = (key: keyof DashboardFiltersState, value: string) => {
-    setFilters((prev) => ({ ...prev, [key]: value }))
-  }
-
-  const handleResetFilters = () => {
-    setFilters(DEFAULT_FILTERS)
-    toast.info('Filters Reset', 'All view criteria restored to default.')
-  }
-
+  // ── Metric Selection Handlers ─────────────────────────────────────────────
   const handleSelectMetric = (metricId: string) => {
     if (metricId === 'low_stock' || metricId === 'out_of_stock') {
-      // scroll to or focus on low stock section
       const el = document.getElementById('low-stock-section')
       el?.scrollIntoView({ behavior: 'smooth' })
     } else if (metricId === 'receipts') {
-      setFilters((prev) => ({ ...prev, documentType: 'receipts' }))
+      handleFilterChange('documentType', 'receipts')
     } else if (metricId === 'deliveries') {
-      setFilters((prev) => ({ ...prev, documentType: 'deliveries' }))
+      handleFilterChange('documentType', 'deliveries')
     } else if (metricId === 'transfers') {
-      setFilters((prev) => ({ ...prev, documentType: 'transfers' }))
+      handleFilterChange('documentType', 'transfers')
     } else if (metricId === 'products') {
-      setFilters(DEFAULT_FILTERS)
+      handleResetFilters()
     }
   }
 
-  // ── Live Filter Computations ───────────────────────────────────────────────
-  const query = filters.searchQuery.toLowerCase().trim()
-
-  // 1. Filtered Pending Operations
-  const filteredPendingOperations = useMemo(() => {
-    return pendingOps.filter((op) => {
-      // Document type filter
-      if (filters.documentType !== 'all') {
-        const typeMap: Record<string, string> = {
-          receipts: 'receipt',
-          deliveries: 'delivery',
-          transfers: 'transfer',
-          adjustments: 'adjustment',
-        }
-        if (op.type !== typeMap[filters.documentType]) return false
-      }
-
-      // Status filter
-      if (filters.status !== 'all' && op.status !== filters.status) {
-        return false
-      }
-
-      // Warehouse filter
-      if (filters.warehouse !== 'all' && op.warehouseId !== filters.warehouse) {
-        return false
-      }
-
-      // Category filter
-      if (filters.category !== 'all' && op.category !== filters.category) {
-        return false
-      }
-
-      // Search query
-      if (query) {
-        const match =
-          op.reference.toLowerCase().includes(query) ||
-          op.source.toLowerCase().includes(query) ||
-          op.destination.toLowerCase().includes(query) ||
-          (op.partner && op.partner.toLowerCase().includes(query)) ||
-          op.warehouseName.toLowerCase().includes(query)
-        if (!match) return false
-      }
-
-      return true
-    })
-  }, [pendingOps, filters, query])
-
-  // 2. Filtered Low Stock Products
-  const filteredLowStockProducts = useMemo(() => {
-    return lowStockList.filter((prod) => {
-      // Warehouse filter
-      if (filters.warehouse !== 'all' && prod.warehouseId !== filters.warehouse) {
-        return false
-      }
-
-      // Category filter
-      if (filters.category !== 'all' && prod.category !== filters.category) {
-        return false
-      }
-
-      // Search query
-      if (query) {
-        const match =
-          prod.sku.toLowerCase().includes(query) ||
-          prod.name.toLowerCase().includes(query) ||
-          prod.category.toLowerCase().includes(query) ||
-          prod.warehouseName.toLowerCase().includes(query)
-        if (!match) return false
-      }
-
-      return true
-    })
-  }, [lowStockList, filters.warehouse, filters.category, query])
-
-  // 3. Filtered Recent Activities
-  const filteredRecentActivities = useMemo(() => {
-    return INITIAL_RECENT_ACTIVITIES.filter((act) => {
-      // Document type filter
-      if (filters.documentType !== 'all') {
-        const typeMap: Record<string, string> = {
-          receipts: 'receipt',
-          deliveries: 'delivery',
-          transfers: 'transfer',
-          adjustments: 'adjustment',
-        }
-        if (act.type !== typeMap[filters.documentType]) return false
-      }
-
-      // Status filter
-      if (filters.status !== 'all' && act.status !== filters.status) {
-        return false
-      }
-
-      // Warehouse filter
-      if (filters.warehouse !== 'all' && act.warehouseId !== filters.warehouse) {
-        return false
-      }
-
-      // Category filter
-      if (filters.category !== 'all' && act.category !== filters.category) {
-        return false
-      }
-
-      // Search query
-      if (query) {
-        const match =
-          act.reference.toLowerCase().includes(query) ||
-          act.description.toLowerCase().includes(query) ||
-          act.user.toLowerCase().includes(query) ||
-          act.warehouseName.toLowerCase().includes(query)
-        if (!match) return false
-      }
-
-      return true
-    })
-  }, [filters, query])
-
-  // 4. Dynamically calculated operational metrics
-  const summaryMetrics = useMemo(() => {
-    // Total products base
-    const baseTotal = 2481
-    // Scale count if warehouse filter is active
-    let scaledTotal = baseTotal
-    if (filters.warehouse === 'WH01') scaledTotal = 1420
-    else if (filters.warehouse === 'WH02') scaledTotal = 780
-    else if (filters.warehouse === 'WH03') scaledTotal = 281
-
-    if (filters.category !== 'all') {
-      scaledTotal = Math.round(scaledTotal * 0.28)
-    }
-
-    const lowStock = filteredLowStockProducts.filter((p) => p.status === 'low_stock').length
-    const outOfStock = filteredLowStockProducts.filter((p) => p.status === 'out_of_stock').length
-
-    const pendingRec = filteredPendingOperations.filter((op) => op.type === 'receipt').length
-    const pendingDel = filteredPendingOperations.filter((op) => op.type === 'delivery').length
-    const schedTrans = filteredPendingOperations.filter((op) => op.type === 'transfer').length
-
-    return {
-      totalProducts: scaledTotal,
-      lowStockCount: lowStock,
-      outOfStockCount: outOfStock,
-      pendingReceipts: pendingRec,
-      pendingDeliveries: pendingDel,
-      scheduledTransfers: schedTrans,
-    }
-  }, [filters.warehouse, filters.category, filteredLowStockProducts, filteredPendingOperations])
-
-  // 5. Dynamic Movement Data based on warehouse filter
-  const movementData = useMemo(() => {
-    if (filters.warehouse === 'all') return INITIAL_MOVEMENT_DATA
-
-    const targetWh = INITIAL_MOVEMENT_DATA.byWarehouse.find(
-      (w) => w.warehouseId === filters.warehouse
-    )
-
-    if (!targetWh) return INITIAL_MOVEMENT_DATA
-
-    return {
-      inboundUnits: targetWh.inbound,
-      inboundCount: Math.round(targetWh.inbound / 120),
-      outboundUnits: targetWh.outbound,
-      outboundCount: Math.round(targetWh.outbound / 35),
-      internalUnits: targetWh.internal,
-      internalCount: Math.round(targetWh.internal / 30),
-      adjustmentsUnits: 4,
-      adjustmentsCount: 1,
-      netChange: targetWh.inbound - targetWh.outbound,
-      byWarehouse: [targetWh],
-    }
-  }, [filters.warehouse])
-
-  const totalResultsCount =
-    filteredPendingOperations.length +
-    filteredLowStockProducts.length +
-    filteredRecentActivities.length
-
-  // ── Actions ────────────────────────────────────────────────────────────────
-  const handleRefresh = () => {
-    setIsLoading(true)
-    setError(null)
-    setTimeout(() => {
-      setIsLoading(false)
-      const now = new Date()
-      setLastRefreshed(now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-      toast.success('Inventory Data Refreshed', 'Telemetry streams and operational queues updated.')
-    }, 450)
+  const onResetWithToast = () => {
+    handleResetFilters()
+    toast.info('Filters Reset', 'All view criteria restored to default.')
   }
 
-  const handleValidateOperation = (id: string) => {
-    setPendingOps((prev) =>
-      prev.map((op) => (op.id === id ? { ...op, status: 'done' } : op))
-    )
-  }
-
-  const handleReorderProduct = (id: string) => {
-    setLowStockList((prev) =>
-      prev.map((p) =>
-        p.id === id ? { ...p, onHand: p.onHand + p.reorderQuantity, status: 'low_stock' } : p
+  const onValidateWithToast = async (id: string) => {
+    try {
+      await handleValidateOperation(id)
+      const op = pendingOperations.find((o) => o.id === id)
+      toast.success(
+        'Operation Validated',
+        `${op?.reference || 'Document'} was successfully validated against stock ledger.`
       )
-    )
+    } catch {
+      toast.error('Validation Error', 'Failed to validate operation against backend.')
+    }
+  }
+
+  const onReorderWithToast = (id: string) => {
+    handleReorderProduct(id)
+    const product = lowStockProducts.find((p) => p.id === id)
+    if (product) {
+      toast.success(
+        'Purchase Requisition Created',
+        `Draft replenishment order generated for ${product.reorderQuantity} ${product.unit} of ${product.sku}.`
+      )
+    }
   }
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -376,8 +197,10 @@ export function DashboardPage() {
       <DashboardFilters
         filters={filters}
         onFilterChange={handleFilterChange}
-        onResetFilters={handleResetFilters}
+        onResetFilters={onResetWithToast}
         totalResultsCount={totalResultsCount}
+        warehouseOptions={warehouseOptions}
+        categoryOptions={categoryOptions}
       />
 
       {/* ── Loading Skeleton / Error State ───────────────────────────── */}
@@ -416,7 +239,7 @@ export function DashboardPage() {
             No pending operations, inventory alerts, or recent activities matched your current combination of filters.
           </p>
           <div className="pt-2">
-            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
+            <Button variant="secondary" size="sm" onClick={onResetWithToast}>
               Clear All Filters
             </Button>
           </div>
@@ -427,8 +250,8 @@ export function DashboardPage() {
           {/* 1. Pending Operations Queue */}
           <div id="pending-operations-section">
             <PendingOperationsSection
-              operations={filteredPendingOperations}
-              onValidateOperation={handleValidateOperation}
+              operations={pendingOperations}
+              onValidateOperation={onValidateWithToast}
             />
           </div>
 
@@ -437,8 +260,8 @@ export function DashboardPage() {
             {/* Left Column: Low Stock Products (7 Cols) */}
             <div id="low-stock-section" className="lg:col-span-7">
               <LowStockSection
-                products={filteredLowStockProducts}
-                onReorderProduct={handleReorderProduct}
+                products={lowStockProducts}
+                onReorderProduct={onReorderWithToast}
               />
             </div>
 
@@ -450,7 +273,7 @@ export function DashboardPage() {
 
           {/* 3. Recent Activity Ledger */}
           <div id="recent-activity-section">
-            <RecentActivitySection activities={filteredRecentActivities} />
+            <RecentActivitySection activities={recentActivities} />
           </div>
         </div>
       )}

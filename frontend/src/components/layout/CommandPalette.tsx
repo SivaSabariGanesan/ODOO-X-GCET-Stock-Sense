@@ -14,6 +14,7 @@ import {
   Tag,
   Scale,
   User,
+  Boxes,
   X,
   ExternalLink,
 } from 'lucide-react'
@@ -41,6 +42,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
 
   const items: CommandItem[] = [
     { id: 'dash', title: 'Dashboard & KPIs', category: 'Navigation', href: '/dashboard', icon: LayoutDashboard },
+    { id: 'inv', title: 'Stock Balances & On-Hand Inventory', category: 'Navigation', href: '/inventory', icon: Boxes },
     { id: 'prod', title: 'Products Master Catalog', category: 'Navigation', href: '/products', icon: Package, badge: '2,481 SKUs' },
     { id: 'rec', title: 'Incoming Receipts (Dock Intake)', category: 'Operations', href: '/operations/receipts', icon: ArrowDownToLine, badge: '4 Pending' },
     { id: 'del', title: 'Outgoing Delivery Orders', category: 'Operations', href: '/operations/deliveries', icon: ArrowUpFromLine, badge: '8 Dispatches' },

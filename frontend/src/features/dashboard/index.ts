@@ -1,3 +1,5 @@
 export { DashboardPage } from './pages/DashboardPage'
 export * from './types'
+export * from './api'
+export * from './hooks'
 export * from './mockData'
