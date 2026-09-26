@@ -218,6 +218,10 @@ export function CategoriesListPage() {
     () => categories.filter((c) => !c.isActive).length,
     [categories]
   )
+  const subcategoryCount = useMemo(
+    () => categories.filter((c) => Boolean(c.parentCategoryId)).length,
+    [categories]
+  )
 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-5 pb-16">
@@ -225,10 +229,10 @@ export function CategoriesListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Product Categories
+            Categories
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Hierarchical product taxonomy, classification families, and stock category groupings.
+            Manage product categories and hierarchy.
           </p>
         </div>
 
@@ -251,35 +255,33 @@ export function CategoriesListPage() {
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Total Categories</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {totalCount} Categories
+            {totalCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured product families</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Configured categories</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Active Status</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Active</span>
           <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 block">
-            {activeCount} Active
+            {activeCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Available for product mapping</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">In active use</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Inactive / Archived</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Subcategories</span>
+          <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block">
+            {subcategoryCount}
+          </span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Nested under parents</span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
+          <span className="text-[11px] font-medium text-slate-500 block">Inactive</span>
           <span className="text-lg font-bold font-mono text-slate-500 mt-0.5 block">
-            {inactiveCount} Inactive
+            {inactiveCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Preserved for historical data</span>
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">System Access</span>
-          <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block capitalize">
-            {user?.role || 'Staff'} Role
-          </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            {canManage ? 'Read, Create & Update enabled' : 'Read-only catalog viewer'}
-          </span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Archived</span>
         </div>
       </div>
 

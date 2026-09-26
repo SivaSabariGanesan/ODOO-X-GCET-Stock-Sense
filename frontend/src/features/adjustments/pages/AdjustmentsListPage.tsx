@@ -108,16 +108,16 @@ export function AdjustmentsListPage() {
   const getStatusBadge = (status: ApiAdjustmentStatus) => {
     switch (status) {
       case 'READY':
-        return <Badge variant="ready" dot>READY</Badge>
+        return <Badge variant="ready" dot>Ready</Badge>
       case 'WAITING':
-        return <Badge variant="warning" dot>WAITING</Badge>
+        return <Badge variant="warning" dot>Waiting</Badge>
       case 'DONE':
-        return <Badge variant="done" dot>DONE</Badge>
+        return <Badge variant="done" dot>Done</Badge>
       case 'CANCELED':
-        return <Badge variant="cancelled" dot>CANCELED</Badge>
+        return <Badge variant="cancelled" dot>Cancelled</Badge>
       case 'DRAFT':
       default:
-        return <Badge variant="draft" dot>DRAFT</Badge>
+        return <Badge variant="draft" dot>Draft</Badge>
     }
   }
 
@@ -149,7 +149,7 @@ export function AdjustmentsListPage() {
             Inventory Adjustments
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Physical cycle counts, discrepancy reconciliation, scrap write-offs, and theoretical vs. counted audits.
+            Reconcile physical stock with system quantities.
           </p>
         </div>
 
@@ -169,21 +169,21 @@ export function AdjustmentsListPage() {
       {/* ── Metric Summary Strip ────────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Total Recorded Audits</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Total Adjustments</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
             {totalAudits}
           </span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Pending Draft Signoff</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Draft</span>
           <span className="text-lg font-bold font-mono text-amber-600 mt-0.5 block">
             {draftCount}
           </span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Deficit Variances (Loss)</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Loss (Deficit)</span>
           <span className="text-lg font-bold font-mono text-rose-600 mt-0.5 flex items-center gap-1">
             <TrendingDown className="w-4 h-4 text-rose-500" />
             {totalDeficits}
@@ -191,7 +191,7 @@ export function AdjustmentsListPage() {
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Surplus Variances (Found)</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Gain (Surplus)</span>
           <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 flex items-center gap-1">
             <TrendingUp className="w-4 h-4 text-emerald-500" />
             {totalSurpluses}

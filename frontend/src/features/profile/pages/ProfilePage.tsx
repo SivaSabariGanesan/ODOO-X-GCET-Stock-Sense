@@ -59,7 +59,7 @@ export function ProfilePage() {
         role: role as any,
         warehouseName,
       })
-      toast.success('Profile Updated', 'Your operator information has been successfully saved.')
+      toast.success('Profile Updated', 'Your profile has been saved.')
     }, 300)
   }
 
@@ -77,13 +77,13 @@ export function ProfilePage() {
     setCurrentPassword('')
     setNewPassword('')
     setConfirmPassword('')
-    toast.success('Password Updated', 'Your account credentials have been successfully updated.')
+    toast.success('Password Updated', 'Your password has been updated.')
   }
 
   const handleConfirmLogout = () => {
     setIsLogoutModalOpen(false)
     logout()
-    toast.info('Session Terminated', 'You have been signed out of the terminal.')
+    toast.info('Signed Out', 'You have been signed out.')
     navigate('/login')
   }
 
@@ -92,16 +92,11 @@ export function ProfilePage() {
       {/* ── Page Header ─────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-              Operator Profile & Security
-            </h1>
-            <Badge variant="brand" dot className="text-[11px]">
-              Active Session
-            </Badge>
-          </div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
+            Profile
+          </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1 font-sans">
-            User credentials, role permissions, active warehouse context, and authentication preferences.
+            Manage your account settings and preferences.
           </p>
         </div>
 
@@ -140,15 +135,10 @@ export function ProfilePage() {
               </span>
               <span className="text-[10.5px] text-emerald-700 flex items-center gap-1 font-medium">
                 <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                MFA Verified
+                Active
               </span>
             </div>
           </div>
-        </div>
-
-        <div className="text-right text-xs text-slate-500 font-mono hidden sm:block">
-          <div>Node ID: SS-NODE-01</div>
-          <div className="text-[11px] text-slate-400">RSA 4096 Signed Session</div>
         </div>
       </div>
 
@@ -160,7 +150,7 @@ export function ProfilePage() {
             <span>Account Details</span>
           </h3>
           <p className="text-[11px] text-slate-400 mt-0.5">
-            Update your operational display name, notification email, and primary warehouse facility.
+            Update your display name, email, and default warehouse.
           </p>
         </div>
 
@@ -190,20 +180,20 @@ export function ProfilePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Operational Role</label>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Role</label>
               <select
                 value={role}
                 onChange={(e) => setRole(e.target.value as any)}
                 className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
               >
-                <option value="inventory_manager">Inventory Manager (Full Operations)</option>
-                <option value="admin">System Administrator (Root Access)</option>
-                <option value="warehouse_operator">Warehouse Operator (Floor Intake/Dispatches)</option>
+                <option value="inventory_manager">Inventory Manager</option>
+                <option value="admin">Administrator</option>
+                <option value="warehouse_operator">Warehouse Operator</option>
               </select>
             </div>
 
             <div>
-              <label className="text-xs font-semibold text-slate-700 block mb-1">Assigned Facility Node</label>
+              <label className="text-xs font-semibold text-slate-700 block mb-1">Default Warehouse</label>
               <select
                 value={warehouseName}
                 onChange={(e) => setWarehouseName(e.target.value)}
@@ -224,7 +214,7 @@ export function ProfilePage() {
               disabled={isSaving}
               leftIcon={<Save className="w-3.5 h-3.5" />}
             >
-              {isSaving ? 'Saving...' : 'Save Profile Changes'}
+              {isSaving ? 'Saving...' : 'Save Changes'}
             </Button>
           </div>
         </form>
@@ -236,10 +226,10 @@ export function ProfilePage() {
           <div>
             <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
               <Key className="w-3.5 h-3.5 text-brand" />
-              <span>Authentication & Security</span>
+              <span>Security</span>
             </h3>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Multi-factor authentication, cryptographic credentials, and active terminal sessions.
+              Two-factor authentication and password settings.
             </p>
           </div>
 
@@ -259,10 +249,10 @@ export function ProfilePage() {
           <div className="p-3.5 bg-slate-50/70 rounded-lg border border-slate-200 flex items-center justify-between gap-4">
             <div className="space-y-0.5">
               <span className="font-semibold text-slate-900 block">
-                Two-Factor Authentication (TOTP)
+                Two-Factor Authentication
               </span>
               <span className="text-[11px] text-slate-500 block">
-                Requires a 6-digit one-time code during terminal sign-in.
+                Requires a 6-digit code when signing in.
               </span>
             </div>
             <button
@@ -271,7 +261,7 @@ export function ProfilePage() {
                 setMfaEnabled(!mfaEnabled)
                 toast.info(
                   mfaEnabled ? 'MFA Disabled' : 'MFA Enabled',
-                  `Two-factor authentication is now ${!mfaEnabled ? 'active' : 'disabled'}.`
+                  `Two-factor authentication is now ${!mfaEnabled ? 'enabled' : 'disabled'}.`
                 )
               }}
               className={cn(
@@ -281,7 +271,7 @@ export function ProfilePage() {
                   : 'bg-slate-100 text-slate-600 border-slate-200'
               )}
             >
-              {mfaEnabled ? 'Active / Protected' : 'Disabled'}
+              {mfaEnabled ? 'Enabled' : 'Disabled'}
             </button>
           </div>
 
@@ -291,15 +281,15 @@ export function ProfilePage() {
               <Globe className="w-5 h-5 text-slate-400 shrink-0" />
               <div>
                 <span className="font-semibold text-slate-900 block">
-                  Current Web Terminal Session
+                  Current Session
                 </span>
-                <span className="text-[11px] text-slate-500 font-mono block">
-                  192.168.1.104 &middot; Chrome on Windows &middot; Frankfurt, DE
+                <span className="text-[11px] text-slate-500 block">
+                  Active browser session
                 </span>
               </div>
             </div>
             <Badge variant="done" dot className="text-[10.5px]">
-              Current Device
+              Active
             </Badge>
           </div>
         </div>
@@ -315,10 +305,10 @@ export function ProfilePage() {
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-900 font-heading">
-                  Update Account Password
+                  Change Password
                 </h3>
                 <p className="text-slate-500 mt-0.5">
-                  Enter your current password and choose a secure replacement.
+                  Enter your current password and choose a new password.
                 </p>
               </div>
             </div>
@@ -378,8 +368,8 @@ export function ProfilePage() {
       {/* ── Sign Out Confirmation Modal ─────────────────────────────── */}
       <ConfirmationModal
         isOpen={isLogoutModalOpen}
-        title="Sign Out of StockSense"
-        description="Are you sure you want to end your active terminal session? You will be redirected to the sign-in portal."
+        title="Sign Out"
+        description="Are you sure you want to sign out of your account?"
         confirmLabel="Sign Out"
         cancelLabel="Stay Signed In"
         variant="danger"

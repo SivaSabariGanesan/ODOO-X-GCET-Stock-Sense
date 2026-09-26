@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { Mail, Lock, LogIn, Sparkles, AlertCircle } from 'lucide-react'
+import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react'
 import { AuthLayout } from '../layouts/AuthLayout'
 import { loginSchema, LoginFormData } from '@/schemas/auth'
 import { zodResolver } from '@/lib/zodResolver'
@@ -34,11 +34,11 @@ export function LoginPage() {
     try {
       setFormError(null)
       await login(data.email, data.password)
-      toast.success('Authentication Successful', `Welcome back, ${data.email.split('@')[0]}`)
+      toast.success('Signed In', `Welcome back, ${data.email.split('@')[0]}`)
       navigate('/dashboard')
     } catch {
-      setFormError('Authentication failed. Please verify your operator credentials.')
-      toast.error('Authentication Error', 'Invalid email or password.')
+      setFormError('Invalid email or password.')
+      toast.error('Sign In Failed', 'Invalid email or password.')
     }
   }
 
@@ -46,30 +46,27 @@ export function LoginPage() {
     setValue('email', 'alex.mercer@stocksense.io', { shouldValidate: true })
     setValue('password', 'StockSense2026!', { shouldValidate: true })
     setFormError(null)
-    toast.info('Demo Credentials Loaded', 'Click "Sign In" or press Enter to continue')
   }
 
   return (
     <AuthLayout
-      title="Operator Sign In"
-      subtitle="Authenticate to access warehouse stock balances, receipts, and dispatches"
-      badgeText="TERMINAL-ONLINE"
+      title="Sign in to your account"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {formError && (
-          <div className="p-3 rounded bg-danger-bg border border-danger-DEFAULT/20 text-xs text-danger-text flex items-start gap-2 animate-[fadeIn_150ms_ease-out]">
+          <div className="p-3 rounded bg-danger-bg border border-danger-DEFAULT/20 text-xs text-danger-text flex items-start gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-danger-DEFAULT" />
             <div className="flex-1">
-              <span className="font-semibold">Sign in error:</span> {formError}
+              {formError}
             </div>
           </div>
         )}
 
         <Input
-          label="Registered Work Email"
+          label="Work Email"
           type="email"
           autoComplete="email"
-          placeholder="operator@company.com"
+          placeholder="name@company.com"
           required
           leftIcon={<Mail className="w-4 h-4" />}
           error={errors.email?.message}
@@ -78,7 +75,7 @@ export function LoginPage() {
 
         <div className="space-y-1">
           <Input
-            label="Security Password"
+            label="Password"
             isPassword
             autoComplete="current-password"
             placeholder="••••••••••••"
@@ -96,14 +93,14 @@ export function LoginPage() {
               className="rounded border-gray-300 text-brand focus:ring-brand focus:ring-offset-0 w-3.5 h-3.5 cursor-pointer"
               {...register('rememberMe')}
             />
-            <span>Remember this device</span>
+            <span>Remember me</span>
           </label>
 
           <Link
             to="/forgot-password"
             className="text-brand hover:text-brand-dark font-medium hover:underline text-xs"
           >
-            Forgot Password?
+            Forgot password?
           </Link>
         </div>
 
@@ -115,25 +112,24 @@ export function LoginPage() {
             isLoading={isSubmitting}
             rightIcon={<LogIn className="w-4 h-4" />}
           >
-            Sign In to Terminal
+            Sign In
           </Button>
         </div>
 
-        {/* Demo Credentials Helper Card */}
+        {/* Demo Credentials Helper */}
         <div className="pt-1">
           <button
             type="button"
             onClick={fillDemoCredentials}
-            className="w-full py-2 px-3 rounded border border-dashed border-brand/40 bg-brand-light/30 hover:bg-brand-light/60 text-xs text-brand font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+            className="w-full py-1.5 px-3 rounded border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-medium transition-colors cursor-pointer text-center"
           >
-            <Sparkles className="w-3.5 h-3.5 text-brand" />
-            <span>Auto-fill Demo Operator Credentials</span>
+            Fill demo credentials
           </button>
         </div>
 
         {/* Sign Up Redirect */}
         <div className="pt-3 border-t border-gray-200 text-center text-xs text-gray-600">
-          <span>Need an operator account? </span>
+          <span>Don&apos;t have an account? </span>
           <Link
             to="/signup"
             className="text-brand hover:text-brand-dark font-semibold hover:underline"

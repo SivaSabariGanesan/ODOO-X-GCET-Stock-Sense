@@ -169,20 +169,14 @@ export function WarehousesListPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Warehouses & Facilities
+            Warehouses
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Physical distribution centers, fulfillment hubs, selective rack tiers, and location topology.
+            Manage warehouses and storage locations.
           </p>
         </div>
 
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200/80 px-3 py-1.5 rounded-lg shadow-2xs">
-            <WarehouseIcon className="w-4 h-4 text-brand" />
-            <span>Active Nodes: </span>
-            <strong className="text-slate-800">{activeFacilitiesCount} Facilities Online</strong>
-          </div>
-
           {canManage && (
             <Button
               variant="primary"
@@ -199,9 +193,9 @@ export function WarehousesListPage() {
       {/* ── Top Metric Summary Strip ─────────────────────────────────── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Total Facilities</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Total Warehouses</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {total} Nodes
+            {total}
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
             {activeFacilitiesCount} active &middot; {total - activeFacilitiesCount} inactive
@@ -209,27 +203,27 @@ export function WarehousesListPage() {
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Storage Locations</span>
-          <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block">
-            {totalLocationsCount} Locations
-          </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Across all facilities</span>
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Total On-Hand Inventory</span>
-          <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {totalStockUnitsCount.toLocaleString()} Units
-          </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Physical ledger units</span>
-        </div>
-
-        <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Network Availability</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Active Warehouses</span>
           <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 block">
-            100% Operational
+            {activeFacilitiesCount}
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Real-time inventory ledger</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Operational</span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
+          <span className="text-[11px] font-medium text-slate-500 block">Storage Locations</span>
+          <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
+            {totalLocationsCount}
+          </span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Across all warehouses</span>
+        </div>
+
+        <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
+          <span className="text-[11px] font-medium text-slate-500 block">Total On-Hand</span>
+          <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
+            {totalStockUnitsCount.toLocaleString()}
+          </span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Units in stock</span>
         </div>
       </div>
 
@@ -270,7 +264,7 @@ export function WarehousesListPage() {
 
         <div className="flex items-center gap-3 text-xs text-slate-500 w-full sm:w-auto justify-between sm:justify-end">
           <span className="font-mono">
-            <strong className="text-slate-900">{warehouses.length}</strong> of {total} facilities
+            <strong className="text-slate-900">{warehouses.length}</strong> of {total} warehouses
           </span>
           {search && (
             <button
@@ -291,10 +285,10 @@ export function WarehousesListPage() {
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold select-none">
-                <th className="py-2.5 px-4">Warehouse Name</th>
+                <th className="py-2.5 px-4">Warehouse</th>
                 <th className="py-2.5 px-4">Code</th>
                 <th className="py-2.5 px-4 text-center">Locations</th>
-                <th className="py-2.5 px-4">Inventory Summary</th>
+                <th className="py-2.5 px-4">Stock</th>
                 <th className="py-2.5 px-4 text-center">Status</th>
                 <th className="py-2.5 px-4 text-right">Actions</th>
               </tr>
@@ -329,13 +323,13 @@ export function WarehousesListPage() {
                   <td colSpan={6} className="p-0">
                     <EmptyState
                       icon={WarehouseIcon}
-                      title={search ? 'No warehouse matches search' : 'No warehouses configured'}
+                      title={search ? 'No warehouses found' : 'No warehouses configured'}
                       description={
                         search
-                          ? 'Try searching with a different warehouse name or location code.'
-                          : 'Configure your first warehouse facility to start tracking inventory nodes.'
+                          ? 'Try searching with a different name or code.'
+                          : 'Create your first warehouse to get started.'
                       }
-                      actionLabel={search ? 'Reset Search' : canManage ? 'Create Warehouse' : undefined}
+                      actionLabel={search ? 'Reset Search' : canManage ? 'New Warehouse' : undefined}
                       onAction={search ? () => setSearch('') : canManage ? openCreateModal : undefined}
                     />
                   </td>
@@ -358,7 +352,7 @@ export function WarehousesListPage() {
                         <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 shrink-0" />
                           <span className="truncate max-w-[280px]">
-                            {wh.address || 'Standard Logistics Node'}
+                            {wh.address || 'No address specified'}
                           </span>
                         </span>
                       </Link>
@@ -400,7 +394,7 @@ export function WarehousesListPage() {
                     {/* Status */}
                     <td className="py-3 px-4 text-center">
                       <Badge variant={wh.isActive ? 'done' : 'neutral'} dot>
-                        {wh.isActive ? 'ACTIVE' : 'INACTIVE'}
+                        {wh.isActive ? 'Active' : 'Inactive'}
                       </Badge>
                     </td>
 
@@ -414,7 +408,7 @@ export function WarehousesListPage() {
                             className="h-7 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
                           >
                             <Eye className="w-3.5 h-3.5 mr-1" />
-                            <span>View Tree</span>
+                            <span>View</span>
                             <ChevronRight className="w-3 h-3 ml-0.5 text-slate-400" />
                           </Button>
                         </Link>
@@ -429,7 +423,7 @@ export function WarehousesListPage() {
                                 e.stopPropagation()
                                 openEditModal(wh)
                               }}
-                              title="Edit facility"
+                              title="Edit warehouse"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
                             </Button>
@@ -442,7 +436,7 @@ export function WarehousesListPage() {
                                 e.stopPropagation()
                                 setDeleteTarget(wh)
                               }}
-                              title="Delete facility"
+                              title="Delete warehouse"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </Button>
@@ -459,7 +453,7 @@ export function WarehousesListPage() {
 
         {/* ── Table Footer & Pagination ─────────────────────────────────── */}
         <div className="px-4 py-2.5 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
-          <span>{total} configured warehouse facilities in multi-node network</span>
+          <span>{total} warehouses</span>
           {total > limit && (
             <TablePagination
               currentPage={page}
@@ -480,7 +474,7 @@ export function WarehousesListPage() {
               <div className="flex items-center gap-2">
                 <WarehouseIcon className="w-4 h-4 text-brand" />
                 <h3 className="font-heading font-semibold text-slate-900 text-sm">
-                  {editingWarehouse ? 'Edit Warehouse Facility' : 'Create Warehouse Facility'}
+                  {editingWarehouse ? 'Edit Warehouse' : 'New Warehouse'}
                 </h3>
               </div>
               <button
@@ -510,7 +504,7 @@ export function WarehousesListPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="e.g. Central Fulfillment Hub"
+                  placeholder="e.g. Central Warehouse"
                   className={cn(
                     'w-full px-3 py-1.5 text-xs border rounded-md focus:outline-none focus:ring-1',
                     formErrors.name
@@ -526,7 +520,7 @@ export function WarehousesListPage() {
               {/* Short Code */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Facility Code (Short Code) <span className="text-rose-500">*</span>
+                  Short Code <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -550,13 +544,13 @@ export function WarehousesListPage() {
               {/* Address */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Physical Address
+                  Address
                 </label>
                 <input
                   type="text"
                   value={formData.address || ''}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                  placeholder="e.g. 742 Evergreen Terrace, Sector 4"
+                  placeholder="e.g. 12 Industrial Ave"
                   className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20"
                 />
               </div>
@@ -564,13 +558,13 @@ export function WarehousesListPage() {
               {/* Description */}
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Description / Facility Notes
+                  Description
                 </label>
                 <textarea
                   rows={2}
                   value={formData.description || ''}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Optional operational details or access specifications"
+                  placeholder="Optional warehouse description or notes"
                   className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none"
                 />
               </div>
@@ -585,7 +579,7 @@ export function WarehousesListPage() {
                   className="rounded border-slate-300 text-brand focus:ring-brand/20 h-4 w-4 cursor-pointer"
                 />
                 <label htmlFor="wh-is-active" className="text-xs text-slate-700 font-medium cursor-pointer">
-                  Facility Active for Inventory Movements
+                  Active
                 </label>
               </div>
 
@@ -607,7 +601,7 @@ export function WarehousesListPage() {
                   disabled={isSubmitting}
                   leftIcon={isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
                 >
-                  {isSubmitting ? 'Saving...' : editingWarehouse ? 'Update Facility' : 'Create Facility'}
+                  {isSubmitting ? 'Saving...' : editingWarehouse ? 'Save Changes' : 'Create Warehouse'}
                 </Button>
               </div>
             </form>
@@ -625,7 +619,7 @@ export function WarehousesListPage() {
               </div>
               <div>
                 <h3 className="font-heading font-semibold text-slate-900 text-sm">
-                  Delete Warehouse Facility
+                  Delete Warehouse
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Are you sure you want to remove <strong className="text-slate-800">{deleteTarget.name}</strong>?
@@ -634,7 +628,7 @@ export function WarehousesListPage() {
             </div>
 
             <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-100">
-              If this facility contains existing locations or stock history, it will be safely deactivated to preserve audit trails.
+              If this warehouse contains existing locations or stock history, it will be deactivated to preserve movement records.
             </p>
 
             <div className="flex items-center justify-end gap-2 pt-2">

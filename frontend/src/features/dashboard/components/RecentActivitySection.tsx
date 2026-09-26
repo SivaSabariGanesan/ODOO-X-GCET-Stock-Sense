@@ -41,18 +41,15 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
         <div className="flex items-center gap-2.5">
           <div className="w-2 h-2 rounded-full bg-slate-400" />
           <h2 className="text-sm font-semibold text-slate-900 font-heading">
-            Recent Inventory Activity
+            Recent Activity
           </h2>
-          <span className="text-xs text-slate-500 font-mono">
-            Live operational ledger
-          </span>
         </div>
 
         <Link
           to="/operations/history"
           className="text-xs text-brand hover:underline font-medium inline-flex items-center gap-1"
         >
-          <span>Full Move History</span>
+          <span>Move History</span>
           <ChevronRight className="w-3.5 h-3.5" />
         </Link>
       </div>
@@ -61,8 +58,8 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
       {activities.length === 0 ? (
         <div className="p-8 text-center text-slate-500">
           <CheckCircle2 className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-          <p className="text-xs font-medium text-slate-700">No activity matching current filters</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Try widening the search query or selecting "All Warehouses".</p>
+          <p className="text-xs font-medium text-slate-700">No recent activity</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">No stock movements recorded for the current filter.</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -164,7 +161,7 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
                         }
                         dot
                       >
-                        {item.status.toUpperCase()}
+                        {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
                       </Badge>
                     </td>
                   </tr>
@@ -177,8 +174,8 @@ export function RecentActivitySection({ activities }: RecentActivitySectionProps
 
       {/* Footer */}
       <div className="px-4 py-2.5 sm:px-5 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-        <span>Recorded ledger entries are immutable once validated</span>
-        <span className="font-mono">Showing latest {activities.length} movements</span>
+        <span>Validated movements are recorded in stock history</span>
+        <span className="font-mono">Showing {activities.length} movements</span>
       </div>
     </section>
   )

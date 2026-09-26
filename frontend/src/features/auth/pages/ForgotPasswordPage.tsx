@@ -55,9 +55,8 @@ export function ForgotPasswordPage() {
 
   return (
     <AuthLayout
-      title="Recover Password"
-      subtitle="Follow the 3-step security procedure to verify your identity and reset your credentials"
-      badgeText="SECURITY-FLOW"
+      title="Reset password"
+      subtitle="Enter your email address to receive a verification code"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
         {/* Progress Stepper */}
@@ -71,14 +70,14 @@ export function ForgotPasswordPage() {
         )}
 
         <Input
-          label="Registered Work Email"
+          label="Work Email"
           type="email"
           autoComplete="email"
-          placeholder="operator@company.com"
+          placeholder="name@company.com"
           required
           leftIcon={<Mail className="w-4 h-4" />}
           error={errors.email?.message}
-          hint="We will send a 6-digit OTP valid for 2 minutes."
+          hint="We will send a 6-digit verification code."
           {...register('email')}
         />
 
@@ -97,9 +96,9 @@ export function ForgotPasswordPage() {
         <button
           type="button"
           onClick={fillDemoEmail}
-          className="w-full py-1 text-xs text-brand hover:text-brand-dark text-center hover:underline cursor-pointer font-medium"
+          className="w-full py-1 text-xs text-slate-500 hover:text-slate-800 text-center hover:underline cursor-pointer font-medium"
         >
-          Use demo email (alex.mercer@stocksense.io)
+          Fill demo email (alex.mercer@stocksense.io)
         </button>
 
         <div className="pt-3 border-t border-gray-200 text-center">

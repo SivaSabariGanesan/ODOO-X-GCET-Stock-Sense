@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -19,7 +20,7 @@ import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { useDelivery } from '../hooks/useDelivery'
-import { ApiDeliveryStatus } from '../api'
+import { deliveriesApi, ApiDeliveryStatus } from '../api'
 import { cn } from '@/lib/cn'
 
 export function DeliveryDetailsPage() {
@@ -39,16 +40,40 @@ export function DeliveryDetailsPage() {
     refetch,
   } = useDelivery(id)
 
+  const [isPrinting, setIsPrinting] = useState(false)
+
   const copyText = (txt: string, label: string) => {
     navigator.clipboard.writeText(txt)
     toast.info('Copied', `${label} (${txt}) copied to clipboard.`)
   }
 
-  const handlePrintSlip = () => {
-    toast.info(
-      'Printing Slip',
-      `Delivery Note & Packing List for ${delivery?.deliveryNumber} sent to printer.`
-    )
+  const handlePrintSlip = async () => {
+    if (!delivery || isPrinting) return
+    setIsPrinting(true)
+    let objectUrl: string | null = null
+    try {
+      const blob = await deliveriesApi.generatePdf(delivery.id)
+      objectUrl = URL.createObjectURL(blob)
+      const tab = window.open(objectUrl, '_blank', 'noopener,noreferrer')
+      if (!tab) {
+        // Pop-up blocked — fall back to a programmatic download
+        const a = document.createElement('a')
+        a.href = objectUrl
+        a.download = `Delivery-Note-${delivery.deliveryNumber}.pdf`
+        a.click()
+        toast.info('PDF Downloaded', `Delivery Note for ${delivery.deliveryNumber} has been downloaded.`)
+      }
+      // Revoke the object URL after a short delay so the tab can finish loading
+      setTimeout(() => {
+        if (objectUrl) URL.revokeObjectURL(objectUrl)
+      }, 60_000)
+    } catch (err: unknown) {
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+      const msg = err instanceof Error ? err.message : 'Failed to generate PDF.'
+      toast.error('PDF Generation Failed', msg)
+    } finally {
+      setIsPrinting(false)
+    }
   }
 
   const handlePick = async () => {
@@ -260,8 +285,15 @@ export function DeliveryDetailsPage() {
             size="sm"
             leftIcon={<Printer className="w-3.5 h-3.5" />}
             onClick={handlePrintSlip}
+            disabled={delivery.status !== 'DONE' || isPrinting}
+            isLoading={isPrinting}
+            title={
+              delivery.status !== 'DONE'
+                ? 'Delivery Note PDF is only available once the delivery is DONE'
+                : 'Open Delivery Note PDF in a new tab'
+            }
           >
-            Print Slip
+            {isPrinting ? 'Generating…' : 'Print Slip'}
           </Button>
 
           {delivery.status === 'DRAFT' && (

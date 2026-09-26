@@ -194,17 +194,11 @@ export function MoveHistoryPage() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-heading">
-            Stock Move History
+            Move History
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Immutable chronological ledger of every inventory mutation, dock receipt, customer dispatch, and location reallocation.
+            View stock movement history.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200/80 px-3 py-1.5 rounded-lg shadow-2xs">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span>Ledger Audit Status: </span>
-          <strong className="text-slate-800">Verified & Reconciled</strong>
         </div>
       </div>
 
@@ -267,7 +261,7 @@ export function MoveHistoryPage() {
               onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer font-mono"
             >
-              <option value="all">All Bin Locations</option>
+              <option value="all">All Locations</option>
               {availableLocations.map((loc) => (
                 <option key={loc.id} value={loc.id}>
                   {loc.fullPath || loc.name}
@@ -580,7 +574,7 @@ export function MoveHistoryPage() {
               {/* Product Info Card */}
               <div className="p-4 rounded-lg bg-slate-50/80 border border-slate-200/80 space-y-2">
                 <span className="text-[10.5px] uppercase font-semibold text-slate-400 tracking-wider block">
-                  Product Mutation Target
+                  Product
                 </span>
                 <div className="flex items-start justify-between gap-2">
                   <div>
@@ -625,7 +619,7 @@ export function MoveHistoryPage() {
 
                 {/* Net Stock Impact */}
                 <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className="text-slate-500">Quantity Transacted:</span>
+                  <span className="text-slate-500">Quantity:</span>
                   <span
                     className={cn(
                       'font-mono font-bold text-sm px-2 py-0.5 rounded border',
@@ -645,12 +639,12 @@ export function MoveHistoryPage() {
               {/* Transaction Metadata */}
               <div className="space-y-3 border-t border-slate-200/80 pt-4 text-xs">
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Facility / Warehouse:</span>
+                  <span className="text-slate-500">Warehouse:</span>
                   <span className="font-medium text-slate-800">{selectedMove.warehouseName}</span>
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Logged Timestamp:</span>
+                  <span className="text-slate-500">Date & Time:</span>
                   <span className="font-mono text-slate-800 flex items-center gap-1">
                     <Clock className="w-3 h-3 text-slate-400" />
                     {selectedMove.timestamp}
@@ -658,7 +652,7 @@ export function MoveHistoryPage() {
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Operating User:</span>
+                  <span className="text-slate-500">User:</span>
                   <span className="font-medium text-slate-800 flex items-center gap-1">
                     <User className="w-3 h-3 text-slate-400" />
                     {selectedMove.user}
@@ -666,7 +660,7 @@ export function MoveHistoryPage() {
                 </div>
 
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-500">Source Document:</span>
+                  <span className="text-slate-500">Reference:</span>
                   <span className="font-mono font-semibold text-brand">
                     {selectedMove.reference}
                   </span>
@@ -676,7 +670,7 @@ export function MoveHistoryPage() {
               {/* Ledger Operational Notes */}
               {selectedMove.notes && (
                 <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs">
-                  <span className="text-slate-400 block text-[11px] mb-1">Audit Ledger Memo</span>
+                  <span className="text-slate-400 block text-[11px] mb-1">Notes</span>
                   <p className="text-slate-700">{selectedMove.notes}</p>
                 </div>
               )}
