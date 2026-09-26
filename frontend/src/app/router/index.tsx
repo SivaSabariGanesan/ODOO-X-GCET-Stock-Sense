@@ -39,6 +39,7 @@ import {
   WarehouseDetailsPage,
 } from '@/features/warehouses'
 import { CategoriesListPage } from '@/features/categories'
+import { UomsListPage } from '@/features/uoms'
 import { ProfilePage } from '@/features/profile'
 
 export const router = createBrowserRouter([
@@ -207,11 +208,19 @@ export const router = createBrowserRouter([
             path: 'categories',
             element: <CategoriesListPage />,
           },
+          {
+            path: 'uoms',
+            element: <UomsListPage />,
+          },
         ],
       },
       {
         path: 'categories',
         element: <Navigate to="/settings/categories" replace />,
+      },
+      {
+        path: 'uoms',
+        element: <Navigate to="/settings/uoms" replace />,
       },
       {
         path: 'profile',

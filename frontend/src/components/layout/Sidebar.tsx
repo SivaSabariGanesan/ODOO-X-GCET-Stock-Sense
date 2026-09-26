@@ -10,6 +10,7 @@ import {
   History,
   Warehouse,
   Tag,
+  Scale,
   User,
   Boxes,
   ChevronDown,
@@ -258,6 +259,11 @@ export function Sidebar({
             to="/settings/categories"
             icon={Tag}
             label="Categories"
+          />
+          <NavItem
+            to="/settings/uoms"
+            icon={Scale}
+            label="Units of Measure"
           />
         </div>
       </nav>

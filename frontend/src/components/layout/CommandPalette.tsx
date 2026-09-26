@@ -11,6 +11,7 @@ import {
   History,
   Warehouse,
   Tag,
+  Scale,
   User,
   X,
   ExternalLink,
@@ -47,6 +48,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     { id: 'hist', title: 'Stock Move History Ledger', category: 'Operations', href: '/operations/moves', icon: History },
     { id: 'wh', title: 'Warehouse Facilities Configuration', category: 'Configuration', href: '/settings/warehouses', icon: Warehouse, badge: '3 Nodes' },
     { id: 'cat', title: 'Product Categories Taxonomy', category: 'Configuration', href: '/settings/categories', icon: Tag },
+    { id: 'uom', title: 'Units of Measure (UOM) Catalog', category: 'Configuration', href: '/settings/uoms', icon: Scale },
     { id: 'prof', title: 'Operator Profile & Node Security', category: 'Configuration', href: '/profile', icon: User },
   ]
 
