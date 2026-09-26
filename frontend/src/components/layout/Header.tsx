@@ -108,6 +108,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         deliveries: 'Deliveries',
         transfers: 'Internal Transfers',
         adjustments: 'Inventory Adjustments',
+        moves: 'Move History',
         history: 'Move History',
       }
       if (segments[1] && opNames[segments[1]]) {
@@ -137,7 +138,14 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
     } else if (segments[0] === 'settings') {
       crumbs.push({ label: 'Settings', href: '/settings/warehouses' })
       if (segments[1] === 'warehouses') {
-        crumbs.push({ label: 'Warehouses' })
+        const hasSub = Boolean(segments[2])
+        crumbs.push({
+          label: 'Warehouses',
+          href: hasSub ? '/settings/warehouses' : undefined,
+        })
+        if (segments[2]) {
+          crumbs.push({ label: `${segments[2]} Facility Details` })
+        }
       }
     } else if (segments[0] === 'products') {
       crumbs.push({ label: 'Products', href: segments.length > 1 ? '/products' : undefined })
