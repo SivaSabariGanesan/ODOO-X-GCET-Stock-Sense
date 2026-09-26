@@ -91,17 +91,31 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 - **Document Lifecycles**: Documents follow state machines (`DRAFT` → `READY` → `DONE` / `CANCELED`). Direct modifications are blocked on processed or canceled documents.
 
 ### 2. Grounded AI Assistant Platform (`/api/ai`)
-- **Location**: `backend/src/modules/ai/orchestrator.ts`
-- **Zero Hallucinations**: Grounded in project tool handlers (`list_products`, `get_product_details`, `get_low_stock_items`, `get_stock_movements`, `list_warehouses`, `get_dashboard_summary`, `search_project_documentation`).
-- **Confirmation Safeguard**: Inventory actions require explicit user confirmation before execution.
-- **Fallback Execution**: Auto-falls back to local grounded query logic if Groq API keys are missing.
+- **Location**: `backend/src/modules/ai/orchestrator.ts` & `POST /api/ai/chat`
+- **Zero Hallucination Policy**: Refuses to invent fake product names, stock counts, or SKU codes. Strictly executes backend tools.
+- **Action Confirmation Safeguard**: Multi-step user confirmation required before executing stock-mutating actions.
+- **Multi-LLM Fallback Network**: Primary connection to Groq API (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`) with auto-fallback to local grounded query logic.
+- **Registered AI System Tools**:
+  - `list_products`: Search master catalog by SKU, name, or barcode
+  - `get_product_details`: Product stock breakdown across all warehouses & locations
+  - `get_low_stock_items`: Identify products below reorder thresholds
+  - `get_stock_movements`: Query movement audit ledger entries
+  - `list_warehouses`: Facility location hierarchy & address lookup
+  - `get_dashboard_summary`: Summarize enterprise KPI valuation & metrics
+  - `search_project_documentation`: Search API contracts & architecture specs
+  - `process_inventory_action`: Execute receipts, deliveries, transfers, or adjustments (requires confirmation)
 
 ### 3. Real-Time WebSocket Messaging (`GET /ws`)
-- **Pub/Sub Channels**:
-  - `inventory`: Global stock changes and movement broadcasts
-  - `role:admin` / `role:manager`: Role-scoped system notifications
-  - `user:id`: Targeted user alerts
-- **Post-Commit Guarantee**: Events are dispatched to clients **after** DB transaction commit.
+- **Pub/Sub Room Channels**:
+  - `inventory`: Global stock balance changes, receipts, deliveries, transfers, and adjustments
+  - `role:admin` / `role:manager`: Role-scoped administrative & low-stock alerts
+  - `user:id`: Targeted user activity & verification notifications
+- **Post-Commit Guarantee**: Events are dispatched to clients **after** PostgreSQL transaction commit.
+- **Broadcasted Event Payload Envelopes**:
+  - `INVENTORY_BALANCE_UPDATED` (location stock level change)
+  - `STOCK_MOVEMENT_RECORDED` (audit ledger row added)
+  - `RECEIPT_PROCESSED` / `DELIVERY_PROCESSED` / `TRANSFER_EXECUTED` / `ADJUSTMENT_APPLIED`
+  - `LOW_STOCK_ALERT` (when available quantity drops below minimum threshold)
 
 ### 4. Transactional Email Notification System
 - **HTML Layouts**: Custom HTML templates for Email Verification and 6-Digit Password Reset OTPs.
