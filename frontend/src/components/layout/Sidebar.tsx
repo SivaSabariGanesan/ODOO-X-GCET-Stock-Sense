@@ -9,6 +9,7 @@ import {
   SlidersHorizontal,
   History,
   Warehouse,
+  Tag,
   User,
   Boxes,
   ChevronDown,
@@ -252,6 +253,11 @@ export function Sidebar({
             icon={Warehouse}
             label="Warehouses"
             count="3"
+          />
+          <NavItem
+            to="/settings/categories"
+            icon={Tag}
+            label="Categories"
           />
         </div>
       </nav>

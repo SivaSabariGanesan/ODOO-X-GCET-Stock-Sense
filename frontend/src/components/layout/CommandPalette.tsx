@@ -10,6 +10,7 @@ import {
   SlidersHorizontal,
   History,
   Warehouse,
+  Tag,
   User,
   X,
   ExternalLink,
@@ -45,6 +46,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
     { id: 'adj', title: 'Inventory Adjustments & Counts', category: 'Operations', href: '/operations/adjustments', icon: SlidersHorizontal },
     { id: 'hist', title: 'Stock Move History Ledger', category: 'Operations', href: '/operations/moves', icon: History },
     { id: 'wh', title: 'Warehouse Facilities Configuration', category: 'Configuration', href: '/settings/warehouses', icon: Warehouse, badge: '3 Nodes' },
+    { id: 'cat', title: 'Product Categories Taxonomy', category: 'Configuration', href: '/settings/categories', icon: Tag },
     { id: 'prof', title: 'Operator Profile & Node Security', category: 'Configuration', href: '/profile', icon: User },
   ]
 
