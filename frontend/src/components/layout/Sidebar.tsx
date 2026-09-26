@@ -62,7 +62,7 @@ export function Sidebar({
     { name: 'Deliveries',            href: '/operations/deliveries',  icon: ArrowUpFromLine,  count: '8' },
     { name: 'Internal Transfers',    href: '/operations/transfers',   icon: ArrowLeftRight,   count: '2' },
     { name: 'Inventory Adjustments', href: '/operations/adjustments', icon: SlidersHorizontal, count: '1' },
-    { name: 'Move History',          href: '/operations/history',     icon: History },
+    { name: 'Move History',          href: '/operations/moves',       icon: History },
   ]
 
 

@@ -33,10 +33,13 @@ import {
   AdjustmentFormPage,
   AdjustmentDetailsPage,
 } from '@/features/adjustments'
+import { MoveHistoryPage } from '@/features/moves'
+import {
+  WarehousesListPage,
+  WarehouseDetailsPage,
+} from '@/features/warehouses'
 import {
   DashboardPlaceholder,
-  HistoryPlaceholder,
-  WarehousesPlaceholder,
   ProfilePlaceholder,
 } from './placeholders'
 
@@ -173,8 +176,12 @@ export const router = createBrowserRouter([
             ],
           },
           {
+            path: 'moves',
+            element: <MoveHistoryPage />,
+          },
+          {
             path: 'history',
-            element: <HistoryPlaceholder />,
+            element: <Navigate to="/operations/moves" replace />,
           },
         ],
       },
@@ -187,7 +194,16 @@ export const router = createBrowserRouter([
           },
           {
             path: 'warehouses',
-            element: <WarehousesPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <WarehousesListPage />,
+              },
+              {
+                path: ':id',
+                element: <WarehouseDetailsPage />,
+              },
+            ],
           },
         ],
       },
