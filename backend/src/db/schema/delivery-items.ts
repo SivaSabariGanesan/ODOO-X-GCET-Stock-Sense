@@ -2,6 +2,7 @@ import {
   pgTable,
   uuid,
   numeric,
+  text,
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
@@ -34,10 +35,12 @@ export const deliveryItems = pgTable(
       .notNull()
       .references(() => locations.id, { onDelete: "restrict" }),
 
-    // Quantity
+    // Quantity & Pricing
     quantity: numeric("quantity", { precision: 15, scale: 4 })
       .notNull()
       .default("0"),
+    unitPrice: numeric("unit_price", { precision: 15, scale: 4 }),
+    notes: text("notes"),
 
     // Timestamps
     createdAt: timestamp("created_at", { withTimezone: true })

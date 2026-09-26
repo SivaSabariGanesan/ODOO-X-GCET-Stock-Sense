@@ -122,3 +122,35 @@ export class ReceiptValidationError extends AppError {
     this.name = "ReceiptValidationError";
   }
 }
+
+// ---------------------------------------------------------------------------
+// Delivery Core Domain Errors
+// ---------------------------------------------------------------------------
+
+export class DeliveryNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Delivery with ID '${id}' was not found` : "Delivery not found", 404);
+    this.name = "DeliveryNotFoundError";
+  }
+}
+
+export class DeliveryItemNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Delivery item with ID '${id}' was not found` : "Delivery item not found", 404);
+    this.name = "DeliveryItemNotFoundError";
+  }
+}
+
+export class DeliveryLockedError extends AppError {
+  constructor(status: string) {
+    super(`Cannot modify delivery in '${status}' state. Completed or cancelled deliveries are locked from editing.`, 400);
+    this.name = "DeliveryLockedError";
+  }
+}
+
+export class DeliveryValidationError extends AppError {
+  constructor(message: string, errors: string[]) {
+    super(message, 400, errors);
+    this.name = "DeliveryValidationError";
+  }
+}

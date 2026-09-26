@@ -71,12 +71,44 @@ export const openApiSpec = {
           status: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"], example: "DRAFT" },
           receiptDate: { type: "string", format: "date-time" },
           notes: { type: "string", nullable: true },
+          items: {
+            type: "array",
+            items: { $ref: "#/components/schemas/ReceiptItem" },
+          },
+        },
+      },
+      DeliveryItem: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          deliveryId: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          sourceLocationId: { type: "string", format: "uuid" },
+          quantity: { type: "string", example: "5.0" },
+          unitPrice: { type: "string", nullable: true, example: "120.00" },
+          notes: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Delivery: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          deliveryNumber: { type: "string", example: "DEL/20260926/4897" },
+          customerName: { type: "string", nullable: true, example: "Acme Corp" },
+          customerReference: { type: "string", nullable: true, example: "PO-9912" },
+          warehouseId: { type: "string", format: "uuid" },
+          defaultSourceLocationId: { type: "string", format: "uuid", nullable: true },
+          status: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"], example: "DRAFT" },
+          notes: { type: "string", nullable: true },
           createdBy: { type: "string", format: "uuid", nullable: true },
+          validatedAt: { type: "string", format: "date-time", nullable: true },
           createdAt: { type: "string", format: "date-time" },
           updatedAt: { type: "string", format: "date-time" },
           items: {
             type: "array",
-            items: { $ref: "#/components/schemas/ReceiptItem" },
+            items: { $ref: "#/components/schemas/DeliveryItem" },
           },
         },
       },
@@ -471,6 +503,107 @@ export const openApiSpec = {
           200: { description: "Receipt processed successfully, stock balances updated, ledger movement recorded, status set to DONE" },
           400: { description: "Validation error or invalid receipt status" },
           409: { description: "Receipt already processed and marked DONE" },
+        },
+      },
+    },
+    "/api/deliveries": {
+      get: {
+        summary: "List Deliveries",
+        tags: ["Delivery Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "status", in: "query", schema: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"] } },
+          { name: "warehouseId", in: "query", schema: { type: "string", format: "uuid" } },
+        ],
+        responses: {
+          200: { description: "Paginated deliveries list", content: { "application/json": { schema: { type: "object", properties: { data: { type: "array", items: { $ref: "#/components/schemas/Delivery" } } } } } } },
+        },
+      },
+      post: {
+        summary: "Create Delivery Document",
+        tags: ["Delivery Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["warehouseId"],
+                properties: {
+                  warehouseId: { type: "string", format: "uuid" },
+                  customerName: { type: "string" },
+                  customerReference: { type: "string" },
+                  deliveryNumber: { type: "string" },
+                  notes: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: ["productId", "quantity"],
+                      properties: {
+                        productId: { type: "string", format: "uuid" },
+                        quantity: { type: "number", minimum: 0.0001 },
+                        sourceLocationId: { type: "string", format: "uuid" },
+                        unitPrice: { type: "number" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Delivery created", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Delivery" } } } } } },
+        },
+      },
+    },
+    "/api/deliveries/{id}": {
+      get: {
+        summary: "Get Delivery by ID",
+        tags: ["Delivery Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Delivery details with items", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Delivery" } } } } } },
+          404: { description: "Delivery not found" },
+        },
+      },
+    },
+    "/api/deliveries/{id}/pick": {
+      post: {
+        summary: "Pick Delivery Items (Workflow transition to WAITING, NO stock mutation)",
+        tags: ["Delivery Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Delivery picked successfully" },
+        },
+      },
+    },
+    "/api/deliveries/{id}/pack": {
+      post: {
+        summary: "Pack Delivery Items (Workflow transition to READY, NO stock mutation)",
+        tags: ["Delivery Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Delivery packed successfully" },
+        },
+      },
+    },
+    "/api/deliveries/{id}/validate": {
+      post: {
+        summary: "Validate Delivery Document (Pure validation, NO stock mutation)",
+        tags: ["Delivery Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Delivery validated and ready for processing" },
         },
       },
     },
