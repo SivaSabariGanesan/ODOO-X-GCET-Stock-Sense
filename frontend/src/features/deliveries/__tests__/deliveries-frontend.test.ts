@@ -83,7 +83,7 @@ describe("Deliveries Frontend Integration & Contract Tests", () => {
       .insert(unitsOfMeasure)
       .values({
         name: `UOM ${TEST_PREFIX}`,
-        abbreviation: "pcs",
+        abbreviation: `p_${TEST_PREFIX.slice(-6)}`,
         measureType: "unit",
       })
       .returning();

@@ -17,19 +17,34 @@ import {
   ShieldCheck,
   Copy,
   Info,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
-import { getMockMoves } from '../mockMoves'
+import { useStockMovements } from '../hooks/useStockMovements'
 import { StockMove, MoveFiltersState, MovementType } from '../types'
+import { apiClient } from '@/lib/apiClient'
 import { cn } from '@/lib/cn'
 
 const PAGE_SIZE = 10
 
+interface WarehouseOption {
+  id: string
+  name: string
+  shortCode: string
+}
+
+interface LocationOption {
+  id: string
+  name: string
+  fullPath: string
+  warehouseId: string
+}
+
 export function MoveHistoryPage() {
   const toast = useToast()
-  const moves = getMockMoves()
 
   // Selected movement for side drawer inspection
   const [selectedMove, setSelectedMove] = useState<StockMove | null>(null)
@@ -43,8 +58,57 @@ export function MoveHistoryPage() {
     dateRange: 'all',
   })
 
-  // Pagination State
-  const [currentPage, setCurrentPage] = useState(1)
+  // Dynamic filter dropdown options fetched from backend
+  const [warehouses, setWarehouses] = useState<WarehouseOption[]>([])
+  const [locations, setLocations] = useState<LocationOption[]>([])
+
+  useEffect(() => {
+    let isMounted = true
+
+    apiClient
+      .get<{ data: WarehouseOption[] }>('/api/warehouses')
+      .then((res) => {
+        if (isMounted && res?.data) {
+          setWarehouses(res.data)
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully if warehouses endpoint is restricted
+      })
+
+    apiClient
+      .get<{ data: LocationOption[] }>('/api/locations')
+      .then((res) => {
+        if (isMounted && res?.data) {
+          setLocations(res.data)
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully if locations endpoint is restricted
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Hook for server-side fetching with search debouncing, filtering & pagination
+  const {
+    movements,
+    pagination,
+    isLoading,
+    error,
+    currentPage,
+    setCurrentPage,
+    refetch,
+  } = useStockMovements({
+    search: filters.search,
+    movementType: filters.movementType,
+    warehouseId: filters.warehouse,
+    locationId: filters.location,
+    dateRange: filters.dateRange,
+    pageSize: PAGE_SIZE,
+  })
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -57,77 +121,14 @@ export function MoveHistoryPage() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [selectedMove])
 
-  // Reset page when filters change
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filters])
+  // Filter locations by chosen warehouse if applicable
+  const availableLocations = useMemo(() => {
+    if (filters.warehouse === 'all') return locations
+    return locations.filter((loc) => loc.warehouseId === filters.warehouse)
+  }, [locations, filters.warehouse])
 
-  // Extract unique locations for filter
-  const allLocations = useMemo(() => {
-    const set = new Set<string>()
-    moves.forEach((m) => {
-      if (m.sourceLocation.startsWith('WH')) set.add(m.sourceLocation)
-      if (m.destinationLocation.startsWith('WH')) set.add(m.destinationLocation)
-    })
-    return Array.from(set).sort()
-  }, [moves])
-
-  // ── Live Filtering ────────────────────────────────────────────────────────
-  const filteredMoves = useMemo(() => {
-    const q = filters.search.toLowerCase().trim()
-
-    return moves.filter((m) => {
-      // Search across product, sku, reference, locations, user
-      if (q) {
-        const matchesProd = m.productName.toLowerCase().includes(q)
-        const matchesSku = m.productSku.toLowerCase().includes(q)
-        const matchesRef = m.reference.toLowerCase().includes(q)
-        const matchesTx = m.transactionId.toLowerCase().includes(q)
-        const matchesSrc = m.sourceLocation.toLowerCase().includes(q)
-        const matchesDst = m.destinationLocation.toLowerCase().includes(q)
-        const matchesUser = m.user.toLowerCase().includes(q)
-        if (!matchesProd && !matchesSku && !matchesRef && !matchesTx && !matchesSrc && !matchesDst && !matchesUser) {
-          return false
-        }
-      }
-
-      // Movement Type
-      if (filters.movementType !== 'all' && m.movementType !== filters.movementType) {
-        return false
-      }
-
-      // Warehouse
-      if (filters.warehouse !== 'all' && m.warehouseId !== filters.warehouse) {
-        return false
-      }
-
-      // Location
-      if (filters.location !== 'all') {
-        const loc = filters.location
-        if (m.sourceLocation !== loc && m.destinationLocation !== loc) {
-          return false
-        }
-      }
-
-      // Date Range
-      if (filters.dateRange === 'today') {
-        if (!m.date.includes('2026-09-26')) return false
-      } else if (filters.dateRange === 'last_7') {
-        if (!m.date.startsWith('2026-09-2')) return false
-      } else if (filters.dateRange === 'last_30') {
-        if (!m.date.startsWith('2026-09')) return false
-      }
-
-      return true
-    })
-  }, [moves, filters])
-
-  // ── Pagination Calculation ────────────────────────────────────────────────
-  const totalPages = Math.max(1, Math.ceil(filteredMoves.length / PAGE_SIZE))
-  const paginatedMoves = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE
-    return filteredMoves.slice(start, start + PAGE_SIZE)
-  }, [filteredMoves, currentPage])
+  const totalPages = pagination?.totalPages ?? 1
+  const totalItems = pagination?.total ?? movements.length
 
   const isFiltered =
     Boolean(filters.search.trim()) ||
@@ -249,13 +250,15 @@ export function MoveHistoryPage() {
             {/* Warehouse Filter */}
             <select
               value={filters.warehouse}
-              onChange={(e) => setFilters((prev) => ({ ...prev, warehouse: e.target.value }))}
+              onChange={(e) => setFilters((prev) => ({ ...prev, warehouse: e.target.value, location: 'all' }))}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">All Warehouses</option>
-              <option value="WH01">WH01 — Main Central</option>
-              <option value="WH02">WH02 — North Hub</option>
-              <option value="WH03">WH03 — Cold Storage</option>
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>
+                  {wh.shortCode} — {wh.name}
+                </option>
+              ))}
             </select>
 
             {/* Location Filter */}
@@ -265,9 +268,9 @@ export function MoveHistoryPage() {
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer font-mono"
             >
               <option value="all">All Bin Locations</option>
-              {allLocations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
+              {availableLocations.map((loc) => (
+                <option key={loc.id} value={loc.id}>
+                  {loc.fullPath || loc.name}
                 </option>
               ))}
             </select>
@@ -279,16 +282,16 @@ export function MoveHistoryPage() {
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">All Recorded Dates</option>
-              <option value="today">Today (2026-09-26)</option>
+              <option value="today">Today</option>
               <option value="last_7">Last 7 Days</option>
               <option value="last_30">Last 30 Days</option>
             </select>
           </div>
 
-          {/* Right: Results Count & Reset */}
+          {/* Right: Results Count & Reset / Refresh */}
           <div className="flex items-center gap-3 shrink-0 text-xs">
             <span className="text-slate-500 font-mono">
-              <strong className="text-slate-900">{filteredMoves.length}</strong> ledger entries
+              <strong className="text-slate-900">{totalItems}</strong> ledger entries
             </span>
             {isFiltered && (
               <button
@@ -300,46 +303,76 @@ export function MoveHistoryPage() {
                 <span>Reset</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={refetch}
+              className="inline-flex items-center gap-1 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+              title="Refresh ledger"
+            >
+              <RotateCcw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin text-brand')} />
+            </button>
           </div>
         </div>
       </div>
 
+      {/* ── Error Banner ────────────────────────────────────────────── */}
+      {error && !isLoading && (
+        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs shadow-2xs">
+          <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+          <span className="flex-1 font-medium">{error}</span>
+          <button
+            onClick={refetch}
+            className="font-semibold underline hover:no-underline cursor-pointer text-rose-800"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
       {/* ── Main Data-Dense Table View ──────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold select-none">
-                <th className="py-2.5 px-3.5">Date / Time</th>
-                <th className="py-2.5 px-3.5">Product</th>
-                <th className="py-2.5 px-3.5">SKU</th>
-                <th className="py-2.5 px-3.5">Type</th>
-                <th className="py-2.5 px-3.5">Source Location</th>
-                <th className="py-2.5 px-3.5">Destination Location</th>
-                <th className="py-2.5 px-3.5 text-right">Quantity</th>
-                <th className="py-2.5 px-3.5">Reference</th>
-                <th className="py-2.5 px-3.5">User</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-sans">
-              {paginatedMoves.length === 0 ? (
-                <tr>
-                  <td colSpan={9} className="p-0">
-                    <EmptyState
-                      icon={History}
-                      title="No stock movements found"
-                      description={
-                        isFiltered
-                          ? 'Try clearing your active filters to view all logged ledger movements.'
-                          : 'No stock movements have been recorded yet.'
-                      }
-                      actionLabel={isFiltered ? 'Clear Filters' : undefined}
-                      onAction={isFiltered ? handleResetFilters : undefined}
-                    />
-                  </td>
+        {/* Loading state indicator */}
+        {isLoading && (
+          <div className="py-16 flex flex-col items-center justify-center gap-2 text-slate-400 text-xs">
+            <Loader2 className="w-6 h-6 animate-spin text-brand" />
+            <span>Loading stock movement ledger...</span>
+          </div>
+        )}
+
+        {/* Empty state when no moves and not loading */}
+        {!isLoading && !error && movements.length === 0 && (
+          <EmptyState
+            icon={History}
+            title={isFiltered ? 'No stock movements match your filters' : 'No stock movements recorded yet'}
+            description={
+              isFiltered
+                ? 'Try clearing or relaxing your active search and filter criteria.'
+                : 'Stock movements will appear here automatically when receipts, deliveries, transfers, or inventory adjustments are recorded.'
+            }
+            actionLabel={isFiltered ? 'Clear Filters' : undefined}
+            onAction={isFiltered ? handleResetFilters : undefined}
+          />
+        )}
+
+        {/* Table content when loaded */}
+        {!isLoading && !error && movements.length > 0 && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold select-none">
+                  <th className="py-2.5 px-3.5">Date / Time</th>
+                  <th className="py-2.5 px-3.5">Product</th>
+                  <th className="py-2.5 px-3.5">SKU</th>
+                  <th className="py-2.5 px-3.5">Type</th>
+                  <th className="py-2.5 px-3.5">Source Location</th>
+                  <th className="py-2.5 px-3.5">Destination Location</th>
+                  <th className="py-2.5 px-3.5 text-right">Quantity</th>
+                  <th className="py-2.5 px-3.5">Reference</th>
+                  <th className="py-2.5 px-3.5">User</th>
                 </tr>
-              ) : (
-                paginatedMoves.map((m) => {
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-sans">
+                {movements.map((m) => {
                   const isSelected = selectedMove?.id === m.id
                   const isPositive = m.quantity > 0
                   const isNegative = m.quantity < 0
@@ -420,84 +453,86 @@ export function MoveHistoryPage() {
                       <td className="py-2 px-3.5 text-slate-600 text-[11px] whitespace-nowrap">
                         <div className="flex items-center gap-1.5">
                           <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[10px]">
-                            {m.user.slice(0, 1)}
+                            {m.user.slice(0, 1).toUpperCase()}
                           </div>
                           <span>{m.user}</span>
                         </div>
                       </td>
                     </tr>
                   )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
         {/* ── Table Footer & Pagination ─────────────────────────────── */}
-        <div className="px-4 py-3 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
-          <div className="flex items-center gap-2">
-            <span>
-              Showing{' '}
-              <strong className="text-slate-800 font-mono">
-                {filteredMoves.length === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}
-              </strong>{' '}
-              to{' '}
-              <strong className="text-slate-800 font-mono">
-                {Math.min(currentPage * PAGE_SIZE, filteredMoves.length)}
-              </strong>{' '}
-              of <strong className="text-slate-800 font-mono">{filteredMoves.length}</strong> moves
-            </span>
-            <span className="text-slate-300">|</span>
-            <span className="text-[11px] text-slate-400">
-              Click any row to inspect details without disrupting table
-            </span>
-          </div>
-
-          {/* Pagination Controls */}
-          {totalPages > 1 && (
-            <div className="flex items-center gap-1.5">
-              <Button
-                variant="secondary"
-                size="xs"
-                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                disabled={currentPage === 1}
-                className="px-2"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 mr-0.5" />
-                Previous
-              </Button>
-
-              <div className="flex items-center gap-1 px-1">
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <button
-                    key={page}
-                    type="button"
-                    onClick={() => setCurrentPage(page)}
-                    className={cn(
-                      'w-6 h-6 rounded text-xs font-mono font-medium transition-colors cursor-pointer',
-                      page === currentPage
-                        ? 'bg-brand text-white shadow-2xs'
-                        : 'text-slate-600 hover:bg-slate-200/70'
-                    )}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-
-              <Button
-                variant="secondary"
-                size="xs"
-                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                disabled={currentPage === totalPages}
-                className="px-2"
-              >
-                Next
-                <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-              </Button>
+        {!isLoading && !error && movements.length > 0 && (
+          <div className="px-4 py-3 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+            <div className="flex items-center gap-2">
+              <span>
+                Showing{' '}
+                <strong className="text-slate-800 font-mono">
+                  {totalItems === 0 ? 0 : (currentPage - 1) * PAGE_SIZE + 1}
+                </strong>{' '}
+                to{' '}
+                <strong className="text-slate-800 font-mono">
+                  {Math.min(currentPage * PAGE_SIZE, totalItems)}
+                </strong>{' '}
+                of <strong className="text-slate-800 font-mono">{totalItems}</strong> moves
+              </span>
+              <span className="text-slate-300">|</span>
+              <span className="text-[11px] text-slate-400">
+                Click any row to inspect details without disrupting table
+              </span>
             </div>
-          )}
-        </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1.5">
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  disabled={currentPage === 1}
+                  className="px-2"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5 mr-0.5" />
+                  Previous
+                </Button>
+
+                <div className="flex items-center gap-1 px-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      type="button"
+                      onClick={() => setCurrentPage(page)}
+                      className={cn(
+                        'w-6 h-6 rounded text-xs font-mono font-medium transition-colors cursor-pointer',
+                        page === currentPage
+                          ? 'bg-brand text-white shadow-2xs'
+                          : 'text-slate-600 hover:bg-slate-200/70'
+                      )}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <Button
+                  variant="secondary"
+                  size="xs"
+                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-2"
+                >
+                  Next
+                  <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Slide-Over Inspection Drawer (Non-disruptive Detail) ───── */}
@@ -666,10 +701,10 @@ export function MoveHistoryPage() {
               <Button
                 variant="ghost"
                 size="xs"
-                onClick={() => copyText(selectedMove.transactionId, 'Transaction Hash')}
+                onClick={() => copyText(selectedMove.id, 'Stock Movement ID')}
                 leftIcon={<Copy className="w-3 h-3" />}
               >
-                Copy Tx ID
+                Copy ID
               </Button>
 
               <div className="flex items-center gap-2">

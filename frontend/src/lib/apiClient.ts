@@ -76,9 +76,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const { method = 'GET', body, params, skipAuth = false } = options
 
   // Build URL with query params — use relative URL when BASE_URL is empty
+  const origin = typeof window !== 'undefined' && window.location?.origin
+    ? window.location.origin
+    : 'http://localhost:3000'
   const url = BASE_URL
     ? new URL(`${BASE_URL}${path}`)
-    : new URL(path, window.location.origin)
+    : new URL(path, origin)
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== '') {
