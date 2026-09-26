@@ -1,36 +1,30 @@
 {
   "compilerOptions": {
-    // Target ESNext — Bun supports it natively
     "target": "ESNext",
     "module": "ESNext",
-    "moduleResolution": "bundler",  // Bun's resolver; handles .js extensions
+    "moduleResolution": "bundler",
     "lib": ["ESNext"],
 
-    // Strict type-checking
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": false,
 
-    // Emit
     "outDir": "dist",
     "rootDir": "src",
     "declaration": true,
     "declarationMap": true,
     "sourceMap": true,
 
-    // Interop
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
 
-    // Path aliases
-    "baseUrl": ".",
     "paths": {
-      "@/db":     ["./src/db/index.ts"],
-      "@/db/*":   ["./src/db/*"],
-      "@/*":      ["./src/*"]
+      "@/db":   ["./src/db/index.ts"],
+      "@/db/*": ["./src/db/*"],
+      "@/*":    ["./src/*"]
     }
   },
   "include": ["src/**/*.ts"],
