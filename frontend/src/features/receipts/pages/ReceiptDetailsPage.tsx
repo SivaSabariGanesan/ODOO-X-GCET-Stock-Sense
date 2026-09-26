@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -8,28 +7,47 @@ import {
   Printer,
   XCircle,
   Copy,
-  ChevronRight,
-  Warehouse,
   History,
-  AlertCircle,
   Check,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
-import { getMockReceiptById, updateReceiptStatus } from '../mockReceipts'
-import { Receipt, ReceiptStatus } from '../types'
+import { useReceipt } from '../hooks/useReceipt'
+import { ApiReceipt } from '../api'
 import { cn } from '@/lib/cn'
+
+/** Normalise API status for display labels */
+function statusLabel(status: ApiReceipt['status']): string {
+  const map: Record<ApiReceipt['status'], string> = {
+    DRAFT: 'Draft',
+    WAITING: 'Waiting',
+    READY: 'Ready',
+    DONE: 'Done',
+    CANCELED: 'Canceled',
+  }
+  return map[status] ?? status
+}
+
+const STAGES: { key: ApiReceipt['status']; label: string }[] = [
+  { key: 'DRAFT', label: 'Draft' },
+  { key: 'READY', label: 'Ready' },
+  { key: 'DONE', label: 'Done' },
+]
 
 export function ReceiptDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
 
-  const [receipt, setReceipt] = useState<Receipt | undefined>(
-    id ? getMockReceiptById(id) : undefined
-  )
+  const { receipt, isLoading, error, isActioning, validate, process, cancel, refetch } =
+    useReceipt(id)
 
+  // ── Utility ────────────────────────────────────────────────────────────────
   const copyText = (txt: string, label: string) => {
     navigator.clipboard.writeText(txt)
     toast.info('Copied', `${label} (${txt}) copied to clipboard.`)
@@ -39,43 +57,77 @@ export function ReceiptDetailsPage() {
     toast.info('Printing Slip', `Goods Receipt Note ${receipt?.receiptNumber} sent to printer.`)
   }
 
-  const handleStatusChange = (newStatus: ReceiptStatus) => {
-    if (!receipt) return
-    const updated = updateReceiptStatus(receipt.id, newStatus)
-    if (updated) {
-      setReceipt({ ...updated })
-      if (newStatus === 'done') {
-        toast.success('Receipt Validated', `${receipt.receiptNumber} inventory booked to warehouse stock.`)
-      } else if (newStatus === 'ready') {
-        toast.info('Marked as Ready', 'Inbound staging and dock assignment confirmed.')
-      } else if (newStatus === 'cancelled') {
-        toast.warning('Receipt Canceled', `${receipt.receiptNumber} marked as canceled.`)
-      }
+  // ── Status Action Wrappers ─────────────────────────────────────────────────
+  const handleValidate = async () => {
+    try {
+      await validate()
+      toast.info('Marked as Ready', 'Inbound staging and dock assignment confirmed.')
+    } catch (err: unknown) {
+      toast.error('Validation Failed', err instanceof Error ? err.message : 'Could not validate receipt.')
     }
   }
 
-  if (!receipt) {
+  const handleProcess = async () => {
+    try {
+      await process()
+      toast.success('Receipt Received', `${receipt?.receiptNumber} — inventory booked to warehouse stock.`)
+    } catch (err: unknown) {
+      toast.error('Processing Failed', err instanceof Error ? err.message : 'Could not process receipt.')
+    }
+  }
+
+  const handleCancel = async () => {
+    try {
+      await cancel()
+      toast.warning('Receipt Canceled', `${receipt?.receiptNumber} marked as canceled.`)
+    } catch (err: unknown) {
+      toast.error('Cancel Failed', err instanceof Error ? err.message : 'Could not cancel receipt.')
+    }
+  }
+
+  // ── Loading ─────────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-sm">Loading receipt…</span>
+      </div>
+    )
+  }
+
+  // ── Error / Not Found ───────────────────────────────────────────────────────
+  if (error === 'not_found' || !receipt) {
     return (
       <EmptyState
         icon={ArrowDownToLine}
         title="Receipt Not Found"
-        description={`The receipt identifier #${id} does not exist.`}
+        description={`The receipt identifier "${id}" does not exist or has been removed.`}
         actionLabel="Back to Receipts"
         onAction={() => navigate('/operations/receipts')}
       />
     )
   }
 
-  const stages: { key: ReceiptStatus; label: string }[] = [
-    { key: 'draft', label: 'Draft' },
-    { key: 'ready', label: 'Ready' },
-    { key: 'done', label: 'Done' },
-  ]
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-slate-500">
+        <AlertCircle className="w-8 h-8 text-rose-400" />
+        <p className="text-sm">{error}</p>
+        <Button variant="secondary" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} onClick={refetch}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
 
+  // ── Derived State ──────────────────────────────────────────────────────────
   const currentStageIndex =
-    receipt.status === 'cancelled'
+    receipt.status === 'CANCELED'
       ? -1
-      : stages.findIndex((s) => s.key === receipt.status)
+      : STAGES.findIndex((s) => s.key === receipt.status)
+
+  const totalQty = receipt.items.reduce((sum, item) => sum + parseFloat(item.quantity), 0)
+  const createdDate = new Date(receipt.createdAt).toLocaleDateString()
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
@@ -105,25 +157,38 @@ export function ReceiptDetailsPage() {
               </button>
               <Badge
                 variant={
-                  receipt.status === 'done'
+                  receipt.status === 'DONE'
                     ? 'done'
-                    : receipt.status === 'ready'
+                    : receipt.status === 'READY'
                     ? 'ready'
-                    : receipt.status === 'cancelled'
+                    : receipt.status === 'CANCELED'
                     ? 'cancelled'
+                    : receipt.status === 'WAITING'
+                    ? 'warning'
                     : 'draft'
                 }
                 dot
               >
-                {receipt.status.toUpperCase()}
+                {statusLabel(receipt.status)}
               </Badge>
             </div>
 
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading mt-1 truncate">
-              {receipt.supplier}
+              {receipt.supplierName || 'Unknown Supplier'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              PO Ref: <span className="font-mono font-medium text-slate-700">{receipt.supplierReference || 'None'}</span> · Destination: <span className="font-medium text-slate-700">{receipt.destinationLocation}</span>
+              PO Ref:{' '}
+              <span className="font-mono font-medium text-slate-700">
+                {receipt.supplierReference || 'None'}
+              </span>
+              {receipt.defaultLocation && (
+                <>
+                  {' '}· Destination:{' '}
+                  <span className="font-medium text-slate-700">
+                    {receipt.defaultLocation.fullPath}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -139,32 +204,35 @@ export function ReceiptDetailsPage() {
             Print Slip
           </Button>
 
-          {receipt.status === 'draft' && (
+          {(receipt.status === 'DRAFT' || receipt.status === 'WAITING') && (
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => handleStatusChange('ready')}
+              isLoading={isActioning}
+              onClick={handleValidate}
             >
               Mark as Ready
             </Button>
           )}
 
-          {receipt.status === 'ready' && (
+          {receipt.status === 'READY' && (
             <Button
               variant="primary"
               size="sm"
+              isLoading={isActioning}
               leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-              onClick={() => handleStatusChange('done')}
+              onClick={handleProcess}
             >
               Validate & Receive
             </Button>
           )}
 
-          {receipt.status !== 'done' && receipt.status !== 'cancelled' && (
+          {receipt.status !== 'DONE' && receipt.status !== 'CANCELED' && (
             <Button
               variant="danger"
               size="sm"
-              onClick={() => handleStatusChange('cancelled')}
+              isLoading={isActioning}
+              onClick={handleCancel}
             >
               Cancel
             </Button>
@@ -175,9 +243,9 @@ export function ReceiptDetailsPage() {
       {/* ── Visual Stage Progress Tracker ────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg p-3 sm:px-6 sm:py-3.5 shadow-2xs">
         <div className="flex items-center justify-between max-w-xl mx-auto">
-          {stages.map((stg, idx) => {
-            const isCompleted = currentStageIndex > idx || receipt.status === 'done'
-            const isCurrent = currentStageIndex === idx && receipt.status !== 'done'
+          {STAGES.map((stg, idx) => {
+            const isCompleted = currentStageIndex > idx || receipt.status === 'DONE'
+            const isCurrent = currentStageIndex === idx && receipt.status !== 'DONE'
 
             return (
               <div key={stg.key} className="flex items-center flex-1 last:flex-none">
@@ -204,7 +272,7 @@ export function ReceiptDetailsPage() {
                   </span>
                 </div>
 
-                {idx < stages.length - 1 && (
+                {idx < STAGES.length - 1 && (
                   <div
                     className={cn(
                       'flex-1 h-0.5 mx-3',
@@ -217,7 +285,7 @@ export function ReceiptDetailsPage() {
           })}
         </div>
 
-        {receipt.status === 'cancelled' && (
+        {receipt.status === 'CANCELED' && (
           <div className="mt-2 text-center text-xs font-semibold text-rose-600 flex items-center justify-center gap-1.5">
             <XCircle className="w-4 h-4" />
             <span>This receipt has been canceled. No stock balance changes applied.</span>
@@ -232,11 +300,11 @@ export function ReceiptDetailsPage() {
             Total Expected Qty
           </div>
           <div className="text-2xl font-bold font-mono text-slate-900 mt-1">
-            {receipt.totalQuantity}{' '}
+            {totalQty.toFixed(0)}{' '}
             <span className="text-xs font-sans font-normal text-slate-400">units</span>
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5">
-            Across {receipt.itemCount} SKU line{receipt.itemCount !== 1 ? 's' : ''}
+            Across {receipt.items.length} SKU line{receipt.items.length !== 1 ? 's' : ''}
           </div>
         </div>
 
@@ -245,24 +313,26 @@ export function ReceiptDetailsPage() {
             Target Warehouse
           </div>
           <div className="text-base font-bold text-slate-900 mt-1 truncate">
-            {receipt.warehouseId}
+            {receipt.warehouse?.shortCode ?? '—'}
           </div>
           <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-            {receipt.warehouseName.split(' — ')[1] || receipt.warehouseName}
+            {receipt.warehouse?.name ?? receipt.warehouseId.slice(0, 12)}
           </div>
         </div>
 
         <div className="p-4">
           <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Scheduled Date
+            Validated At
           </div>
           <div className="text-base font-semibold text-slate-900 mt-1 flex items-center gap-1.5">
             <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span>{receipt.scheduledDate}</span>
+            <span>
+              {receipt.validatedAt
+                ? new Date(receipt.validatedAt).toLocaleDateString()
+                : 'Not yet'}
+            </span>
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            Created on {receipt.createdDate}
-          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Created on {createdDate}</div>
         </div>
 
         <div className="p-4">
@@ -270,11 +340,9 @@ export function ReceiptDetailsPage() {
             Intake Bay Location
           </div>
           <div className="text-xs font-mono font-semibold text-brand mt-1 truncate">
-            {receipt.destinationLocation}
+            {receipt.defaultLocation?.fullPath ?? '—'}
           </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            Primary storage bay
-          </div>
+          <div className="text-[11px] text-slate-400 mt-0.5">Primary storage bay</div>
         </div>
       </div>
 
@@ -284,11 +352,11 @@ export function ReceiptDetailsPage() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-brand" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Receipt Product Lines ({receipt.lines.length})
+              Receipt Product Lines ({receipt.items.length})
             </h2>
           </div>
           <span className="text-xs font-mono font-medium text-slate-500">
-            {receipt.totalQuantity} total units
+            {totalQty.toFixed(0)} total units
           </span>
         </div>
 
@@ -300,65 +368,58 @@ export function ReceiptDetailsPage() {
                 <th className="px-3 py-2.5">Product Name</th>
                 <th className="px-3 py-2.5">Destination Bay</th>
                 <th className="px-3 py-2.5 text-right">Expected Qty</th>
-                <th className="px-3 py-2.5 text-right">Received Qty</th>
-                <th className="px-4 py-2.5 text-right sm:pr-5">Fulfillment</th>
+                <th className="px-4 py-2.5 text-right sm:pr-5">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {receipt.lines.map((line) => {
-                const isFullyReceived = line.receivedQuantity === line.quantity
-
-                return (
-                  <tr key={line.id} className="hover:bg-slate-50/70 transition-colors">
+              {receipt.items.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-8 text-center text-slate-400 text-xs">
+                    No product lines yet.
+                  </td>
+                </tr>
+              ) : (
+                receipt.items.map((item) => (
+                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
                     {/* SKU */}
                     <td className="px-4 py-3 sm:px-5 whitespace-nowrap">
                       <Link
-                        to={`/products/${line.productId}`}
+                        to={`/products/${item.productId}`}
                         className="font-mono text-xs font-semibold text-brand hover:underline"
                       >
-                        {line.productSku}
+                        {item.product?.sku ?? item.productId.slice(0, 8)}
                       </Link>
                     </td>
 
                     {/* Name */}
                     <td className="px-3 py-3 font-semibold text-slate-900">
-                      {line.productName}
+                      {item.product?.name ?? '—'}
                     </td>
 
                     {/* Destination */}
                     <td className="px-3 py-3 whitespace-nowrap font-mono text-slate-600 text-[11.5px]">
-                      {line.destinationLocation}
+                      {item.destinationLocation?.fullPath ?? '—'}
                     </td>
 
-                    {/* Expected Qty */}
+                    {/* Qty */}
                     <td className="px-3 py-3 text-right whitespace-nowrap font-mono font-bold text-slate-800">
-                      {line.quantity} <span className="font-normal font-sans text-slate-400 text-[11px]">{line.unit}</span>
-                    </td>
-
-                    {/* Received Qty */}
-                    <td className="px-3 py-3 text-right whitespace-nowrap font-mono font-bold">
-                      <span className={receipt.status === 'done' ? 'text-emerald-700' : 'text-slate-500'}>
-                        {line.receivedQuantity || 0}
-                      </span>{' '}
-                      <span className="font-normal font-sans text-slate-400 text-[11px]">{line.unit}</span>
+                      {parseFloat(item.quantity).toFixed(0)}
                     </td>
 
                     {/* Fulfillment */}
                     <td className="px-4 py-3 sm:pr-5 text-right whitespace-nowrap">
-                      {receipt.status === 'done' ? (
+                      {receipt.status === 'DONE' ? (
                         <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
                           <Check className="w-3 h-3" />
-                          100%
+                          Received
                         </span>
                       ) : (
-                        <span className="text-[11px] font-mono text-slate-400">
-                          Pending
-                        </span>
+                        <span className="text-[11px] font-mono text-slate-400">Pending</span>
                       )}
                     </td>
                   </tr>
-                )
-              })}
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -371,39 +432,36 @@ export function ReceiptDetailsPage() {
         )}
       </div>
 
-      {/* ── Activity / Timeline Log ──────────────────────────────────── */}
+      {/* ── Audit Info ───────────────────────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
         <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
           <div className="flex items-center gap-2">
             <History className="w-4 h-4 text-slate-500" />
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Receipt Activity & Audit Trail
+              Receipt Audit Info
             </h2>
           </div>
-          <span className="text-xs text-slate-400 font-mono">
-            {receipt.timeline.length} events logged
-          </span>
         </div>
 
-        <div className="p-5 space-y-4 text-xs">
-          {receipt.timeline.map((evt, idx) => (
-            <div key={evt.id} className="flex items-start gap-3 relative">
-              {idx < receipt.timeline.length - 1 && (
-                <div className="absolute left-2.5 top-6 bottom-0 w-0.5 bg-slate-200 -z-10" />
-              )}
-              <div className="w-5 h-5 rounded-full bg-brand-light text-brand-dark flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]">
-                ●
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-900">{evt.title}</span>
-                  <span className="font-mono text-[11px] text-slate-400">{evt.timestamp}</span>
-                </div>
-                <p className="text-slate-600 mt-0.5">{evt.description}</p>
-                <span className="text-[11px] text-slate-400 mt-0.5 block">By {evt.user}</span>
-              </div>
+        <div className="p-5 grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+          <div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Created By</div>
+            <div className="mt-1 text-slate-700 font-medium">{receipt.creator?.name ?? 'System'}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Created At</div>
+            <div className="mt-1 font-mono text-slate-700">{new Date(receipt.createdAt).toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Last Updated</div>
+            <div className="mt-1 font-mono text-slate-700">{new Date(receipt.updatedAt).toLocaleString()}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Validated At</div>
+            <div className="mt-1 font-mono text-slate-700">
+              {receipt.validatedAt ? new Date(receipt.validatedAt).toLocaleString() : '—'}
             </div>
-          ))}
+          </div>
         </div>
       </div>
     </div>

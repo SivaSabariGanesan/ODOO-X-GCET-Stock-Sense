@@ -281,8 +281,8 @@ export function createMockTransfer(input: CreateTransferInput): Transfer {
   const nextNum = (transfersStore.length + 94).toString().padStart(5, '0')
   const totalUnits = input.lines.reduce((acc, l) => acc + (Number(l.quantity) || 0), 0)
 
-  const srcWh = TRANSFER_WAREHOUSES.find((w) => w.id === input.sourceWarehouseId) || TRANSFER_WAREHOUSES[0]
-  const dstWh = TRANSFER_WAREHOUSES.find((w) => w.id === input.destinationWarehouseId) || TRANSFER_WAREHOUSES[0]
+  const srcWh = (TRANSFER_WAREHOUSES.find((w) => w.id === input.sourceWarehouseId) || TRANSFER_WAREHOUSES[0])!
+  const dstWh = (TRANSFER_WAREHOUSES.find((w) => w.id === input.destinationWarehouseId) || TRANSFER_WAREHOUSES[0])!
 
   const newTransfer: Transfer = {
     id: `trf-${Date.now().toString().slice(-4)}`,
@@ -296,7 +296,7 @@ export function createMockTransfer(input: CreateTransferInput): Transfer {
     itemCount: input.lines.length,
     totalQuantity: totalUnits,
     scheduledDate: input.scheduledDate || 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    createdDate: new Date().toISOString().split('T')[0],
+    createdDate: new Date().toISOString().split('T')[0]!,
     status: input.status || 'draft',
     notes: input.notes,
     lines: input.lines.map((l, idx) => ({

@@ -39,8 +39,10 @@ export interface ReceiptWithDetails extends Receipt {
 
 export interface CreateReceiptItemInput {
   productId: string;
-  destinationLocationId: string;
+  destinationLocationId?: string;
   quantity: string | number;
+  unitPrice?: string | number;
+  notes?: string;
 }
 
 export interface CreateReceiptInput {

@@ -12,18 +12,12 @@ import {
   ChevronLeft,
   X,
   ExternalLink,
-  MapPin,
   Clock,
   User,
-  Package,
-  Layers,
-  FileText,
   ShieldCheck,
-  ArrowRight,
   Copy,
   Info,
 } from 'lucide-react'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'

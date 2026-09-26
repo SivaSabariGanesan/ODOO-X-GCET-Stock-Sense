@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { AlertTriangle, AlertOctagon, Plus, CheckCircle2, ChevronRight } from 'lucide-react'
+import { Plus, CheckCircle2, ChevronRight } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { LowStockProduct } from '../types'

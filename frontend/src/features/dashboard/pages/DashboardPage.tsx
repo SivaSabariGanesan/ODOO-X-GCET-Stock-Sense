@@ -8,7 +8,6 @@ import {
   ArrowLeftRight,
   SlidersHorizontal,
   Package,
-  Layers,
   AlertCircle,
 } from 'lucide-react'
 import { DashboardSummaryStrip } from '../components/DashboardSummaryStrip'

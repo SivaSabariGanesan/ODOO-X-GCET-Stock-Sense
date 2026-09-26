@@ -6,18 +6,13 @@ import {
   CheckCircle2,
   Clock,
   Printer,
-  XCircle,
   Copy,
-  ChevronRight,
   Warehouse,
   History,
-  Info,
   TrendingDown,
   TrendingUp,
   Minus,
   AlertTriangle,
-  Package,
-  MapPin,
   FileCheck,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
@@ -30,6 +25,7 @@ import { cn } from '@/lib/cn'
 
 export function AdjustmentDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
 
   const [adjustment, setAdjustment] = useState<Adjustment | undefined>(

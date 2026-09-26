@@ -1,4 +1,4 @@
-import { ArrowDownToLine, ArrowUpFromLine, ArrowLeftRight, TrendingUp, TrendingDown, Warehouse } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, TrendingUp, TrendingDown, Warehouse } from 'lucide-react'
 import { MovementSummaryData } from '../types'
 import { cn } from '@/lib/cn'
 

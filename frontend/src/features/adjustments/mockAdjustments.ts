@@ -285,7 +285,7 @@ export function createMockAdjustment(input: CreateAdjustmentInput): Adjustment {
     reason: input.reason,
     notes: input.notes,
     status: input.status,
-    createdDate: new Date().toISOString().split('T')[0],
+    createdDate: new Date().toISOString().split('T')[0]!,
     validatedDate: input.status === 'done' ? new Date().toISOString().replace('T', ' ').slice(0, 16) : undefined,
     adjustedBy: 'Alex Mercer',
     timeline: [

@@ -9,7 +9,7 @@ import { type FieldValues, type Resolver } from 'react-hook-form'
 export function zodResolver<T extends FieldValues>(
   schema: ZodType<T, any, any>
 ): Resolver<T> {
-  return async (values) => {
+  return (async (values: T) => {
     const result = await schema.safeParseAsync(values)
 
     if (result.success) {
@@ -35,5 +35,5 @@ export function zodResolver<T extends FieldValues>(
       values: {} as T,
       errors,
     }
-  }
+  }) as unknown as Resolver<T>
 }

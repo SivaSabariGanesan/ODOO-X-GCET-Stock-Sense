@@ -22,7 +22,6 @@ import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockTransfers, updateTransferStatus, TRANSFER_WAREHOUSES } from '../mockTransfers'
 import { Transfer, TransferFiltersState, TransferStatus } from '../types'
-import { cn } from '@/lib/cn'
 
 const PAGE_SIZE = 10
 

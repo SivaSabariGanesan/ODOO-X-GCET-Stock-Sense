@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save, ArrowUpFromLine, CheckCircle2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, ArrowUpFromLine } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/context/ToastContext'
@@ -22,13 +22,13 @@ export function DeliveryFormPage() {
   const catalog = getMockProducts()
 
   // ── Header State ──────────────────────────────────────────────────────────
-  const [customer, setCustomer] = useState(CUSTOMERS[0])
+  const [customer, setCustomer] = useState(CUSTOMERS[0]!)
   const [customerReference, setCustomerReference] = useState('')
-  const [warehouseId, setWarehouseId] = useState(DELIVERY_WAREHOUSES[0].id)
+  const [warehouseId, setWarehouseId] = useState(DELIVERY_WAREHOUSES[0]!.id)
   const [scheduledDate, setScheduledDate] = useState('Today, 17:00')
   const [notes, setNotes] = useState('')
 
-  const activeWarehouse = DELIVERY_WAREHOUSES.find((w) => w.id === warehouseId) || DELIVERY_WAREHOUSES[0]
+  const activeWarehouse = (DELIVERY_WAREHOUSES.find((w) => w.id === warehouseId) || DELIVERY_WAREHOUSES[0])!
 
   // ── Lines State ───────────────────────────────────────────────────────────
   const [lines, setLines] = useState<ProductLineForm[]>([
@@ -56,7 +56,7 @@ export function DeliveryFormPage() {
   }
 
   const handleAddLine = () => {
-    const nextProd = catalog[lines.length % catalog.length] || catalog[0]
+    const nextProd = (catalog[lines.length % catalog.length] || catalog[0])!
     setLines((prev) => [
       ...prev,
       {

@@ -99,25 +99,31 @@ describe("StockSense Receipt Core Module", () => {
   });
 
   afterAll(async () => {
-    // Clean up created receipts, items, stock movements & stock balances
+    // 1. Delete stock movements referencing test receipts
     if (createdReceiptIds.length > 0) {
       await db
         .delete(stockMovements)
         .where(inArray(stockMovements.referenceId, createdReceiptIds));
-      await db
-        .delete(receiptItems)
-        .where(inArray(receiptItems.receiptId, createdReceiptIds));
-      await db
-        .delete(receipts)
-        .where(inArray(receipts.id, createdReceiptIds));
     }
 
+    // 2. Delete stock balances for test products
     const testProdIds = [productId1, productId2].filter(Boolean);
     if (testProdIds.length > 0) {
       await db.delete(stockBalances).where(inArray(stockBalances.productId, testProdIds));
     }
 
-    // Clean up test fixtures
+    // 3. Delete receipt items (cascades from receipt, but be explicit)
+    if (createdReceiptIds.length > 0) {
+      await db
+        .delete(receiptItems)
+        .where(inArray(receiptItems.receiptId, createdReceiptIds));
+      // 4. Delete receipts BEFORE warehouse (FK: receipts.warehouse_id → warehouses)
+      await db
+        .delete(receipts)
+        .where(inArray(receipts.id, createdReceiptIds));
+    }
+
+    // 5. Now safe to delete products, uom, warehouse, user
     if (productId1) await db.delete(products).where(eq(products.id, productId1));
     if (productId2) await db.delete(products).where(eq(products.id, productId2));
     if (uomId) await db.delete(unitsOfMeasure).where(eq(unitsOfMeasure.id, uomId));
@@ -137,7 +143,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Test Supplier Corp",
           warehouseId: warehouseId,
           notes: "Initial receipt core test",
         }),
@@ -161,7 +167,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Test Supplier Corp",
           warehouseId: warehouseId,
           notes: "Receipt with items",
           items: [
@@ -189,7 +195,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Ghost Supplier",
           warehouseId: "99999999-9999-9999-9999-999999999999",
         }),
       });
@@ -258,7 +264,7 @@ describe("StockSense Receipt Core Module", () => {
     beforeAll(async () => {
       const receipt = await ReceiptCoreService.createReceipt(
         {
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Item Test Supplier",
           warehouseId: warehouseId,
         },
         userId
@@ -358,7 +364,7 @@ describe("StockSense Receipt Core Module", () => {
     beforeAll(async () => {
       const emptyRec = await ReceiptCoreService.createReceipt(
         {
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Validation Supplier",
           warehouseId: warehouseId,
         },
         userId
@@ -368,7 +374,7 @@ describe("StockSense Receipt Core Module", () => {
 
       const validRec = await ReceiptCoreService.createReceipt(
         {
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Validation Supplier",
           warehouseId: warehouseId,
           items: [{ productId: productId1, quantity: 75, unitPrice: 20 }],
         },
@@ -414,7 +420,7 @@ describe("StockSense Receipt Core Module", () => {
     beforeAll(async () => {
       const rec1 = await ReceiptCoreService.createReceipt(
         {
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Status Test Supplier",
           warehouseId: warehouseId,
         },
         userId
@@ -424,7 +430,7 @@ describe("StockSense Receipt Core Module", () => {
 
       const rec2 = await ReceiptCoreService.createReceipt(
         {
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Status Test Supplier",
           warehouseId: warehouseId,
           items: [{ productId: productId1, quantity: 10 }],
         },
@@ -532,7 +538,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Processing Supplier",
           warehouseId: warehouseId,
           items: [
             { productId: productId1, quantity: 100, unitPrice: 25.0 },
@@ -606,7 +612,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Empty Receipt Supplier",
           warehouseId: warehouseId,
         }),
       });
@@ -632,7 +638,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Cancel Test Supplier",
           warehouseId: warehouseId,
           items: [{ productId: productId1, quantity: 10 }],
         }),
@@ -665,7 +671,7 @@ describe("StockSense Receipt Core Module", () => {
           Authorization: `Bearer ${authToken}`,
         },
         body: JSON.stringify({
-          supplierId: "00000000-0000-0000-0000-000000000001",
+          supplierName: "Concurrent Supplier",
           warehouseId: warehouseId,
           items: [{ productId: productId2, quantity: 30 }],
         }),
