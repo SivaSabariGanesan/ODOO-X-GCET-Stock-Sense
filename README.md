@@ -313,6 +313,7 @@ After running `bun --cwd backend run db:seed`, log into StockSense with the demo
 
 ## 📄 Documentation Links
 
+- 🚀 [Production Infrastructure & Deployment Guide](docs/DEPLOYMENT.md) — Production setup, Docker Compose, startup sequence, health/readiness endpoints, backup/restore procedures.
 - 📘 [API Integration Guide](docs/API_INTEGRATION.md) — Endpoint contracts, request schemas, WebSocket events, and frontend client integration code.
 - 🗄️ [Database Schema Specification](docs/DATABASE_SCHEMA.md) — Exhaustive 18-table relational schema guide, keys, constraints, and double-entry stock architecture.
 - 🤖 [Grounded AI Assistant Platform](docs/AI_ASSISTANT.md) — AI Orchestrator architecture, zero-hallucination directives, 8 system tools, and confirmation safeguards.

@@ -1,0 +1,80 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: stocksense_postgres_prod
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-stocksense_db}
+      POSTGRES_USER: ${POSTGRES_USER:-stocksense}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-stocksense_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - stocksense_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-stocksense} -d $${POSTGRES_DB:-stocksense_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: stocksense_backend_prod
+    restart: always
+    environment:
+      NODE_ENV: production
+      PORT: 3001
+      DATABASE_URL: postgresql://${POSTGRES_USER:-stocksense}:${POSTGRES_PASSWORD:-stocksense_pass}@postgres:5432/${POSTGRES_DB:-stocksense_db}
+      JWT_SECRET: ${JWT_SECRET:-stocksense_prod_jwt_secret_key_2026_change_me}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:3001}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:80}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-"StockSense Security <noreply@stocksense.io>"}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-llama-3.3-70b-versatile}
+    networks:
+      - stocksense_net
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost}
+    container_name: stocksense_frontend_prod
+    restart: always
+    networks:
+      - stocksense_net
+
+  proxy:
+    image: nginx:alpine
+    container_name: stocksense_proxy_prod
+    restart: always
+    ports:
+      - "${PORT_HTTP:-80}:80"
+    volumes:
+      - ./docker/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - stocksense_net
+    depends_on:
+      - backend
+      - frontend
+
+volumes:
+  postgres_data:
+    name: stocksense_postgres_prod_data
+
+networks:
+  stocksense_net:
+    name: stocksense_prod_network
+    driver: bridge

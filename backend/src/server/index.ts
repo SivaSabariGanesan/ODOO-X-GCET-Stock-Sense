@@ -2,8 +2,9 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { swaggerUI } from "@hono/swagger-ui";
-import { config } from "../app/config";
+import { config, validateConfig } from "../app/config";
 import { openApiSpec } from "../app/config/swagger";
+import { queryClient, sql } from "../db/client";
 import authRouter from "../modules/auth/route";
 import receiptsRouter from "../modules/receipts/route";
 import deliveriesRouter from "../modules/deliveries/route";
@@ -23,45 +24,97 @@ import { StockLedgerService } from "../modules/stock-movements/service";
 import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema";
 import { authMiddleware } from "../app/middleware/auth";
 import { AppError } from "../lib/errors";
-
 import { aiRouter } from "../modules/ai/route";
+
+// ---------------------------------------------------------------------------
+// Startup Configuration Validation
+// ---------------------------------------------------------------------------
+validateConfig();
 
 const app = new Hono();
 
 // ---------------------------------------------------------------------------
-// Global Middlewares
+// 1. Request Correlation & Request ID Middleware
+// ---------------------------------------------------------------------------
+app.use("*", async (c, next) => {
+  const requestId = c.req.header("x-request-id") ?? `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  c.set("requestId", requestId);
+  c.header("x-request-id", requestId);
+  await next();
+});
+
+// ---------------------------------------------------------------------------
+// 2. Structured Logging Middleware
 // ---------------------------------------------------------------------------
 app.use("*", logger());
+
+// ---------------------------------------------------------------------------
+// 3. CORS Middleware (Production & Development Origins)
+// ---------------------------------------------------------------------------
+const defaultOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+];
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...config.app.allowedOrigins, config.app.frontendUrl]));
+
 app.use(
   "*",
   cors({
-    origin: ["http://localhost:5173", "http://localhost:3000"],
+    origin: (origin) => {
+      if (!origin || allowedOrigins.includes(origin) || config.env === "development") {
+        return origin ?? "*";
+      }
+      return null;
+    },
     credentials: true,
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowHeaders: ["Content-Type", "Authorization"],
+    allowHeaders: ["Content-Type", "Authorization", "x-request-id"],
   })
 );
 
 // ---------------------------------------------------------------------------
-// Health Check Route
+// 4. Production Health & Readiness Endpoints
 // ---------------------------------------------------------------------------
+
+/**
+ * Liveness Endpoint: Checks if the application process is running.
+ */
 app.get("/health", (c) => {
-  return c.json({
-    status: "ok",
-    service: "StockSense API",
-    timestamp: new Date().toISOString(),
-  });
+  return c.json({ status: "ok" }, 200);
+});
+
+/**
+ * Readiness Endpoint: Verifies database connectivity before routing traffic.
+ */
+app.get("/ready", async (c) => {
+  try {
+    // Fast database ping query
+    await queryClient`SELECT 1`;
+    return c.json({ status: "ready" }, 200);
+  } catch (error) {
+    const isProd = config.env === "production";
+    console.error("Readiness check failed - DB ping error:", isProd ? "Database unreachable" : error);
+    return c.json(
+      {
+        status: "unhealthy",
+        error: "Database service unavailable",
+      },
+      503
+    );
+  }
 });
 
 // ---------------------------------------------------------------------------
-// Swagger OpenAPI Documentation UI Endpoints
+// 5. Swagger OpenAPI Documentation UI Endpoints
 // ---------------------------------------------------------------------------
 app.get("/swagger.json", (c) => c.json(openApiSpec));
 app.get("/docs", swaggerUI({ url: "/swagger.json" }));
 app.get("/ui", swaggerUI({ url: "/swagger.json" }));
 
 // ---------------------------------------------------------------------------
-// API Route Modules
+// 6. API Route Modules Registration
 // ---------------------------------------------------------------------------
 app.route("/api/auth", authRouter);
 app.route("/api/products", productsRouter);
@@ -109,30 +162,57 @@ app.get("/api/locations/:locationId/stock-movements", authMiddleware, async (c) 
   );
 });
 
-
-
 // ---------------------------------------------------------------------------
-// Global Error Handler
+// 7. Central Error Handler (Production Safe)
 // ---------------------------------------------------------------------------
 app.onError((err, c) => {
+  const requestId = c.get("requestId") ?? "unknown";
+
   if (err instanceof AppError) {
     return c.json(
       {
         error: err.message,
         details: err.details ?? undefined,
+        requestId,
       },
       err.statusCode as any
     );
   }
 
-  console.error("Unhandled Server Error:", err);
+  // Log full error internally
+  console.error(`[${requestId}] Unhandled Server Error:`, err);
+
+  const isProd = config.env === "production";
   return c.json(
     {
       error: "Internal Server Error",
+      requestId,
+      ...(isProd ? {} : { details: err.message }),
     },
     500
   );
 });
+
+// ---------------------------------------------------------------------------
+// 8. Graceful Process Shutdown Handler (SIGINT & SIGTERM)
+// ---------------------------------------------------------------------------
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\nReceived ${signal}. Initiating graceful shutdown...`);
+
+  try {
+    console.log("Closing database connection pool...");
+    await queryClient.end({ timeout: 5 });
+    console.log("Database connection pool closed successfully.");
+  } catch (err) {
+    console.error("Error closing database connection pool:", err);
+  }
+
+  console.log("Graceful shutdown complete. Exiting process.");
+  process.exit(0);
+};
+
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
 
 // Export app for testing and server instantiation
 export { app };
