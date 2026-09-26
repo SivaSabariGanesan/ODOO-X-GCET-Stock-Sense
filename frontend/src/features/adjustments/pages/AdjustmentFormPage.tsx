@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -17,42 +17,107 @@ import { useToast } from '@/context/ToastContext'
 import {
   ADJUSTMENT_REASONS,
   ADJUSTMENT_WAREHOUSES,
-  createMockAdjustment,
 } from '../mockAdjustments'
-import { AdjustmentReason } from '../types'
+import { adjustmentsApi, CreateAdjustmentPayload } from '../api'
+import { apiClient, ApiError } from '@/lib/apiClient'
 import { getMockProducts } from '@/features/products/mockProducts'
 import { cn } from '@/lib/cn'
+
+interface ProductOption {
+  id: string
+  name: string
+  sku: string
+  unit: string
+  onHand: number
+}
+
+interface LocationOption {
+  id: string
+  name: string
+  fullPath: string
+}
 
 export function AdjustmentFormPage() {
   const navigate = useNavigate()
   const toast = useToast()
-  const catalog = getMockProducts()
 
-  // Selected Product
-  const [selectedProductId, setSelectedProductId] = useState(catalog[0]?.id || 'prod-001')
-  const activeProduct = (catalog.find((p) => p.id === selectedProductId) || catalog[0])!
+  const defaultProducts: ProductOption[] = getMockProducts().map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    unit: p.unit,
+    onHand: p.onHand || 100,
+  }))
 
-  // Warehouse & Location
-  const [warehouseId, setWarehouseId] = useState(ADJUSTMENT_WAREHOUSES[0]!.id)
-  const activeWarehouse = (
-    ADJUSTMENT_WAREHOUSES.find((w) => w.id === warehouseId) || ADJUSTMENT_WAREHOUSES[0]
-  )!
+  const defaultLocations: LocationOption[] = [
+    { id: 'loc-001', name: 'Main Stock', fullPath: 'WH/Stock' },
+    { id: 'loc-002', name: 'Rack A-12', fullPath: 'WH/Stock/Rack-A12' },
+    { id: 'loc-003', name: 'Cold Shelf 2', fullPath: 'WH/Cold/Shelf-2' },
+  ]
 
-  const [location, setLocation] = useState(activeWarehouse.locations[0]!)
+  const [products, setProducts] = useState<ProductOption[]>(defaultProducts)
+  const [locations, setLocations] = useState<LocationOption[]>(defaultLocations)
 
-  // Quantities
-  // Initial system quantity is derived from product onHand or default
+  const [selectedProductId, setSelectedProductId] = useState(defaultProducts[0]?.id || '')
+  const [selectedLocationId, setSelectedLocationId] = useState(defaultLocations[0]?.id || '')
+
+  const activeProduct = products.find((p) => p.id === selectedProductId) || products[0]!
+
+  // System & Counted Quantities
   const [systemQuantity, setSystemQuantity] = useState<number>(activeProduct.onHand || 100)
   const [countedQuantity, setCountedQuantity] = useState<number>(
     Math.max(0, (activeProduct.onHand || 100) - 3)
   )
 
-  const [reason, setReason] = useState<AdjustmentReason>(ADJUSTMENT_REASONS[0]!)
+  const [reason, setReason] = useState<string>(ADJUSTMENT_REASONS[0]!)
   const [notes, setNotes] = useState('')
 
-  // Confirmation Modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // Load real products & locations from backend APIs
+  useEffect(() => {
+    let isMounted = true
+
+    async function loadData() {
+      try {
+        const prodRes = await apiClient.get<{ data: Array<{ id: string; name: string; sku: string; uom?: { abbreviation?: string; symbol?: string } }> }>('/api/products')
+        if (isMounted && prodRes.data && prodRes.data.length > 0) {
+          const mapped = prodRes.data.map((p) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            unit: p.uom?.abbreviation || p.uom?.symbol || 'pcs',
+            onHand: 100,
+          }))
+          setProducts(mapped)
+          setSelectedProductId(mapped[0]!.id)
+        }
+      } catch {
+        // Fallback to sample catalog
+      }
+
+      try {
+        const locRes = await apiClient.get<{ data: Array<{ id: string; name: string; fullPath: string }> }>('/api/locations')
+        if (isMounted && locRes.data && locRes.data.length > 0) {
+          const mapped = locRes.data.map((l) => ({
+            id: l.id,
+            name: l.name,
+            fullPath: l.fullPath,
+          }))
+          setLocations(mapped)
+          setSelectedLocationId(mapped[0]!.id)
+        }
+      } catch {
+        // Fallback to default locations
+      }
+    }
+
+    loadData()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   // Derived Difference: Counted - System
   const difference = countedQuantity - systemQuantity
@@ -60,395 +125,310 @@ export function AdjustmentFormPage() {
   const isPositive = difference > 0
   const isZero = difference === 0
 
-  // Handle product change
   const handleProductSelect = (prodId: string) => {
     setSelectedProductId(prodId)
-    const p = catalog.find((prod) => prod.id === prodId)
+    const p = products.find((prod) => prod.id === prodId)
     if (p) {
       setSystemQuantity(p.onHand)
-      setCountedQuantity(p.onHand) // defaults to match, user can adjust
-    }
-  }
-
-  // Handle warehouse change
-  const handleWarehouseChange = (whId: string) => {
-    setWarehouseId(whId)
-    const wh = ADJUSTMENT_WAREHOUSES.find((w) => w.id === whId)
-    if (wh && wh.locations.length > 0) {
-      setLocation(wh.locations[0]!)
+      setCountedQuantity(p.onHand)
     }
   }
 
   const isValid =
-    selectedProductId &&
-    location &&
-    !isNaN(systemQuantity) &&
+    selectedProductId.trim().length > 0 &&
+    selectedLocationId.trim().length > 0 &&
     !isNaN(countedQuantity) &&
     countedQuantity >= 0
 
-  const handleExecuteSave = (statusToSave: 'draft' | 'done') => {
+  const handleSubmit = async (applyNow: boolean) => {
+    if (!isValid) {
+      toast.error('Validation Error', 'Please select a product, location, and non-negative counted quantity.')
+      return
+    }
+
+    if (isSubmitting) return
     setIsSubmitting(true)
 
-    setTimeout(() => {
+    try {
+      const payload: CreateAdjustmentPayload = {
+        reason: reason.trim() || undefined,
+        locationId: selectedLocationId,
+        items: [
+          {
+            productId: selectedProductId,
+            countedQuantity,
+          },
+        ],
+      }
+
+      const created = await adjustmentsApi.create(payload)
+
+      if (applyNow) {
+        try {
+          await adjustmentsApi.process(created.id)
+          toast.success(
+            'Adjustment Applied to Inventory',
+            `${created.adjustmentNumber} reconciled. Stock balance adjusted by ${difference >= 0 ? '+' : ''}${difference} ${activeProduct.unit}.`
+          )
+        } catch (procErr: unknown) {
+          const msg = procErr instanceof ApiError ? procErr.message : 'Created draft, but failed to apply immediately.'
+          toast.warning('Draft Saved', msg)
+        }
+      } else {
+        toast.success(
+          'Adjustment Saved as Draft',
+          `${created.adjustmentNumber} created. Awaiting physical audit signoff.`
+        )
+      }
+
+      navigate(`/operations/adjustments/${created.id}`)
+    } catch (err: unknown) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to create adjustment. Please try again.'
+      toast.error('Creation Failed', msg)
+    } finally {
       setIsSubmitting(false)
       setShowConfirmModal(false)
-
-      const created = createMockAdjustment({
-        productId: activeProduct.id,
-        productSku: activeProduct.sku,
-        productName: activeProduct.name,
-        warehouseId: activeWarehouse.id,
-        warehouseName: activeWarehouse.name,
-        location,
-        systemQuantity,
-        countedQuantity,
-        unit: activeProduct.unit || 'pcs',
-        reason,
-        notes: notes.trim() || undefined,
-        status: statusToSave,
-      })
-
-      toast.success(
-        statusToSave === 'done' ? 'Adjustment Validated' : 'Draft Saved',
-        `${created.adjustmentNumber} recorded. Difference of ${difference >= 0 ? '+' : ''}${difference} ${activeProduct.unit} logged.`
-      )
-      navigate(`/operations/adjustments/${created.id}`)
-    }, 200)
+    }
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-6 pb-16">
+    <div className="w-full max-w-3xl mx-auto space-y-5 pb-16">
       {/* ── Page Header ─────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
+      <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 pb-4">
         <div className="flex items-center gap-3">
           <Link
             to="/operations/adjustments"
             className="p-1.5 rounded-md hover:bg-slate-100 text-slate-500 hover:text-slate-800 transition-colors"
-            title="Back to adjustments list"
+            title="Back to adjustments"
             aria-label="Back"
           >
             <ArrowLeft className="w-4 h-4" />
           </Link>
           <div>
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading">
-              New Inventory Adjustment
+              Record Physical Inventory Adjustment
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Reconcile physical stock counts with theoretical ledger balances.
+              Input physical cycle count results to reconcile warehouse stock differences.
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => handleExecuteSave('draft')}
-            disabled={!isValid || isSubmitting}
-            leftIcon={<Save className="w-3.5 h-3.5" />}
-          >
-            Save Draft
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => setShowConfirmModal(true)}
-            disabled={!isValid || isSubmitting}
-            leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-          >
-            Validate Adjustment
-          </Button>
-        </div>
+        <Link to="/operations/adjustments" className="text-xs text-slate-500 hover:text-slate-800">
+          Cancel
+        </Link>
       </div>
 
-      {/* ── VISUALLY PROMINENT DIFFERENCE CARD ───────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-xl p-4 sm:p-5 shadow-2xs">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-3 flex items-center justify-between">
-          <span>Live Stock Reconciliation Metric</span>
-          <span className="font-mono text-slate-500">Unit: {activeProduct.unit}</span>
+      {/* ── Form Card ──────────────────────────────────────────────── */}
+      <div className="bg-white border border-slate-200/80 rounded-xl shadow-2xs p-5 sm:p-6 space-y-6">
+        {/* Section 1: Item & Location */}
+        <div className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+            <Package className="w-3.5 h-3.5 text-brand" />
+            <span>1. Target Product & Audit Location</span>
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Product Selection */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 select-none">
+                Audited Product <span className="text-brand ml-0.5">*</span>
+              </label>
+              <select
+                value={selectedProductId}
+                onChange={(e) => handleProductSelect(e.target.value)}
+                className="mt-1.5 w-full h-9 px-3 text-xs text-slate-800 bg-white border border-slate-300 rounded shadow-xs focus:border-brand focus:ring-1 focus:ring-brand/30 cursor-pointer"
+              >
+                {products.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.sku})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Location Selection */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 select-none">
+                Warehouse Location <span className="text-brand ml-0.5">*</span>
+              </label>
+              <select
+                value={selectedLocationId}
+                onChange={(e) => setSelectedLocationId(e.target.value)}
+                className="mt-1.5 w-full h-9 px-3 text-xs text-slate-800 bg-white border border-slate-300 rounded shadow-xs focus:border-brand focus:ring-1 focus:ring-brand/30 cursor-pointer"
+              >
+                {locations.map((loc) => (
+                  <option key={loc.id} value={loc.id}>
+                    {loc.name} ({loc.fullPath})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch">
-          {/* System Quantity */}
-          <div className="p-3.5 rounded-lg bg-slate-50/80 border border-slate-200 flex flex-col justify-between">
-            <span className="text-xs font-semibold text-slate-500">System Theoretical Quantity</span>
-            <div className="mt-2 font-mono font-bold text-2xl text-slate-900">
-              {systemQuantity.toLocaleString()}{' '}
-              <span className="text-xs font-normal text-slate-500">{activeProduct.unit}</span>
+        {/* Section 2: Counted Quantities & Live Variance Calculation */}
+        <div className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-brand" />
+            <span>2. Quantities & Discrepancy Reconciliation</span>
+          </h2>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {/* Theoretical System Qty (Read-Only) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 select-none">
+                System Theoretical Quantity ({activeProduct.unit})
+              </label>
+              <Input
+                type="number"
+                value={systemQuantity}
+                disabled
+                className="mt-1.5 font-mono bg-slate-50/80 text-slate-700 cursor-not-allowed"
+              />
+              <span className="text-[10.5px] text-slate-400 mt-1 block">
+                Theoretical ledger balance resolved by Inventory Engine
+              </span>
             </div>
-            <span className="text-[10.5px] text-slate-400 mt-1">Recorded on-hand balance</span>
+
+            {/* Physical Counted Qty */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-800 select-none">
+                Physical Counted Quantity ({activeProduct.unit}) <span className="text-brand ml-0.5">*</span>
+              </label>
+              <Input
+                type="number"
+                min={0}
+                value={countedQuantity}
+                onChange={(e) => setCountedQuantity(Math.max(0, parseFloat(e.target.value) || 0))}
+                className="mt-1.5 font-mono text-slate-900 font-bold border-brand focus:ring-brand/20"
+                placeholder="0"
+                required
+              />
+              <span className="text-[10.5px] text-slate-400 mt-1 block">
+                Audited stock physically counted on shelves (must be ≥ 0)
+              </span>
+            </div>
           </div>
 
-          {/* Counted Quantity */}
-          <div className="p-3.5 rounded-lg bg-slate-50/80 border border-slate-200 flex flex-col justify-between">
-            <span className="text-xs font-semibold text-slate-700">Physical Counted Quantity</span>
-            <div className="mt-2 font-mono font-bold text-2xl text-slate-900">
-              {countedQuantity.toLocaleString()}{' '}
-              <span className="text-xs font-normal text-slate-500">{activeProduct.unit}</span>
-            </div>
-            <span className="text-[10.5px] text-slate-400 mt-1">Verified on warehouse floor</span>
-          </div>
-
-          {/* Prominent Difference Display */}
+          {/* Live Variance Preview Strip */}
           <div
             className={cn(
-              'p-3.5 rounded-lg border flex flex-col justify-between transition-all duration-200 shadow-xs select-none',
-              isNegative && 'bg-rose-50/90 border-rose-200 text-rose-900',
-              isPositive && 'bg-emerald-50/90 border-emerald-200 text-emerald-900',
-              isZero && 'bg-slate-100/90 border-slate-200 text-slate-800'
+              'p-4 rounded-lg border flex items-center justify-between transition-colors shadow-2xs',
+              isNegative && 'bg-rose-50 border-rose-200 text-rose-900',
+              isPositive && 'bg-emerald-50 border-emerald-200 text-emerald-900',
+              isZero && 'bg-slate-50 border-slate-200 text-slate-800'
             )}
           >
-            <div className="flex items-center justify-between">
-              <span
-                className={cn(
-                  'text-xs font-bold uppercase tracking-wider',
-                  isNegative && 'text-rose-700',
-                  isPositive && 'text-emerald-700',
-                  isZero && 'text-slate-600'
-                )}
-              >
-                Calculated Difference
-              </span>
-              {isNegative && <TrendingDown className="w-4 h-4 text-rose-600" />}
-              {isPositive && <TrendingUp className="w-4 h-4 text-emerald-600" />}
-              {isZero && <Minus className="w-4 h-4 text-slate-500" />}
+            <div>
+              <div className="text-xs font-bold flex items-center gap-1.5">
+                {isNegative && <TrendingDown className="w-4 h-4 text-rose-600" />}
+                {isPositive && <TrendingUp className="w-4 h-4 text-emerald-600" />}
+                {isZero && <Minus className="w-4 h-4 text-slate-400" />}
+                <span>
+                  {isNegative && 'Stock Deficit (Loss / Shrinkage)'}
+                  {isPositive && 'Stock Surplus (Unrecorded Stock Found)'}
+                  {isZero && 'Exact Physical Match (No Variance)'}
+                </span>
+              </div>
+              <div className="text-[11px] opacity-75 mt-0.5">
+                Calculated adjustment delta: counted ({countedQuantity}) − system ({systemQuantity})
+              </div>
             </div>
 
-            <div
-              className={cn(
-                'mt-2 font-mono font-black text-2xl tracking-tight',
-                isNegative && 'text-rose-600',
-                isPositive && 'text-emerald-600',
-                isZero && 'text-slate-700'
-              )}
-            >
+            <div className="text-right font-mono font-bold text-2xl">
               {isPositive ? '+' : ''}
-              {difference.toLocaleString()}{' '}
-              <span className="text-xs font-bold">{activeProduct.unit}</span>
-            </div>
-
-            <div
-              className={cn(
-                'text-[10.5px] font-semibold mt-1',
-                isNegative && 'text-rose-700',
-                isPositive && 'text-emerald-700',
-                isZero && 'text-slate-500'
-              )}
-            >
-              {isNegative && 'Deficit / Shortage (Stock will decrease)'}
-              {isPositive && 'Surplus / Overage (Stock will increase)'}
-              {isZero && 'Exact Match (Zero Discrepancy)'}
+              {difference.toLocaleString()} <span className="text-sm font-normal opacity-70">{activeProduct.unit}</span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* ── Form Inputs Card ───────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg p-5 sm:p-6 shadow-2xs space-y-6">
-        {/* Product Selection */}
-        <div>
-          <label className="text-xs font-semibold text-slate-800 flex items-center gap-1.5 mb-1.5">
-            <Package className="w-3.5 h-3.5 text-brand" />
-            Product Item
-          </label>
-          <select
-            value={selectedProductId}
-            onChange={(e) => handleProductSelect(e.target.value)}
-            className="w-full px-3 py-2 text-xs bg-white border border-slate-200 rounded-md text-slate-900 font-medium focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
-          >
-            {catalog.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.sku} — {p.name} ({p.onHand} {p.unit} on hand)
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Section 3: Reason & Notes */}
+        <div className="space-y-4">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500 border-b border-slate-100 pb-2">
+            3. Audit Classification & Documentation
+          </h2>
 
-        {/* Warehouse & Location Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Facility / Warehouse
-            </label>
-            <select
-              value={warehouseId}
-              onChange={(e) => handleWarehouseChange(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
-            >
-              {ADJUSTMENT_WAREHOUSES.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 select-none">
+                Adjustment Reason <span className="text-brand ml-0.5">*</span>
+              </label>
+              <select
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                className="mt-1.5 w-full h-9 px-3 text-xs text-slate-800 bg-white border border-slate-300 rounded shadow-xs focus:border-brand focus:ring-1 focus:ring-brand/30 cursor-pointer"
+              >
+                {ADJUSTMENT_REASONS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1 flex items-center gap-1">
-              <MapPin className="w-3 h-3 text-slate-400" />
-              Audited Bin / Location
-            </label>
-            <select
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
-            >
-              {activeWarehouse.locations.map((loc) => (
-                <option key={loc} value={loc}>
-                  {loc}
-                </option>
-              ))}
-            </select>
+            <div>
+              <label className="block text-xs font-semibold text-slate-700 select-none">
+                Audit Notes / Investigation
+              </label>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Broken box found in aisle 3"
+                className="mt-1.5 text-xs"
+              />
+            </div>
           </div>
         </div>
 
-        {/* Quantities Editor */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/80">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Theoretical System Quantity ({activeProduct.unit})
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={systemQuantity}
-              onChange={(e) => setSystemQuantity(Math.max(0, Number(e.target.value)))}
-              className="w-full px-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-md font-mono text-slate-900 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
-            />
-            <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-              Defaulted to product recorded balance.
-            </span>
+        {/* Form Actions */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
+          <div className="text-xs text-slate-500">
+            Net adjustment effect:{' '}
+            <strong className="font-mono text-slate-800">
+              {isPositive ? '+' : ''}{difference} {activeProduct.unit}
+            </strong>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-slate-900 block mb-1">
-              Physical Counted Quantity ({activeProduct.unit}) <span className="text-rose-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              value={countedQuantity}
-              onChange={(e) => setCountedQuantity(Math.max(0, Number(e.target.value)))}
-              className="w-full px-3 py-1.5 text-xs bg-white border border-brand/40 rounded-md font-mono font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand/20 focus:border-brand"
-            />
-            <span className="text-[10.5px] text-slate-500 mt-0.5 block">
-              Enter verified physical count from shelf inspection.
-            </span>
-          </div>
-        </div>
-
-        {/* Reason & Notes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-200/80">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Adjustment Reason Code <span className="text-rose-500">*</span>
-            </label>
-            <select
-              value={reason}
-              onChange={(e) => setReason(e.target.value as AdjustmentReason)}
-              className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
-            >
-              {ADJUSTMENT_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">
-              Audit Notes & Justification
-            </label>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. 3 damaged units found during floor count in aisle 4"
-            />
-          </div>
-        </div>
-
-        {/* ── Form Actions ─────────────────────────────────────────── */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-200/80">
-          <Link to="/operations/adjustments">
-            <Button variant="ghost" size="sm">
-              Cancel & Return
-            </Button>
-          </Link>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <Button
+              type="button"
               variant="secondary"
               size="sm"
-              onClick={() => handleExecuteSave('draft')}
-              disabled={!isValid || isSubmitting}
-              className="flex-1 sm:flex-initial"
+              leftIcon={<Save className="w-3.5 h-3.5" />}
+              onClick={() => handleSubmit(false)}
+              disabled={isSubmitting || !isValid}
+              className="flex-1 sm:flex-none justify-center"
             >
-              Save as Draft
+              {isSubmitting ? 'Saving…' : 'Save as Draft'}
             </Button>
 
             <Button
+              type="button"
               variant="primary"
               size="sm"
+              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
               onClick={() => setShowConfirmModal(true)}
-              disabled={!isValid || isSubmitting}
-              className="flex-1 sm:flex-initial"
+              disabled={isSubmitting || !isValid}
+              className="flex-1 sm:flex-none justify-center"
             >
-              Validate Adjustment
+              Validate & Apply
             </Button>
           </div>
         </div>
       </div>
 
-      {/* ── Confirmation Modal Before Validation ────────────────────── */}
+      {/* Confirmation Modal */}
       <ConfirmationModal
         isOpen={showConfirmModal}
-        variant="warning"
-        title="Confirm Stock Adjustment Validation"
-        description="You are about to officially reconcile the theoretical inventory balance with the physical count."
-        confirmLabel="Confirm & Validate"
-        isLoading={isSubmitting}
         onClose={() => setShowConfirmModal(false)}
-        onConfirm={() => handleExecuteSave('done')}
-      >
-        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2">
-          <div className="flex justify-between">
-            <span className="text-slate-500">Product:</span>
-            <span className="font-semibold text-slate-900 text-right truncate max-w-[220px]">
-              {activeProduct.name}
-            </span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Location:</span>
-            <span className="font-mono text-slate-800">{location}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">System Quantity:</span>
-            <span className="font-mono text-slate-800">{systemQuantity} {activeProduct.unit}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-slate-500">Physical Counted:</span>
-            <span className="font-mono font-bold text-slate-900">{countedQuantity} {activeProduct.unit}</span>
-          </div>
-          <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-            <span className="font-bold text-slate-700">Net Variance:</span>
-            <span
-              className={cn(
-                'font-mono font-bold text-sm px-2.5 py-0.5 rounded border',
-                isNegative && 'bg-rose-50 text-rose-700 border-rose-200',
-                isPositive && 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                isZero && 'bg-slate-100 text-slate-700 border-slate-200'
-              )}
-            >
-              {isPositive ? '+' : ''}{difference} {activeProduct.unit}
-            </span>
-          </div>
-        </div>
-
-        <p className="text-[11px] text-slate-500 leading-normal">
-          Reason: <strong className="text-slate-800">{reason}</strong>. This adjustment will permanently update on-hand inventory levels for this SKU.
-        </p>
-      </ConfirmationModal>
+        onConfirm={() => handleSubmit(true)}
+        title="Confirm Inventory Adjustment"
+        message={`This will immediately record the count of ${countedQuantity} ${activeProduct.unit} and update theoretical warehouse stock by ${isPositive ? '+' : ''}${difference} ${activeProduct.unit}.`}
+        confirmLabel="Confirm & Apply to Stock"
+        confirmVariant="primary"
+        isLoading={isSubmitting}
+      />
     </div>
   )
 }

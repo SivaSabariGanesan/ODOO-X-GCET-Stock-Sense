@@ -7,20 +7,21 @@ import {
   Clock,
   Printer,
   Copy,
-  Warehouse,
-  History,
   TrendingDown,
   TrendingUp,
   Minus,
-  AlertTriangle,
   FileCheck,
+  Loader2,
+  AlertCircle,
+  RotateCcw,
+  Package,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
+import { ConfirmationModal } from '@/components/common/ConfirmationModal'
 import { useToast } from '@/context/ToastContext'
-import { getMockAdjustmentById, updateAdjustmentStatus } from '../mockAdjustments'
-import { Adjustment, AdjustmentStatus } from '../types'
+import { useAdjustment } from '../hooks/useAdjustment'
 import { cn } from '@/lib/cn'
 
 export function AdjustmentDetailsPage() {
@@ -28,9 +29,16 @@ export function AdjustmentDetailsPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [adjustment, setAdjustment] = useState<Adjustment | undefined>(
-    id ? getMockAdjustmentById(id) : undefined
-  )
+  const {
+    adjustment,
+    isLoading,
+    error,
+    isActioning,
+    validate,
+    process: processAdjustment,
+    cancel,
+    refetch,
+  } = useAdjustment(id)
 
   const [showConfirmModal, setShowConfirmModal] = useState(false)
 
@@ -41,31 +49,66 @@ export function AdjustmentDetailsPage() {
 
   const handlePrintSlip = () => {
     toast.info(
-      'Printing Slip',
+      'Printing Certificate',
       `Physical Inventory Count Certificate ${adjustment?.adjustmentNumber} sent to printer.`
     )
   }
 
-  const handleStatusChange = (newStatus: AdjustmentStatus) => {
-    if (!adjustment) return
-    const updated = updateAdjustmentStatus(adjustment.id, newStatus)
-    if (updated) {
-      setAdjustment({ ...updated })
-      setShowConfirmModal(false)
-      if (newStatus === 'done') {
-        toast.success(
-          'Adjustment Validated',
-          `${adjustment.adjustmentNumber} reconciled. Net variance of ${adjustment.difference >= 0 ? '+' : ''}${adjustment.difference} ${adjustment.unit} applied to stock.`
-        )
-      } else if (newStatus === 'cancelled') {
-        toast.warning('Adjustment Canceled', `${adjustment.adjustmentNumber} marked as canceled.`)
-      } else if (newStatus === 'draft') {
-        toast.info('Adjustment Reopened', 'Record returned to draft state.')
-      }
+  const handleValidate = async () => {
+    if (!adjustment || isActioning) return
+    try {
+      await validate()
+      toast.success(
+        'Adjustment Validated',
+        `${adjustment.adjustmentNumber} validated. Marked READY for inventory reconciliation.`
+      )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Validation failed.'
+      toast.error('Validation Error', msg)
     }
   }
 
-  if (!adjustment) {
+  const handleProcess = async () => {
+    if (!adjustment || isActioning) return
+    try {
+      await processAdjustment()
+      setShowConfirmModal(false)
+      toast.success(
+        'Adjustment Applied & Reconciled',
+        `${adjustment.adjustmentNumber} reconciled. Warehouse stock balances updated.`
+      )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to apply adjustment.'
+      toast.error('Application Error', msg)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!adjustment || isActioning) return
+    try {
+      await cancel()
+      toast.warning(
+        'Adjustment Canceled',
+        `${adjustment.adjustmentNumber} marked as canceled.`
+      )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to cancel adjustment.'
+      toast.error('Cancel Error', msg)
+    }
+  }
+
+  // Loading State
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-5xl mx-auto py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
+        <Loader2 className="w-6 h-6 animate-spin text-brand" />
+        <span className="text-sm">Loading adjustment record…</span>
+      </div>
+    )
+  }
+
+  // 404 / Error State
+  if (error === 'not_found' || !adjustment) {
     return (
       <EmptyState
         icon={SlidersHorizontal}
@@ -77,9 +120,56 @@ export function AdjustmentDetailsPage() {
     )
   }
 
-  const isNegative = adjustment.difference < 0
-  const isPositive = adjustment.difference > 0
-  const isZero = adjustment.difference === 0
+  if (error) {
+    return (
+      <div className="w-full max-w-5xl mx-auto py-12 space-y-4">
+        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <Button variant="secondary" size="sm" onClick={refetch}>
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />
+            Retry
+          </Button>
+        </div>
+        <div>
+          <Link
+            to="/operations/adjustments"
+            className="text-xs text-brand hover:underline inline-flex items-center gap-1"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Adjustments
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const items = adjustment.items || []
+  const primaryItem = items[0]
+  const systemQuantity = primaryItem ? parseFloat(primaryItem.systemQuantity) : 0
+  const countedQuantity = primaryItem ? parseFloat(primaryItem.countedQuantity) : 0
+  const difference = primaryItem ? parseFloat(primaryItem.difference) : 0
+  const unit = primaryItem?.product?.uom?.abbreviation || 'units'
+
+  const isNegative = difference < 0
+  const isPositive = difference > 0
+  const isZero = difference === 0
+
+  const formatDate = (isoString: string | null | undefined) => {
+    if (!isoString) return '—'
+    try {
+      const d = new Date(isoString)
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return isoString
+    }
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
@@ -109,26 +199,43 @@ export function AdjustmentDetailsPage() {
               </button>
               <Badge
                 variant={
-                  adjustment.status === 'done'
+                  adjustment.status === 'DONE'
                     ? 'done'
-                    : adjustment.status === 'cancelled'
+                    : adjustment.status === 'READY'
+                    ? 'ready'
+                    : adjustment.status === 'WAITING'
+                    ? 'warning'
+                    : adjustment.status === 'CANCELED'
                     ? 'cancelled'
                     : 'draft'
                 }
                 dot
               >
-                {adjustment.status.toUpperCase()}
+                {adjustment.status}
               </Badge>
-              <span className="text-[11px] px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-medium">
-                {adjustment.reason}
-              </span>
+              {adjustment.reason && (
+                <span className="text-[11px] px-2 py-0.5 bg-slate-100 text-slate-700 rounded border border-slate-200 font-medium">
+                  {adjustment.reason}
+                </span>
+              )}
             </div>
 
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading mt-1 truncate">
-              {adjustment.productName}
+              {primaryItem?.product?.name || `Adjustment #${adjustment.adjustmentNumber}`}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              SKU: <span className="font-mono font-medium text-slate-800">{adjustment.productSku}</span> · Location: <span className="font-mono font-medium text-slate-800">{adjustment.location}</span>
+              Location:{' '}
+              <span className="font-mono font-medium text-slate-800">
+                {adjustment.location?.name || adjustment.location?.fullPath || 'Internal Location'}
+              </span>
+              {primaryItem?.product?.sku && (
+                <>
+                  {' '}· SKU:{' '}
+                  <span className="font-mono font-medium text-slate-800">
+                    {primaryItem.product.sku}
+                  </span>
+                </>
+              )}
             </p>
           </div>
         </div>
@@ -144,34 +251,49 @@ export function AdjustmentDetailsPage() {
             Print Slip
           </Button>
 
-          {adjustment.status === 'draft' && (
+          {adjustment.status === 'DRAFT' && (
             <>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handleValidate}
+                disabled={isActioning}
+              >
+                {isActioning ? 'Validating…' : 'Validate Draft'}
+              </Button>
               <Button
                 variant="primary"
                 size="sm"
                 onClick={() => setShowConfirmModal(true)}
+                disabled={isActioning}
                 leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
               >
-                Validate Adjustment
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleStatusChange('cancelled')}
-                className="text-rose-600 hover:bg-rose-50"
-              >
-                Cancel
+                Apply to Stock
               </Button>
             </>
           )}
 
-          {adjustment.status === 'cancelled' && (
+          {adjustment.status === 'READY' && (
             <Button
-              variant="secondary"
+              variant="primary"
               size="sm"
-              onClick={() => handleStatusChange('draft')}
+              onClick={() => setShowConfirmModal(true)}
+              disabled={isActioning}
+              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
             >
-              Reopen Draft
+              {isActioning ? 'Applying…' : 'Apply to Stock'}
+            </Button>
+          )}
+
+          {adjustment.status !== 'DONE' && adjustment.status !== 'CANCELED' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleCancel}
+              disabled={isActioning}
+              className="text-rose-600 hover:bg-rose-50"
+            >
+              Cancel
             </Button>
           )}
         </div>
@@ -184,7 +306,7 @@ export function AdjustmentDetailsPage() {
             <FileCheck className="w-3.5 h-3.5 text-brand" />
             <span>Audit Count Reconciliation Metrics</span>
           </h2>
-          <span className="font-mono text-xs text-slate-400">Unit of measure: {adjustment.unit}</span>
+          <span className="font-mono text-xs text-slate-400">Unit: {unit}</span>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-stretch">
@@ -192,8 +314,8 @@ export function AdjustmentDetailsPage() {
           <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
             <span className="text-xs font-semibold text-slate-500">System Recorded Quantity</span>
             <div className="mt-2 font-mono font-bold text-3xl text-slate-900">
-              {adjustment.systemQuantity.toLocaleString()}{' '}
-              <span className="text-sm font-normal text-slate-500">{adjustment.unit}</span>
+              {systemQuantity.toLocaleString()}{' '}
+              <span className="text-sm font-normal text-slate-500">{unit}</span>
             </div>
             <span className="text-[11px] text-slate-400 mt-2">
               Theoretical ledger balance prior to cycle count
@@ -202,231 +324,167 @@ export function AdjustmentDetailsPage() {
 
           {/* Physical Counted Qty */}
           <div className="p-4 rounded-lg bg-slate-50 border border-slate-200/80 flex flex-col justify-between">
-            <span className="text-xs font-semibold text-slate-700">Physical Counted Quantity</span>
-            <div className="mt-2 font-mono font-bold text-3xl text-slate-900">
-              {adjustment.countedQuantity.toLocaleString()}{' '}
-              <span className="text-sm font-normal text-slate-500">{adjustment.unit}</span>
+            <span className="text-xs font-semibold text-slate-500">Physical Counted Quantity</span>
+            <div className="mt-2 font-mono font-bold text-3xl text-brand">
+              {countedQuantity.toLocaleString()}{' '}
+              <span className="text-sm font-normal text-slate-500">{unit}</span>
             </div>
-            <span className="text-[11px] text-slate-500 mt-2">
-              Audited by {adjustment.adjustedBy}
+            <span className="text-[11px] text-slate-400 mt-2">
+              Audited quantity physically on hand
             </span>
           </div>
 
-          {/* Difference Highlight (VISUALLY PROMINENT) */}
+          {/* Variance (Prominently Colored) */}
           <div
             className={cn(
-              'p-4 rounded-lg border flex flex-col justify-between shadow-xs select-none',
-              isNegative && 'bg-rose-50/90 border-rose-200 text-rose-950',
-              isPositive && 'bg-emerald-50/90 border-emerald-200 text-emerald-950',
-              isZero && 'bg-slate-100/90 border-slate-200 text-slate-800'
+              'p-4 rounded-lg border flex flex-col justify-between transition-colors',
+              isNegative && 'bg-rose-50/80 border-rose-200 text-rose-900',
+              isPositive && 'bg-emerald-50/80 border-emerald-200 text-emerald-900',
+              isZero && 'bg-slate-50 border-slate-200 text-slate-800'
             )}
           >
             <div className="flex items-center justify-between">
-              <span
-                className={cn(
-                  'text-xs font-bold uppercase tracking-wider',
-                  isNegative && 'text-rose-700',
-                  isPositive && 'text-emerald-700',
-                  isZero && 'text-slate-600'
-                )}
-              >
-                Net Difference
-              </span>
+              <span className="text-xs font-semibold">Net Discrepancy (Variance)</span>
               {isNegative && <TrendingDown className="w-4 h-4 text-rose-600" />}
               {isPositive && <TrendingUp className="w-4 h-4 text-emerald-600" />}
-              {isZero && <Minus className="w-4 h-4 text-slate-500" />}
+              {isZero && <Minus className="w-4 h-4 text-slate-400" />}
             </div>
 
             <div
               className={cn(
-                'mt-2 font-mono font-black text-3xl tracking-tight',
+                'mt-2 font-mono font-bold text-3xl',
                 isNegative && 'text-rose-600',
                 isPositive && 'text-emerald-600',
                 isZero && 'text-slate-700'
               )}
             >
               {isPositive ? '+' : ''}
-              {adjustment.difference.toLocaleString()}{' '}
-              <span className="text-sm font-bold">{adjustment.unit}</span>
+              {difference.toLocaleString()}{' '}
+              <span className="text-sm font-normal opacity-70">{unit}</span>
             </div>
 
-            <div
-              className={cn(
-                'text-[11px] font-semibold mt-2',
-                isNegative && 'text-rose-700',
-                isPositive && 'text-emerald-700',
-                isZero && 'text-slate-500'
+            <span className="text-[11px] opacity-75 mt-2">
+              {isNegative && 'Deficit detected: Stock shrinkage / loss write-off'}
+              {isPositive && 'Surplus detected: Unrecorded stock found on shelves'}
+              {isZero && 'Perfect match: Theoretical equals counted stock'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Line Items Table ─────────────────────────────────────────── */}
+      <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
+        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Package className="w-4 h-4 text-brand" />
+            <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Counted Line Items ({items.length})
+            </h2>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                <th className="px-4 py-2.5">Product & SKU</th>
+                <th className="px-3 py-2.5 text-right font-mono">System Qty</th>
+                <th className="px-3 py-2.5 text-right font-mono">Counted Qty</th>
+                <th className="px-4 py-2.5 text-center font-mono">Difference</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {items.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                    No line items attached to this adjustment.
+                  </td>
+                </tr>
+              ) : (
+                items.map((line) => {
+                  const sys = parseFloat(line.systemQuantity) || 0
+                  const counted = parseFloat(line.countedQuantity) || 0
+                  const diff = parseFloat(line.difference) || 0
+
+                  return (
+                    <tr key={line.id} className="hover:bg-slate-50/50 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-medium text-slate-900">
+                          {line.product?.name || line.productId}
+                        </div>
+                        <div className="font-mono text-[11px] text-slate-400 mt-0.5">
+                          {line.product?.sku || 'SKU'}
+                        </div>
+                      </td>
+
+                      <td className="px-3 py-3 text-right font-mono text-slate-600">
+                        {sys.toLocaleString()} {unit}
+                      </td>
+
+                      <td className="px-3 py-3 text-right font-mono font-semibold text-slate-900">
+                        {counted.toLocaleString()} {unit}
+                      </td>
+
+                      <td className="px-4 py-3 text-center font-mono">
+                        <span
+                          className={cn(
+                            'inline-block px-2 py-0.5 rounded text-xs font-bold',
+                            diff < 0 && 'bg-rose-50 text-rose-700 border border-rose-200',
+                            diff > 0 && 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+                            diff === 0 && 'bg-slate-100 text-slate-600 border border-slate-200'
+                          )}
+                        >
+                          {diff > 0 ? '+' : ''}{diff.toLocaleString()} {unit}
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
-            >
-              {isNegative && 'Deficit / Shortage (Floor count is below system)'}
-              {isPositive && 'Surplus / Overage (Floor count is above system)'}
-              {isZero && 'Exact Physical Match (Zero Discrepancy)'}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ── Metadata Card ───────────────────────────────────────────── */}
+      <div className="bg-white border border-slate-200/80 rounded-lg p-4 shadow-2xs space-y-3 text-xs">
+        <h3 className="font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+          Audit Metadata & History
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <span className="text-slate-400 block text-[11px]">Location</span>
+            <span className="font-medium text-slate-800">
+              {adjustment.location?.name} ({adjustment.location?.fullPath})
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[11px]">Date Created</span>
+            <div className="flex items-center gap-1.5 font-medium text-slate-700 mt-0.5">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span>{formatDate(adjustment.createdAt)}</span>
             </div>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[11px]">Validated / Reconciled</span>
+            <span className="font-medium text-slate-800">
+              {formatDate(adjustment.validatedAt)}
+            </span>
           </div>
         </div>
       </div>
 
-      {/* ── Metadata Grid ───────────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg p-5 shadow-2xs space-y-4">
-        <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-          <Warehouse className="w-3.5 h-3.5 text-brand" />
-          <span>Audit Specification & Facility Assignment</span>
-        </h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 text-xs">
-          <div>
-            <span className="text-slate-400 block text-[11px]">Facility Node</span>
-            <span className="font-semibold text-slate-900 mt-0.5 block">
-              {adjustment.warehouseName}
-            </span>
-            <span className="font-mono text-slate-600 text-[11px]">
-              {adjustment.warehouseId}
-            </span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block text-[11px]">Audited Bin Location</span>
-            <span className="font-mono font-bold text-slate-900 mt-0.5 block">
-              {adjustment.location}
-            </span>
-            <span className="text-slate-400 text-[11px]">Designated storage slot</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block text-[11px]">Adjustment Reason</span>
-            <span className="font-semibold text-slate-900 mt-0.5 block">
-              {adjustment.reason}
-            </span>
-            <span className="text-slate-400 text-[11px]">Standardized operational code</span>
-          </div>
-
-          <div>
-            <span className="text-slate-400 block text-[11px]">Audit Record Dates</span>
-            <span className="font-medium text-slate-900 mt-0.5 block flex items-center gap-1">
-              <Clock className="w-3 h-3 text-slate-400" />
-              Recorded: {adjustment.createdDate}
-            </span>
-            {adjustment.validatedDate && (
-              <span className="text-emerald-700 text-[11px] block mt-0.5">
-                Validated: {adjustment.validatedDate}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {adjustment.notes && (
-          <div className="mt-3 pt-3 border-t border-slate-100 text-xs">
-            <span className="text-slate-400 block text-[11px]">Operator Rationale / Notes</span>
-            <p className="text-slate-700 mt-0.5">{adjustment.notes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* ── Timeline / Audit History ─────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg p-5 shadow-2xs">
-        <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider mb-4 flex items-center gap-1.5">
-          <History className="w-3.5 h-3.5 text-brand" />
-          <span>Audit Trail & Ledger Events</span>
-        </h2>
-
-        <div className="space-y-4">
-          {adjustment.timeline.map((event, idx) => (
-            <div key={event.id} className="flex items-start gap-3 relative">
-              {idx < adjustment.timeline.length - 1 && (
-                <div className="absolute left-2.5 top-6 bottom-0 w-px bg-slate-200" />
-              )}
-              <div className="w-5 h-5 rounded-full bg-[#ede9fe] text-brand-dark flex items-center justify-center shrink-0 mt-0.5">
-                <CheckCircle2 className="w-3 h-3" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-xs font-semibold text-slate-900">
-                    {event.title}
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    {event.timestamp}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 mt-0.5">{event.description}</p>
-                <span className="text-[10px] text-slate-400 font-mono">
-                  Recorded by: {event.user}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Confirmation Modal Before Validation ────────────────────── */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs animate-[fadeIn_100ms_ease-out]">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 font-heading">
-                  Confirm Inventory Adjustment Validation
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  You are about to officially update theoretical stock with the physical count.
-                </p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Adjustment Ref:</span>
-                <span className="font-mono font-bold text-slate-900">{adjustment.adjustmentNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Product:</span>
-                <span className="font-medium text-slate-900 text-right truncate max-w-[220px]">{adjustment.productName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Location:</span>
-                <span className="font-mono text-slate-800">{adjustment.location}</span>
-              </div>
-              <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                <span className="font-bold text-slate-700">Net Stock Adjustment:</span>
-                <span
-                  className={cn(
-                    'font-mono font-bold text-sm px-2 py-0.5 rounded border',
-                    isNegative && 'bg-rose-50 text-rose-700 border-rose-200',
-                    isPositive && 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                    isZero && 'bg-slate-100 text-slate-700 border-slate-200'
-                  )}
-                >
-                  {isPositive ? '+' : ''}{adjustment.difference} {adjustment.unit}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 leading-normal">
-              Reason: <strong className="text-slate-800">{adjustment.reason}</strong>. This validation will be immutably signed and recorded in the audit trail.
-            </p>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowConfirmModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => handleStatusChange('done')}
-                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-              >
-                Confirm & Validate
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Confirmation Modal ────────────────────────────────────────── */}
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={handleProcess}
+        title="Apply Physical Inventory Adjustment"
+        message={`This will immediately reconcile ${adjustment.adjustmentNumber}, adjusting the inventory ledger by ${difference >= 0 ? '+' : ''}${difference} ${unit} to match the physical count of ${countedQuantity} ${unit}. This action cannot be reversed.`}
+        confirmLabel="Apply Adjustment"
+        confirmVariant="primary"
+        isLoading={isActioning}
+      />
     </div>
   )
 }

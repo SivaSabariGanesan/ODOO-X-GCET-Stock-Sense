@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -6,8 +6,6 @@ import {
   SlidersHorizontal,
   ChevronRight,
   RotateCcw,
-  Eye,
-  CheckCircle2,
   Clock,
   X,
   TrendingDown,
@@ -15,6 +13,8 @@ import {
   Minus,
   MapPin,
   Package,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -22,127 +22,123 @@ import { TablePagination } from '@/components/common/TablePagination'
 import { ConfirmationModal } from '@/components/common/ConfirmationModal'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
-import {
-  getMockAdjustments,
-  updateAdjustmentStatus,
-  ADJUSTMENT_REASONS,
-  ADJUSTMENT_WAREHOUSES,
-} from '../mockAdjustments'
-import { Adjustment, AdjustmentFiltersState, AdjustmentStatus } from '../types'
+import { useAdjustments } from '../hooks/useAdjustments'
+import { adjustmentsApi, ApiAdjustment, ApiAdjustmentStatus } from '../api'
 import { cn } from '@/lib/cn'
 
 const PAGE_SIZE = 10
 
 export function AdjustmentsListPage() {
   const toast = useToast()
-  const [adjustments, setAdjustments] = useState<Adjustment[]>(getMockAdjustments())
-  const [currentPage, setCurrentPage] = useState(1)
 
-  // Confirmation Modal state for quick validate
-  const [confirmItem, setConfirmItem] = useState<Adjustment | null>(null)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [varianceType, setVarianceType] = useState<'all' | 'deficit' | 'surplus' | 'exact'>('all')
 
-  const [filters, setFilters] = useState<AdjustmentFiltersState>({
-    search: '',
-    status: 'all',
-    warehouse: 'all',
-    reason: 'all',
-    varianceType: 'all',
+  const {
+    adjustments,
+    pagination,
+    isLoading,
+    error,
+    currentPage,
+    setCurrentPage,
+    refetch,
+    updateAdjustmentStatus,
+  } = useAdjustments({
+    search,
+    status: statusFilter,
+    pageSize: PAGE_SIZE,
   })
 
-  // ── Live Filters ──────────────────────────────────────────────────────────
-  const filteredAdjustments = useMemo(() => {
-    const q = filters.search.toLowerCase().trim()
+  // Confirmation Modal state for quick validate / process
+  const [confirmItem, setConfirmItem] = useState<ApiAdjustment | null>(null)
+  const [isProcessingAction, setIsProcessingAction] = useState(false)
 
+  // Filter client-side by varianceType if selected
+  const displayedAdjustments = useMemo(() => {
+    if (varianceType === 'all') return adjustments
     return adjustments.filter((a) => {
-      // Search
-      if (q) {
-        const matchesNum = a.adjustmentNumber.toLowerCase().includes(q)
-        const matchesSku = a.productSku.toLowerCase().includes(q)
-        const matchesName = a.productName.toLowerCase().includes(q)
-        const matchesLoc = a.location.toLowerCase().includes(q)
-        if (!matchesNum && !matchesSku && !matchesName && !matchesLoc) return false
-      }
-
-      // Status
-      if (filters.status !== 'all' && a.status !== filters.status) {
-        return false
-      }
-
-      // Warehouse
-      if (filters.warehouse !== 'all' && a.warehouseId !== filters.warehouse) {
-        return false
-      }
-
-      // Reason
-      if (filters.reason !== 'all' && a.reason !== filters.reason) {
-        return false
-      }
-
-      // Variance Type
-      if (filters.varianceType === 'deficit' && a.difference >= 0) return false
-      if (filters.varianceType === 'surplus' && a.difference <= 0) return false
-      if (filters.varianceType === 'exact' && a.difference !== 0) return false
-
+      const diff = parseFloat(a.items?.[0]?.difference || '0')
+      if (varianceType === 'deficit') return diff < 0
+      if (varianceType === 'surplus') return diff > 0
+      if (varianceType === 'exact') return diff === 0
       return true
     })
-  }, [adjustments, filters])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filters])
-
-  const paginatedAdjustments = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE
-    return filteredAdjustments.slice(start, start + PAGE_SIZE)
-  }, [filteredAdjustments, currentPage])
+  }, [adjustments, varianceType])
 
   const isFiltered =
-    Boolean(filters.search.trim()) ||
-    filters.status !== 'all' ||
-    filters.warehouse !== 'all' ||
-    filters.reason !== 'all' ||
-    filters.varianceType !== 'all'
+    Boolean(search.trim()) || statusFilter !== 'all' || varianceType !== 'all'
 
   const handleResetFilters = () => {
-    setFilters({
-      search: '',
-      status: 'all',
-      warehouse: 'all',
-      reason: 'all',
-      varianceType: 'all',
-    })
+    setSearch('')
+    setStatusFilter('all')
+    setVarianceType('all')
     toast.info('Filters Reset', 'Displaying all inventory adjustments.')
   }
 
-  const handleConfirmValidation = () => {
-    if (!confirmItem) return
-    const updated = updateAdjustmentStatus(confirmItem.id, 'done')
-    if (updated) {
-      setAdjustments(getMockAdjustments())
-      toast.success(
-        'Adjustment Validated',
-        `${confirmItem.adjustmentNumber} reconciled. Stock level for ${confirmItem.productSku} updated by ${confirmItem.difference >= 0 ? '+' : ''}${confirmItem.difference} ${confirmItem.unit}.`
-      )
+  const handleConfirmValidation = async () => {
+    if (!confirmItem || isProcessingAction) return
+    setIsProcessingAction(true)
+    try {
+      if (confirmItem.status === 'READY') {
+        await adjustmentsApi.process(confirmItem.id)
+        updateAdjustmentStatus(confirmItem.id, 'DONE')
+        toast.success(
+          'Adjustment Reconciled & Applied',
+          `${confirmItem.adjustmentNumber} stock balances reconciled and ledger updated.`
+        )
+      } else {
+        await adjustmentsApi.validate(confirmItem.id)
+        updateAdjustmentStatus(confirmItem.id, 'READY')
+        toast.success(
+          'Adjustment Validated',
+          `${confirmItem.adjustmentNumber} validated and marked READY for stock application.`
+        )
+      }
+      refetch()
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Action failed.'
+      toast.error('Operation Failed', msg)
+    } finally {
+      setIsProcessingAction(false)
+      setConfirmItem(null)
     }
-    setConfirmItem(null)
   }
 
-  const getStatusBadge = (status: AdjustmentStatus) => {
+  const getStatusBadge = (status: ApiAdjustmentStatus) => {
     switch (status) {
-      case 'done':
+      case 'READY':
+        return <Badge variant="ready" dot>READY</Badge>
+      case 'WAITING':
+        return <Badge variant="warning" dot>WAITING</Badge>
+      case 'DONE':
         return <Badge variant="done" dot>DONE</Badge>
-      case 'cancelled':
+      case 'CANCELED':
         return <Badge variant="cancelled" dot>CANCELED</Badge>
-      case 'draft':
+      case 'DRAFT':
       default:
         return <Badge variant="draft" dot>DRAFT</Badge>
     }
   }
 
   // Summary Metrics
-  const draftCount = adjustments.filter((a) => a.status === 'draft').length
-  const totalDeficits = adjustments.filter((a) => a.difference < 0).length
-  const totalSurpluses = adjustments.filter((a) => a.difference > 0).length
+  const totalAudits = pagination?.total ?? adjustments.length
+  const draftCount = adjustments.filter((a) => a.status === 'DRAFT').length
+  const totalDeficits = adjustments.filter((a) => parseFloat(a.items?.[0]?.difference || '0') < 0).length
+  const totalSurpluses = adjustments.filter((a) => parseFloat(a.items?.[0]?.difference || '0') > 0).length
+
+  const formatDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString)
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    } catch {
+      return isoString
+    }
+  }
 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-5 pb-12">
@@ -175,7 +171,7 @@ export function AdjustmentsListPage() {
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Total Recorded Audits</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {adjustments.length}
+            {totalAudits}
           </span>
         </div>
 
@@ -188,7 +184,7 @@ export function AdjustmentsListPage() {
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Deficit Variances (Loss)</span>
-          <span className="text-lg font-bold font-mono text-rose-600 mt-0.5 block flex items-center gap-1">
+          <span className="text-lg font-bold font-mono text-rose-600 mt-0.5 flex items-center gap-1">
             <TrendingDown className="w-4 h-4 text-rose-500" />
             {totalDeficits}
           </span>
@@ -196,7 +192,7 @@ export function AdjustmentsListPage() {
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Surplus Variances (Found)</span>
-          <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 block flex items-center gap-1">
+          <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 flex items-center gap-1">
             <TrendingUp className="w-4 h-4 text-emerald-500" />
             {totalSurpluses}
           </span>
@@ -213,15 +209,15 @@ export function AdjustmentsListPage() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="search"
-                value={filters.search}
-                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
-                placeholder="Search adjustment #, SKU, product, location..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search adjustment #, reason..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50/70 border border-slate-200 rounded-md placeholder:text-slate-400 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
               />
-              {filters.search && (
+              {search && (
                 <button
                   type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+                  onClick={() => setSearch('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X className="w-3 h-3" />
@@ -231,34 +227,25 @@ export function AdjustmentsListPage() {
 
             {/* Status Filter */}
             <select
-              value={filters.status}
-              onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+              value={statusFilter}
+              onChange={(e) => {
+                setStatusFilter(e.target.value)
+                setCurrentPage(1)
+              }}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">All Statuses</option>
               <option value="draft">Draft (Pending)</option>
-              <option value="done">Done (Validated)</option>
+              <option value="waiting">Waiting</option>
+              <option value="ready">Ready (Validated)</option>
+              <option value="done">Done (Reconciled)</option>
               <option value="cancelled">Canceled</option>
-            </select>
-
-            {/* Warehouse Filter */}
-            <select
-              value={filters.warehouse}
-              onChange={(e) => setFilters((prev) => ({ ...prev, warehouse: e.target.value }))}
-              className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
-            >
-              <option value="all">All Warehouses</option>
-              {ADJUSTMENT_WAREHOUSES.map((wh) => (
-                <option key={wh.id} value={wh.id}>
-                  {wh.name.split(' — ')[0]}
-                </option>
-              ))}
             </select>
 
             {/* Variance Type Filter */}
             <select
-              value={filters.varianceType}
-              onChange={(e) => setFilters((prev) => ({ ...prev, varianceType: e.target.value as any }))}
+              value={varianceType}
+              onChange={(e) => setVarianceType(e.target.value as any)}
               className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
             >
               <option value="all">All Variances</option>
@@ -266,26 +253,12 @@ export function AdjustmentsListPage() {
               <option value="surplus">Surplus Only (+ Found)</option>
               <option value="exact">Zero Variance (Exact Match)</option>
             </select>
-
-            {/* Reason Filter */}
-            <select
-              value={filters.reason}
-              onChange={(e) => setFilters((prev) => ({ ...prev, reason: e.target.value }))}
-              className="px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-700 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
-            >
-              <option value="all">All Audit Reasons</option>
-              {ADJUSTMENT_REASONS.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
-              ))}
-            </select>
           </div>
 
-          {/* Right: Results Count & Reset */}
+          {/* Right: Results Count, Reset & Refresh */}
           <div className="flex items-center gap-3 shrink-0 text-xs">
             <span className="text-slate-500 font-mono">
-              <strong className="text-slate-900">{filteredAdjustments.length}</strong> adjustments
+              <strong className="text-slate-900">{displayedAdjustments.length}</strong> adjustments
             </span>
             {isFiltered && (
               <button
@@ -297,243 +270,255 @@ export function AdjustmentsListPage() {
                 <span>Reset</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={refetch}
+              className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
+              title="Refresh"
+            >
+              <RotateCcw className={cn('w-3 h-3', isLoading && 'animate-spin')} />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* ── Error State ─────────────────────────────────────────────── */}
+      {error && !isLoading && (
+        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={refetch}
+            className="font-semibold underline hover:no-underline cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ── Loading Skeleton ─────────────────────────────────────────── */}
+      {isLoading && (
+        <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
+          <div className="flex items-center justify-center py-16 gap-3 text-slate-400 text-sm">
+            <Loader2 className="w-5 h-5 animate-spin text-brand" />
+            Loading inventory adjustments…
+          </div>
+        </div>
+      )}
 
       {/* ── Table View ──────────────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold select-none">
-                <th className="py-2.5 px-4">Adjustment Number</th>
-                <th className="py-2.5 px-4">Product</th>
-                <th className="py-2.5 px-4">Location</th>
-                <th className="py-2.5 px-4 text-right">System Qty</th>
-                <th className="py-2.5 px-4 text-right">Counted Qty</th>
-                <th className="py-2.5 px-4 text-center">Difference</th>
-                <th className="py-2.5 px-4">Reason</th>
-                <th className="py-2.5 px-4 text-center">Status</th>
-                <th className="py-2.5 px-4">Date</th>
-                <th className="py-2.5 px-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-sans">
-              {filteredAdjustments.length === 0 ? (
-                <tr>
-                  <td colSpan={10} className="p-0">
-                    <EmptyState
-                      icon={SlidersHorizontal}
-                      title="No adjustments found"
-                      description={
-                        isFiltered
-                          ? 'Try clearing your active filters to see all cycle count logs.'
-                          : 'Record a new physical count adjustment to get started.'
-                      }
-                      actionLabel={isFiltered ? 'Clear Filters' : undefined}
-                      onAction={isFiltered ? handleResetFilters : undefined}
-                    />
-                  </td>
+      {!isLoading && !error && (
+        <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold select-none">
+                  <th className="py-2.5 px-4">Adjustment Number</th>
+                  <th className="py-2.5 px-4">Product</th>
+                  <th className="py-2.5 px-4">Location</th>
+                  <th className="py-2.5 px-4 text-right">System Qty</th>
+                  <th className="py-2.5 px-4 text-right">Counted Qty</th>
+                  <th className="py-2.5 px-4 text-center">Difference</th>
+                  <th className="py-2.5 px-4">Reason</th>
+                  <th className="py-2.5 px-4 text-center">Status</th>
+                  <th className="py-2.5 px-4">Date</th>
+                  <th className="py-2.5 px-4 text-right">Actions</th>
                 </tr>
-              ) : (
-                paginatedAdjustments.map((item) => {
-                  const isNegative = item.difference < 0
-                  const isPositive = item.difference > 0
-                  const isZero = item.difference === 0
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-sans">
+                {displayedAdjustments.length === 0 ? (
+                  <tr>
+                    <td colSpan={10} className="p-0">
+                      <EmptyState
+                        icon={SlidersHorizontal}
+                        title="No adjustments found"
+                        description={
+                          isFiltered
+                            ? 'Try clearing your active filters to see all cycle count logs.'
+                            : 'Record a new physical count adjustment to get started.'
+                        }
+                        actionLabel={isFiltered ? 'Clear Filters' : undefined}
+                        onAction={isFiltered ? handleResetFilters : undefined}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  displayedAdjustments.map((item) => {
+                    const primaryItem = item.items?.[0]
+                    const systemQty = primaryItem ? parseFloat(primaryItem.systemQuantity) : 0
+                    const countedQty = primaryItem ? parseFloat(primaryItem.countedQuantity) : 0
+                    const difference = primaryItem ? parseFloat(primaryItem.difference) : 0
+                    const unit = primaryItem?.product?.uom?.abbreviation || 'units'
 
-                  return (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
-                    >
-                      {/* Adjustment Number */}
-                      <td className="py-2.5 px-4 font-mono font-bold text-slate-900">
-                        <Link
-                          to={`/operations/adjustments/${item.id}`}
-                          className="hover:text-brand transition-colors inline-flex items-center gap-1.5"
-                        >
-                          <span>{item.adjustmentNumber}</span>
-                          <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-brand transition-colors" />
-                        </Link>
-                      </td>
+                    const isNegative = difference < 0
+                    const isPositive = difference > 0
+                    const isZero = difference === 0
 
-                      {/* Product */}
-                      <td className="py-2.5 px-4 text-slate-800">
-                        <div className="font-medium text-slate-900 flex items-center gap-1.5">
-                          <Package className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[200px]" title={item.productName}>
-                            {item.productName}
-                          </span>
-                        </div>
-                        <div className="font-mono text-[10.5px] text-slate-500">
-                          {item.productSku}
-                        </div>
-                      </td>
+                    const productName = primaryItem?.product?.name || (item.items?.length > 1 ? `${item.items.length} line items` : 'No product lines')
+                    const productSku = primaryItem?.product?.sku || (item.items?.length > 1 ? `Multi-line count` : '—')
 
-                      {/* Location */}
-                      <td className="py-2.5 px-4 text-slate-700">
-                        <div className="font-mono font-medium text-slate-900 flex items-center gap-1">
-                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span className="truncate max-w-[160px]" title={item.location}>
-                            {item.location}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
-                          {item.warehouseName.split(' — ')[1] || item.warehouseName}
-                        </div>
-                      </td>
-
-                      {/* System Qty */}
-                      <td className="py-2.5 px-4 text-right font-mono text-slate-600">
-                        {item.systemQuantity.toLocaleString()}{' '}
-                        <span className="text-[10.5px] text-slate-400">{item.unit}</span>
-                      </td>
-
-                      {/* Counted Qty */}
-                      <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-900">
-                        {item.countedQuantity.toLocaleString()}{' '}
-                        <span className="text-[10.5px] font-normal text-slate-500">{item.unit}</span>
-                      </td>
-
-                      {/* Difference (VISUALLY PROMINENT) */}
-                      <td className="py-2.5 px-4 text-center">
-                        <div
-                          className={cn(
-                            'inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-mono font-bold text-xs tracking-tight shadow-2xs border select-none',
-                            isNegative && 'bg-rose-50 border-rose-200 text-rose-700',
-                            isPositive && 'bg-emerald-50 border-emerald-200 text-emerald-700',
-                            isZero && 'bg-slate-100 border-slate-200 text-slate-600'
-                          )}
-                        >
-                          {isNegative && <TrendingDown className="w-3.5 h-3.5 text-rose-600" />}
-                          {isPositive && <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />}
-                          {isZero && <Minus className="w-3.5 h-3.5 text-slate-400" />}
-                          <span>
-                            {isPositive ? '+' : ''}
-                            {item.difference.toLocaleString()} {item.unit}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Reason */}
-                      <td className="py-2.5 px-4 text-slate-700">
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-medium border border-slate-200/70 inline-block">
-                          {item.reason}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-2.5 px-4 text-center">
-                        {getStatusBadge(item.status)}
-                      </td>
-
-                      {/* Date */}
-                      <td className="py-2.5 px-4 text-slate-600 font-sans">
-                        <div className="flex items-center gap-1 text-slate-700">
-                          <Clock className="w-3 h-3 text-slate-400 shrink-0" />
-                          <span>{item.createdDate}</span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          By {item.adjustedBy}
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-2.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {item.status === 'draft' && (
-                            <Button
-                              variant="secondary"
-                              size="xs"
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                setConfirmItem(item)
-                              }}
-                              className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
-                            >
-                              <CheckCircle2 className="w-3 h-3 mr-1 text-emerald-600" />
-                              Validate
-                            </Button>
-                          )}
-
+                    return (
+                      <tr
+                        key={item.id}
+                        className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
+                      >
+                        {/* Adjustment Number */}
+                        <td className="py-2.5 px-4 font-mono font-bold text-slate-900">
                           <Link
                             to={`/operations/adjustments/${item.id}`}
-                            onClick={(e) => e.stopPropagation()}
+                            className="hover:text-brand transition-colors inline-flex items-center gap-1.5"
                           >
-                            <Button variant="ghost" size="xs" className="h-7 px-2 text-slate-500 hover:text-slate-800">
-                              <Eye className="w-3.5 h-3.5 mr-1" />
-                              View
-                            </Button>
+                            <span>{item.adjustmentNumber}</span>
+                            <ChevronRight className="w-3 h-3 text-slate-300 group-hover:text-brand transition-colors" />
                           </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        </td>
 
-        <TablePagination
-          currentPage={currentPage}
-          totalItems={filteredAdjustments.length}
-          pageSize={PAGE_SIZE}
-          onPageChange={setCurrentPage}
-          itemLabel="adjustments"
-        />
-      </div>
+                        {/* Product */}
+                        <td className="py-2.5 px-4 text-slate-800">
+                          <div className="font-medium text-slate-900 flex items-center gap-1.5">
+                            <Package className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[200px]" title={productName}>
+                              {productName}
+                            </span>
+                          </div>
+                          <div className="font-mono text-[10.5px] text-slate-500">
+                            {productSku}
+                          </div>
+                        </td>
 
-      {/* ── Confirmation Modal Before Validation ────────────────────── */}
-      {confirmItem && (
-        <ConfirmationModal
-          isOpen={Boolean(confirmItem)}
-          title="Confirm Inventory Adjustment Validation"
-          description="You are about to officially reconcile the theoretical system balance with the physical floor count."
-          confirmLabel="Confirm & Validate"
-          cancelLabel="Cancel"
-          variant="warning"
-          onConfirm={handleConfirmValidation}
-          onClose={() => setConfirmItem(null)}
-        >
-          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2 mb-2">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Adjustment Ref:</span>
-              <span className="font-mono font-bold text-slate-900">{confirmItem.adjustmentNumber}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Product:</span>
-              <span className="font-medium text-slate-900 text-right truncate max-w-[220px]">
-                {confirmItem.productName}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Location:</span>
-              <span className="font-mono text-slate-800">{confirmItem.location}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Reason:</span>
-              <span className="font-medium text-slate-800">{confirmItem.reason}</span>
-            </div>
-            <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-              <span className="font-semibold text-slate-700">Net Variance:</span>
-              <span
-                className={cn(
-                  'font-mono font-bold text-sm px-2 py-0.5 rounded border',
-                  confirmItem.difference < 0
-                    ? 'bg-rose-50 text-rose-700 border-rose-200'
-                    : confirmItem.difference > 0
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                        {/* Location */}
+                        <td className="py-2.5 px-4 text-slate-700">
+                          <div className="font-mono font-medium text-slate-900 flex items-center gap-1">
+                            <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span className="truncate max-w-[160px]" title={item.location?.name}>
+                              {item.location?.name || 'Stock Location'}
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-400 truncate max-w-[160px]">
+                            {item.location?.fullPath || 'Internal'}
+                          </div>
+                        </td>
+
+                        {/* System Qty */}
+                        <td className="py-2.5 px-4 text-right font-mono text-slate-600">
+                          {systemQty.toLocaleString()}{' '}
+                          <span className="text-[10.5px] text-slate-400">{unit}</span>
+                        </td>
+
+                        {/* Counted Qty */}
+                        <td className="py-2.5 px-4 text-right font-mono font-semibold text-slate-900">
+                          {countedQty.toLocaleString()}{' '}
+                          <span className="text-[10.5px] font-normal text-slate-500">{unit}</span>
+                        </td>
+
+                        {/* Difference (VISUALLY PROMINENT) */}
+                        <td className="py-2.5 px-4 text-center">
+                          <div
+                            className={cn(
+                              'inline-flex items-center gap-1 px-2.5 py-1 rounded-md font-mono font-bold text-xs tracking-tight shadow-2xs border select-none',
+                              isNegative && 'bg-rose-50 border-rose-200 text-rose-700',
+                              isPositive && 'bg-emerald-50 border-emerald-200 text-emerald-700',
+                              isZero && 'bg-slate-100 border-slate-200 text-slate-600'
+                            )}
+                          >
+                            {isNegative && <TrendingDown className="w-3.5 h-3.5 text-rose-600" />}
+                            {isPositive && <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />}
+                            {isZero && <Minus className="w-3.5 h-3.5 text-slate-400" />}
+                            <span>
+                              {isPositive ? '+' : ''}
+                              {difference.toLocaleString()} {unit}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Reason */}
+                        <td className="py-2.5 px-4 text-slate-700">
+                          <span className="px-2 py-0.5 bg-slate-100 text-slate-700 rounded text-[11px] font-medium border border-slate-200/70 inline-block">
+                            {item.reason || 'Annual Count'}
+                          </span>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-2.5 px-4 text-center">
+                          {getStatusBadge(item.status)}
+                        </td>
+
+                        {/* Date */}
+                        <td className="py-2.5 px-4 text-slate-600 font-sans">
+                          <div className="flex items-center gap-1 text-slate-700">
+                            <Clock className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{formatDate(item.createdAt)}</span>
+                          </div>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-2.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {item.status === 'READY' && (
+                              <Button
+                                variant="primary"
+                                size="xs"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setConfirmItem(item)
+                                }}
+                              >
+                                Apply
+                              </Button>
+                            )}
+                            {item.status === 'DRAFT' && (
+                              <Button
+                                variant="secondary"
+                                size="xs"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setConfirmItem(item)
+                                }}
+                              >
+                                Validate
+                              </Button>
+                            )}
+                            <Link
+                              to={`/operations/adjustments/${item.id}`}
+                              className="px-2 py-1 rounded text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
+                            >
+                              View
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
                 )}
-              >
-                {confirmItem.difference > 0 ? '+' : ''}{confirmItem.difference} {confirmItem.unit}
-              </span>
-            </div>
+              </tbody>
+            </table>
           </div>
-        </ConfirmationModal>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={pagination?.total ?? displayedAdjustments.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="adjustments"
+          />
+        </div>
       )}
+
+      {/* ── Confirmation Modal ────────────────────────────────────────── */}
+      <ConfirmationModal
+        isOpen={Boolean(confirmItem)}
+        onClose={() => setConfirmItem(null)}
+        onConfirm={handleConfirmValidation}
+        title={confirmItem?.status === 'READY' ? 'Apply Adjustment to Inventory' : 'Validate Physical Count'}
+        message={
+          confirmItem?.status === 'READY'
+            ? `Are you sure you want to reconcile ${confirmItem?.adjustmentNumber}? This will immediately update the theoretical ledger balance in warehouse inventory.`
+            : `Validate ${confirmItem?.adjustmentNumber} and stage it for reconciliation?`
+        }
+        confirmLabel={confirmItem?.status === 'READY' ? 'Apply to Stock' : 'Confirm Validation'}
+        confirmVariant="primary"
+        isLoading={isProcessingAction}
+      />
     </div>
   )
 }

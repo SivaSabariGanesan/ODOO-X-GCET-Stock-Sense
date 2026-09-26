@@ -2,7 +2,7 @@ export interface User {
   id: string
   name: string
   email: string
-  role: 'admin' | 'inventory_manager' | 'warehouse_operator'
+  role: 'admin' | 'inventory_manager' | 'warehouse_operator' | 'staff'
   avatarUrl?: string
   warehouseId?: string
   warehouseName?: string

@@ -7,7 +7,10 @@
  *  - VITE_API_BASE_URL env-driven base URL
  */
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || 'http://localhost:3000'
+// When running via Vite dev server, use relative URLs so the built-in proxy
+// forwards /api/* to the backend. In production, VITE_API_BASE_URL can be set
+// to the absolute backend origin. Default to empty string (relative).
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) || ''
 const AUTH_TOKEN_KEY = 'stocksense_auth_token'
 
 // ---------------------------------------------------------------------------
@@ -72,8 +75,10 @@ interface RequestOptions {
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, params, skipAuth = false } = options
 
-  // Build URL with query params
-  const url = new URL(`${BASE_URL}${path}`)
+  // Build URL with query params — use relative URL when BASE_URL is empty
+  const url = BASE_URL
+    ? new URL(`${BASE_URL}${path}`)
+    : new URL(path, window.location.origin)
   if (params) {
     Object.entries(params).forEach(([k, v]) => {
       if (v !== undefined && v !== null && v !== '') {
