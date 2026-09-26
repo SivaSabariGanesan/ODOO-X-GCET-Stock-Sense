@@ -5,6 +5,7 @@ interface AuthContextType extends AuthState {
   login: (email: string, password?: string) => Promise<boolean>
   signup: (name: string, email: string, password?: string) => Promise<boolean>
   logout: () => void
+  updateUser: (data: Partial<User>) => void
   pendingOtpEmail: string | null
   setPendingOtpEmail: (email: string | null) => void
   verifyOtp: (code: string) => Promise<{ success: boolean; error?: string }>
@@ -99,6 +100,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updateUser = (data: Partial<User>) => {
+    setUser((prev) => {
+      if (!prev) return null
+      const updated = { ...prev, ...data }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+      } catch {
+        // Ignore localStorage errors
+      }
+      return updated
+    })
+  }
+
   const verifyOtp = async (code: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
     await new Promise((resolve) => setTimeout(resolve, 700))
@@ -126,6 +140,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         login,
         signup,
         logout,
+        updateUser,
         pendingOtpEmail,
         setPendingOtpEmail,
         verifyOtp,

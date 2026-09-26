@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowUpFromLine,
@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockDeliveryById, updateDeliveryStatus, updateDeliveryPicking } from '../mockDeliveries'
 import { Delivery, DeliveryStatus } from '../types'
@@ -73,16 +74,13 @@ export function DeliveryDetailsPage() {
 
   if (!delivery) {
     return (
-      <div className="w-full max-w-2xl mx-auto p-12 text-center bg-white border border-slate-200/80 rounded-lg shadow-2xs space-y-4">
-        <ArrowUpFromLine className="w-10 h-10 text-slate-400 mx-auto" />
-        <h2 className="text-base font-semibold text-slate-800">Delivery Not Found</h2>
-        <p className="text-xs text-slate-500">The delivery order identifier #{id} does not exist.</p>
-        <Link to="/operations/deliveries">
-          <Button variant="secondary" size="sm">
-            Back to Deliveries
-          </Button>
-        </Link>
-      </div>
+      <EmptyState
+        icon={ArrowUpFromLine}
+        title="Delivery Not Found"
+        description={`The delivery order identifier #${id} does not exist.`}
+        actionLabel="Back to Deliveries"
+        onAction={() => navigate('/operations/deliveries')}
+      />
     )
   }
 

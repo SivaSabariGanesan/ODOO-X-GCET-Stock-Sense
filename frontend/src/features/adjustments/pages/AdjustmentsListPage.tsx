@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -19,6 +19,9 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TablePagination } from '@/components/common/TablePagination'
+import { ConfirmationModal } from '@/components/common/ConfirmationModal'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import {
   getMockAdjustments,
@@ -29,9 +32,12 @@ import {
 import { Adjustment, AdjustmentFiltersState, AdjustmentStatus } from '../types'
 import { cn } from '@/lib/cn'
 
+const PAGE_SIZE = 10
+
 export function AdjustmentsListPage() {
   const toast = useToast()
   const [adjustments, setAdjustments] = useState<Adjustment[]>(getMockAdjustments())
+  const [currentPage, setCurrentPage] = useState(1)
 
   // Confirmation Modal state for quick validate
   const [confirmItem, setConfirmItem] = useState<Adjustment | null>(null)
@@ -81,6 +87,15 @@ export function AdjustmentsListPage() {
       return true
     })
   }, [adjustments, filters])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
+  const paginatedAdjustments = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredAdjustments.slice(start, start + PAGE_SIZE)
+  }, [filteredAdjustments, currentPage])
 
   const isFiltered =
     Boolean(filters.search.trim()) ||
@@ -308,28 +323,22 @@ export function AdjustmentsListPage() {
             <tbody className="divide-y divide-slate-100 font-sans">
               {filteredAdjustments.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center text-slate-400">
-                    <SlidersHorizontal className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-medium text-slate-600">No adjustments found</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {isFiltered
-                        ? 'Try clearing your active filters to see all cycle count logs.'
-                        : 'Record a new physical count adjustment to get started.'}
-                    </p>
-                    {isFiltered && (
-                      <Button
-                        variant="secondary"
-                        size="xs"
-                        onClick={handleResetFilters}
-                        className="mt-3"
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
+                  <td colSpan={10} className="p-0">
+                    <EmptyState
+                      icon={SlidersHorizontal}
+                      title="No adjustments found"
+                      description={
+                        isFiltered
+                          ? 'Try clearing your active filters to see all cycle count logs.'
+                          : 'Record a new physical count adjustment to get started.'
+                      }
+                      actionLabel={isFiltered ? 'Clear Filters' : undefined}
+                      onAction={isFiltered ? handleResetFilters : undefined}
+                    />
                   </td>
                 </tr>
               ) : (
-                filteredAdjustments.map((item) => {
+                paginatedAdjustments.map((item) => {
                   const isNegative = item.difference < 0
                   const isPositive = item.difference > 0
                   const isZero = item.difference === 0
@@ -468,100 +477,63 @@ export function AdjustmentsListPage() {
           </table>
         </div>
 
-        {/* ── Table Footer ──────────────────────────────────────────── */}
-        <div className="px-4 py-2.5 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-          <span>
-            Displaying {filteredAdjustments.length} of {adjustments.length} adjustment records
-          </span>
-          <span className="text-[11px] text-slate-400">
-            Net physical variance:{' '}
-            <strong className="text-slate-800 font-mono">
-              {filteredAdjustments.reduce((acc, c) => acc + c.difference, 0) >= 0 ? '+' : ''}
-              {filteredAdjustments.reduce((acc, c) => acc + c.difference, 0).toLocaleString()} units
-            </strong>
-          </span>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={filteredAdjustments.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemLabel="adjustments"
+        />
       </div>
 
       {/* ── Confirmation Modal Before Validation ────────────────────── */}
       {confirmItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs animate-[fadeIn_100ms_ease-out]">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 font-heading">
-                  Confirm Inventory Adjustment Validation
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  You are about to officially reconcile the theoretical system balance with the physical floor count.
-                </p>
-              </div>
+        <ConfirmationModal
+          isOpen={Boolean(confirmItem)}
+          title="Confirm Inventory Adjustment Validation"
+          description="You are about to officially reconcile the theoretical system balance with the physical floor count."
+          confirmLabel="Confirm & Validate"
+          cancelLabel="Cancel"
+          variant="warning"
+          onConfirm={handleConfirmValidation}
+          onClose={() => setConfirmItem(null)}
+        >
+          <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2 mb-2">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Adjustment Ref:</span>
+              <span className="font-mono font-bold text-slate-900">{confirmItem.adjustmentNumber}</span>
             </div>
-
-            {/* Adjustment Details Callout */}
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Adjustment Ref:</span>
-                <span className="font-mono font-bold text-slate-900">{confirmItem.adjustmentNumber}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Product:</span>
-                <span className="font-medium text-slate-900 text-right truncate max-w-[220px]">{confirmItem.productName}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Location:</span>
-                <span className="font-mono text-slate-800">{confirmItem.location}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Reason:</span>
-                <span className="font-medium text-slate-800">{confirmItem.reason}</span>
-              </div>
-              <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                <span className="font-semibold text-slate-700">Net Variance (Difference):</span>
-                <span
-                  className={cn(
-                    'font-mono font-bold text-sm px-2 py-0.5 rounded border',
-                    confirmItem.difference < 0
-                      ? 'bg-rose-50 text-rose-700 border-rose-200'
-                      : confirmItem.difference > 0
-                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                      : 'bg-slate-100 text-slate-700 border-slate-200'
-                  )}
-                >
-                  {confirmItem.difference > 0 ? '+' : ''}{confirmItem.difference} {confirmItem.unit}
-                </span>
-              </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Product:</span>
+              <span className="font-medium text-slate-900 text-right truncate max-w-[220px]">
+                {confirmItem.productName}
+              </span>
             </div>
-
-            <p className="text-[11px] text-slate-500 leading-normal">
-              Once validated, the theoretical stock will be adjusted by{' '}
-              <strong className="text-slate-900 font-mono">
+            <div className="flex justify-between">
+              <span className="text-slate-500">Location:</span>
+              <span className="font-mono text-slate-800">{confirmItem.location}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Reason:</span>
+              <span className="font-medium text-slate-800">{confirmItem.reason}</span>
+            </div>
+            <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+              <span className="font-semibold text-slate-700">Net Variance:</span>
+              <span
+                className={cn(
+                  'font-mono font-bold text-sm px-2 py-0.5 rounded border',
+                  confirmItem.difference < 0
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : confirmItem.difference > 0
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                )}
+              >
                 {confirmItem.difference > 0 ? '+' : ''}{confirmItem.difference} {confirmItem.unit}
-              </strong>. This action will be permanently recorded in the immutable audit ledger.
-            </p>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setConfirmItem(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleConfirmValidation}
-                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-              >
-                Confirm & Validate
-              </Button>
+              </span>
             </div>
           </div>
-        </div>
+        </ConfirmationModal>
       )}
     </div>
   )

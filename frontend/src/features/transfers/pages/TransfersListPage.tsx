@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -17,14 +17,19 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TablePagination } from '@/components/common/TablePagination'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockTransfers, updateTransferStatus, TRANSFER_WAREHOUSES } from '../mockTransfers'
 import { Transfer, TransferFiltersState, TransferStatus } from '../types'
 import { cn } from '@/lib/cn'
 
+const PAGE_SIZE = 10
+
 export function TransfersListPage() {
   const toast = useToast()
   const [transfers, setTransfers] = useState<Transfer[]>(getMockTransfers())
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [filters, setFilters] = useState<TransferFiltersState>({
     search: '',
@@ -75,6 +80,15 @@ export function TransfersListPage() {
       return true
     })
   }, [transfers, filters])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
+  const paginatedTransfers = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredTransfers.slice(start, start + PAGE_SIZE)
+  }, [filteredTransfers, currentPage])
 
   const isFiltered =
     Boolean(filters.search.trim()) ||
@@ -287,28 +301,22 @@ export function TransfersListPage() {
             <tbody className="divide-y divide-slate-100 font-sans">
               {filteredTransfers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="py-12 text-center text-slate-400">
-                    <ArrowLeftRight className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-medium text-slate-600">No transfers found</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {isFiltered
-                        ? 'Try clearing your active filters to see all movements.'
-                        : 'Create your first internal stock transfer to begin.'}
-                    </p>
-                    {isFiltered && (
-                      <Button
-                        variant="secondary"
-                        size="xs"
-                        onClick={handleResetFilters}
-                        className="mt-3"
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
+                  <td colSpan={8} className="p-0">
+                    <EmptyState
+                      icon={ArrowLeftRight}
+                      title="No transfers found"
+                      description={
+                        isFiltered
+                          ? 'Try clearing your active filters to see all movements.'
+                          : 'Create your first internal stock transfer to begin.'
+                      }
+                      actionLabel={isFiltered ? 'Clear Filters' : undefined}
+                      onAction={isFiltered ? handleResetFilters : undefined}
+                    />
                   </td>
                 </tr>
               ) : (
-                filteredTransfers.map((item) => (
+                paginatedTransfers.map((item) => (
                   <tr
                     key={item.id}
                     className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
@@ -425,15 +433,13 @@ export function TransfersListPage() {
           </table>
         </div>
 
-        {/* ── Table Footer ──────────────────────────────────────────── */}
-        <div className="px-4 py-2.5 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-2">
-          <span>
-            Displaying {filteredTransfers.length} of {transfers.length} movements
-          </span>
-          <span className="text-[11px] text-slate-400">
-            Total transfer units: <strong className="text-slate-700 font-mono">{filteredTransfers.reduce((a, c) => a + c.totalQuantity, 0).toLocaleString()}</strong>
-          </span>
-        </div>
+        <TablePagination
+          currentPage={currentPage}
+          totalItems={filteredTransfers.length}
+          pageSize={PAGE_SIZE}
+          onPageChange={setCurrentPage}
+          itemLabel="transfers"
+        />
       </div>
     </div>
   )

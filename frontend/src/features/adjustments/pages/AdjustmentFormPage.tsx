@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { ConfirmationModal } from '@/components/common/ConfirmationModal'
 import { useToast } from '@/context/ToastContext'
 import {
   ADJUSTMENT_REASONS,
@@ -402,84 +403,54 @@ export function AdjustmentFormPage() {
       </div>
 
       {/* ── Confirmation Modal Before Validation ────────────────────── */}
-      {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-2xs animate-[fadeIn_100ms_ease-out]">
-          <div className="bg-white rounded-lg shadow-xl border border-slate-200 max-w-md w-full p-5 space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-200">
-                <AlertTriangle className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 font-heading">
-                  Confirm Stock Adjustment Validation
-                </h3>
-                <p className="text-xs text-slate-500 mt-1">
-                  You are about to officially reconcile the theoretical inventory balance with the physical count.
-                </p>
-              </div>
-            </div>
-
-            {/* Reconciliation Review Box */}
-            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2">
-              <div className="flex justify-between">
-                <span className="text-slate-500">Product:</span>
-                <span className="font-semibold text-slate-900 text-right truncate max-w-[220px]">
-                  {activeProduct.name}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Location:</span>
-                <span className="font-mono text-slate-800">{location}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">System Quantity:</span>
-                <span className="font-mono text-slate-800">{systemQuantity} {activeProduct.unit}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-slate-500">Physical Counted:</span>
-                <span className="font-mono font-bold text-slate-900">{countedQuantity} {activeProduct.unit}</span>
-              </div>
-              <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
-                <span className="font-bold text-slate-700">Net Variance:</span>
-                <span
-                  className={cn(
-                    'font-mono font-bold text-sm px-2.5 py-0.5 rounded border',
-                    isNegative && 'bg-rose-50 text-rose-700 border-rose-200',
-                    isPositive && 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                    isZero && 'bg-slate-100 text-slate-700 border-slate-200'
-                  )}
-                >
-                  {isPositive ? '+' : ''}{difference} {activeProduct.unit}
-                </span>
-              </div>
-            </div>
-
-            <p className="text-[11px] text-slate-500 leading-normal">
-              Reason:{' '}
-              <strong className="text-slate-800">{reason}</strong>. This adjustment will permanently update on-hand inventory levels for this SKU.
-            </p>
-
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowConfirmModal(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => handleExecuteSave('done')}
-                disabled={isSubmitting}
-                leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
-              >
-                {isSubmitting ? 'Applying...' : 'Confirm & Validate'}
-              </Button>
-            </div>
+      <ConfirmationModal
+        isOpen={showConfirmModal}
+        variant="warning"
+        title="Confirm Stock Adjustment Validation"
+        description="You are about to officially reconcile the theoretical inventory balance with the physical count."
+        confirmLabel="Confirm & Validate"
+        isLoading={isSubmitting}
+        onClose={() => setShowConfirmModal(false)}
+        onConfirm={() => handleExecuteSave('done')}
+      >
+        <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2">
+          <div className="flex justify-between">
+            <span className="text-slate-500">Product:</span>
+            <span className="font-semibold text-slate-900 text-right truncate max-w-[220px]">
+              {activeProduct.name}
+            </span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">Location:</span>
+            <span className="font-mono text-slate-800">{location}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">System Quantity:</span>
+            <span className="font-mono text-slate-800">{systemQuantity} {activeProduct.unit}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-slate-500">Physical Counted:</span>
+            <span className="font-mono font-bold text-slate-900">{countedQuantity} {activeProduct.unit}</span>
+          </div>
+          <div className="pt-2 border-t border-slate-200 flex justify-between items-center">
+            <span className="font-bold text-slate-700">Net Variance:</span>
+            <span
+              className={cn(
+                'font-mono font-bold text-sm px-2.5 py-0.5 rounded border',
+                isNegative && 'bg-rose-50 text-rose-700 border-rose-200',
+                isPositive && 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                isZero && 'bg-slate-100 text-slate-700 border-slate-200'
+              )}
+            >
+              {isPositive ? '+' : ''}{difference} {activeProduct.unit}
+            </span>
           </div>
         </div>
-      )}
+
+        <p className="text-[11px] text-slate-500 leading-normal">
+          Reason: <strong className="text-slate-800">{reason}</strong>. This adjustment will permanently update on-hand inventory levels for this SKU.
+        </p>
+      </ConfirmationModal>
     </div>
   )
 }

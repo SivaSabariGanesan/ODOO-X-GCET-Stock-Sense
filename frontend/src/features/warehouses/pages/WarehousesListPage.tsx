@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/common/EmptyState'
 import { getMockWarehouses } from '../mockWarehouses'
 import { Warehouse } from '../types'
 import { cn } from '@/lib/cn'
@@ -154,9 +155,14 @@ export function WarehousesListPage() {
             <tbody className="divide-y divide-slate-100 font-sans">
               {filteredWarehouses.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
-                    <WarehouseIcon className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-medium text-slate-600">No warehouse matches search</p>
+                  <td colSpan={6} className="p-0">
+                    <EmptyState
+                      icon={WarehouseIcon}
+                      title="No warehouse matches search"
+                      description="Try searching with a different warehouse name or location code."
+                      actionLabel={search ? 'Reset Search' : undefined}
+                      onAction={search ? () => setSearch('') : undefined}
+                    />
                   </td>
                 </tr>
               ) : (

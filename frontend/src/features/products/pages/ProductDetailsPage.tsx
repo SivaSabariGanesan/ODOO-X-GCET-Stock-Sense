@@ -1,4 +1,4 @@
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   Edit2,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockProductById } from '../mockProducts'
 import { StockStatus } from '../types'
@@ -23,6 +24,7 @@ import { cn } from '@/lib/cn'
 
 export function ProductDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
   const product = id ? getMockProductById(id) : undefined
 
@@ -37,16 +39,13 @@ export function ProductDetailsPage() {
 
   if (!product) {
     return (
-      <div className="w-full max-w-2xl mx-auto p-12 text-center bg-white border border-slate-200/80 rounded-lg shadow-2xs space-y-4">
-        <Package className="w-10 h-10 text-slate-400 mx-auto" />
-        <h2 className="text-base font-semibold text-slate-800">Product Not Found</h2>
-        <p className="text-xs text-slate-500">The product identifier #{id} does not exist in the active catalog.</p>
-        <Link to="/products">
-          <Button variant="secondary" size="sm">
-            Back to Products
-          </Button>
-        </Link>
-      </div>
+      <EmptyState
+        icon={Package}
+        title="Product Not Found"
+        description={`The product identifier #${id} does not exist in the active catalog.`}
+        actionLabel="Back to Products"
+        onAction={() => navigate('/products')}
+      />
     )
   }
 
