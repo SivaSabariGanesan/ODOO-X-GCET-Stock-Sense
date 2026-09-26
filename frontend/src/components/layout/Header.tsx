@@ -138,38 +138,38 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
   return (
     <>
-      <header className="page-topbar h-13 px-3 sm:px-4 border-b border-gray-200 bg-view flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-30 select-none shadow-xs">
+      <header className="page-topbar h-13 px-4 sm:px-6 border-b border-slate-200/80 bg-white flex items-center justify-between gap-4 sticky top-0 z-30 select-none">
         {/* Left: Mobile hamburger & Breadcrumbs */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+            className="md:hidden p-2 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
           {/* Mobile Current Page Title */}
-          <span className="sm:hidden font-heading font-bold text-sm text-gray-900 truncate max-w-[130px]">
+          <span className="sm:hidden font-heading font-semibold text-sm text-slate-900 truncate max-w-[130px]">
             {currentPageTitle}
           </span>
 
           {/* Desktop/Tablet Dynamic Breadcrumbs */}
-          <nav className="breadcrumb hidden sm:flex items-center gap-1.5 text-xs text-gray-500 font-sans truncate">
-            <Home className="w-3.5 h-3.5 text-gray-400" />
+          <nav className="breadcrumb hidden sm:flex items-center gap-1.5 text-xs text-slate-500 font-sans truncate">
+            <Home className="w-3.5 h-3.5 text-slate-400" />
             {breadcrumbs.map((crumb, idx) => (
               <div key={idx} className="flex items-center gap-1.5">
-                {idx > 0 && <span className="breadcrumb-sep text-gray-300">/</span>}
+                {idx > 0 && <span className="breadcrumb-sep text-slate-300">/</span>}
                 {crumb.href ? (
                   <Link
                     to={crumb.href}
-                    className="hover:text-brand transition-colors text-gray-600 font-medium"
+                    className="hover:text-brand transition-colors text-slate-500 hover:text-slate-900 font-medium"
                   >
                     {crumb.label}
                   </Link>
                 ) : (
-                  <span className="font-semibold text-gray-900">{crumb.label}</span>
+                  <span className="font-semibold text-slate-900">{crumb.label}</span>
                 )}
               </div>
             ))}
@@ -177,17 +177,17 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         </div>
 
         {/* Middle: Interactive Quick Search & Command Palette Trigger (Desktop) */}
-        <div className="hidden lg:flex items-center flex-1 max-w-md mx-4">
+        <div className="hidden lg:flex items-center flex-1 max-w-md mx-6 justify-center">
           <button
             type="button"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="w-full flex items-center justify-between pl-3 pr-2 py-1.5 text-xs bg-gray-100 hover:bg-gray-200/70 border border-gray-300 rounded text-gray-500 transition-all cursor-pointer text-left"
+            className="w-full flex items-center justify-between pl-3 pr-2 py-1.5 text-xs bg-slate-50 hover:bg-slate-100/80 border border-slate-200 rounded-md text-slate-400 hover:text-slate-600 transition-colors cursor-pointer text-left"
           >
             <div className="flex items-center gap-2">
-              <Search className="w-3.5 h-3.5 text-gray-400" />
-              <span>Search SKUs, receipts, transfers...</span>
+              <Search className="w-3.5 h-3.5 text-slate-400" />
+              <span className="text-slate-500">Search SKUs, receipts, transfers...</span>
             </div>
-            <kbd className="text-[10px] font-mono px-1.5 py-0.5 bg-view text-gray-600 rounded border border-gray-300 shadow-xs">
+            <kbd className="text-[10px] font-mono px-1.5 py-0.5 bg-white text-slate-400 rounded border border-slate-200 shadow-2xs">
               Ctrl K
             </kbd>
           </button>
@@ -199,7 +199,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           <button
             type="button"
             onClick={() => setIsCommandPaletteOpen(true)}
-            className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+            className="lg:hidden p-2 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
             aria-label="Open command palette"
           >
             <Search className="w-4 h-4" />
@@ -215,11 +215,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 setIsNotificationsOpen(false)
                 setIsProfileOpen(false)
               }}
-              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-gray-100 hover:bg-gray-200/80 border border-gray-300 rounded text-gray-700 transition-colors cursor-pointer"
+              className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-white hover:bg-slate-50 border border-slate-200 rounded-md text-slate-700 transition-colors cursor-pointer shadow-2xs"
             >
               <Warehouse className="w-3.5 h-3.5 text-brand shrink-0" />
               <span className="font-medium max-w-[280px] truncate">{activeWarehouse}</span>
-              <ChevronDown className="w-3 h-3 text-gray-400 shrink-0" />
+              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0" />
             </button>
 
             {/* Mobile Compact Warehouse Button */}
@@ -230,7 +230,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 setIsNotificationsOpen(false)
                 setIsProfileOpen(false)
               }}
-              className="sm:hidden p-1.5 rounded-md text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-mono border border-gray-200"
+              className="sm:hidden p-1.5 rounded-md text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-mono border border-slate-200"
               aria-label="Select warehouse"
             >
               <Warehouse className="w-3.5 h-3.5 text-brand" />
@@ -277,10 +277,10 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 setIsProfileOpen(false)
               }}
               aria-label="View notifications"
-              className="relative p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+              className="relative p-2 rounded-md text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors cursor-pointer"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full ring-2 ring-view" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full ring-2 ring-white" />
             </button>
 
             <NotificationsDropdown
@@ -289,7 +289,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
             />
           </div>
 
-          <div className="h-4 w-px bg-gray-300 mx-0.5" />
+          <div className="h-4 w-px bg-slate-200 mx-1" />
 
           {/* User Profile Menu */}
           <div className="relative" ref={profileRef}>
@@ -300,12 +300,12 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 setIsWarehouseOpen(false)
                 setIsNotificationsOpen(false)
               }}
-              className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/20"
+              className="flex items-center gap-2 p-1 rounded-md hover:bg-slate-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/20"
               aria-expanded={isProfileOpen}
               aria-haspopup="true"
             >
               {/* Avatar with Initials */}
-              <div className="w-7 h-7 rounded bg-brand/10 border border-brand/20 text-brand font-semibold text-xs flex items-center justify-center font-heading">
+              <div className="w-7 h-7 rounded-md bg-brand-light text-brand-dark font-medium text-xs flex items-center justify-center font-heading border border-brand/20">
                 {user?.name
                   ? user.name
                       .split(' ')

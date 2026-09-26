@@ -150,194 +150,143 @@ export function PlaceholderPage({
   // ---------------------------------------------------------------------------
 
   return (
-    <div className="space-y-2.5 max-w-7xl mx-auto pb-4">
+    <div className="w-full max-w-[1600px] mx-auto space-y-6 pb-12">
 
-      {/* ── Control Panel ─────────────────────────────────────────────── */}
-      <div className="bg-view border border-slate-200/90 rounded-lg p-3 shadow-xs space-y-2.5">
+      {/* ── Page Header (Open & Breathless — No Enclosing Box) ───────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
 
-        {/* Row 1: Title + actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5">
+        {/* Title block */}
+        <div className="flex items-start gap-2.5 min-w-0">
+          <button
+            type="button"
+            onClick={() => {
+              setIsFavorite(!isFavorite)
+              toast.info(isFavorite ? 'Removed from favourites' : 'Added to favourites')
+            }}
+            className="mt-1 text-slate-400 hover:text-amber-500 transition-colors p-0.5 cursor-pointer shrink-0"
+            title={isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+            aria-label={isFavorite ? 'Remove from favourites' : 'Add to favourites'}
+          >
+            <Star
+              className={cn(
+                'w-4 h-4',
+                isFavorite ? 'text-amber-500 fill-amber-500' : 'text-slate-400'
+              )}
+            />
+          </button>
 
-          {/* Title block */}
-          <div className="flex items-center gap-2 min-w-0">
-            <button
-              type="button"
-              onClick={() => {
-                setIsFavorite(!isFavorite)
-                toast.info(isFavorite ? 'Removed from favourites' : 'Added to favourites')
-              }}
-              className="text-gray-400 hover:text-amber-500 transition-colors p-1 cursor-pointer shrink-0"
-              title={isFavorite ? 'Remove from favourites' : 'Add to favourites'}
-              aria-label={isFavorite ? 'Remove from favourites' : 'Add to favourites'}
-            >
-              <Star
-                className={cn(
-                  'w-4 h-4',
-                  isFavorite ? 'text-amber-500 fill-amber-500' : 'text-gray-400'
-                )}
-              />
-            </button>
-
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-base sm:text-lg font-heading font-bold text-gray-900 leading-tight">
-                  {title}
-                </h1>
-                {/* moduleCode is intentionally hidden from production UI unless
-                    explicitly provided — internal codes don't belong in the
-                    user-facing header */}
-                {moduleCode && (
-                  <span className="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
-                    {moduleCode}
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-600 mt-0.5 font-sans line-clamp-1">{subtitle}</p>
-            </div>
-          </div>
-
-          {/* Actions + view switcher */}
-          <div className="flex items-center justify-between sm:justify-end gap-2 flex-wrap">
-            <div className="flex items-center gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                leftIcon={<Plus className="w-3.5 h-3.5" />}
-                onClick={() => handleAction('New record')}
-              >
-                New
-              </Button>
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={<Download className="w-3.5 h-3.5" />}
-                onClick={() => handleAction('Export')}
-              >
-                Export
-              </Button>
-            </div>
-
-            {/* View switcher */}
-            <div
-              className="flex items-center border border-slate-300 rounded overflow-hidden bg-view"
-              role="group"
-              aria-label="View mode"
-            >
-              <button
-                type="button"
-                onClick={() => setViewMode('list')}
-                className={cn(
-                  'p-1.5 transition-colors cursor-pointer',
-                  viewMode === 'list'
-                    ? 'bg-brand-light text-brand'
-                    : 'text-gray-500 hover:bg-gray-100'
-                )}
-                title="List view"
-                aria-label="List view"
-                aria-pressed={viewMode === 'list'}
-              >
-                <LayoutList className="w-3.5 h-3.5" />
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setViewMode('kanban')}
-                className={cn(
-                  'p-1.5 transition-colors cursor-pointer border-l border-slate-200',
-                  viewMode === 'kanban'
-                    ? 'bg-brand-light text-brand'
-                    : 'text-gray-500 hover:bg-gray-100'
-                )}
-                title="Kanban view"
-                aria-label="Kanban view"
-                aria-pressed={viewMode === 'kanban'}
-              >
-                <Kanban className="w-3.5 h-3.5" />
-              </button>
-
-              {/* Calendar view — only shown when the page type supports it */}
-              {showCalendarView && (
-                <button
-                  type="button"
-                  onClick={() => setViewMode('calendar')}
-                  className={cn(
-                    'p-1.5 transition-colors cursor-pointer border-l border-slate-200',
-                    viewMode === 'calendar'
-                      ? 'bg-brand-light text-brand'
-                      : 'text-gray-500 hover:bg-gray-100'
-                  )}
-                  title="Calendar view"
-                  aria-label="Calendar view"
-                  aria-pressed={viewMode === 'calendar'}
-                >
-                  <CalendarIcon className="w-3.5 h-3.5" />
-                </button>
+          <div>
+            <div className="flex items-center gap-2.5 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-semibold text-slate-900 tracking-tight font-heading">
+                {title}
+              </h1>
+              {moduleCode && (
+                <span className="font-mono text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200/80">
+                  {moduleCode}
+                </span>
               )}
             </div>
+            <p className="text-sm text-slate-500 mt-1">{subtitle}</p>
           </div>
         </div>
 
-        {/* Row 2: Search + filter controls */}
-        <div className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="search"
-              value={searchFilter}
-              onChange={(e) => setSearchFilter(e.target.value)}
-              placeholder={searchPlaceholder}
-              className="w-full pl-8 pr-3 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded focus:bg-view focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 transition-colors"
-              aria-label={searchPlaceholder}
-            />
-          </div>
+        {/* Primary / Secondary Actions & View Switcher */}
+        <div className="flex items-center gap-2.5 shrink-0">
+          <Button
+            variant="secondary"
+            size="sm"
+            leftIcon={<Download className="w-3.5 h-3.5" />}
+            onClick={() => handleAction('Export')}
+          >
+            Export
+          </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            leftIcon={<Plus className="w-3.5 h-3.5" />}
+            onClick={() => handleAction('New record')}
+          >
+            New
+          </Button>
 
-          <div className="flex items-center gap-1.5">
+          {/* View switcher tabs */}
+          <div
+            className="flex items-center border border-slate-200 rounded-md bg-white p-0.5 ml-1 shadow-2xs"
+            role="group"
+            aria-label="View mode"
+          >
             <button
               type="button"
-              onClick={() => handleAction('Open filters')}
-              className="px-2.5 py-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-gray-700 flex items-center gap-1 transition-colors cursor-pointer text-xs"
-              aria-label="Open filter panel"
+              onClick={() => setViewMode('list')}
+              className={cn(
+                'p-1.5 rounded transition-colors cursor-pointer',
+                viewMode === 'list'
+                  ? 'bg-brand-light text-brand-dark font-medium shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+              )}
+              title="List view"
+              aria-label="List view"
+              aria-pressed={viewMode === 'list'}
             >
-              <Filter className="w-3 h-3 text-gray-500" />
-              <span>Filters</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+              <LayoutList className="w-3.5 h-3.5" />
             </button>
 
             <button
               type="button"
-              onClick={() => handleAction('Group by')}
-              className="px-2.5 py-1.5 rounded border border-slate-200 bg-slate-50 hover:bg-slate-100 text-gray-700 flex items-center gap-1 transition-colors cursor-pointer text-xs"
-              aria-label="Group results"
+              onClick={() => setViewMode('kanban')}
+              className={cn(
+                'p-1.5 rounded transition-colors cursor-pointer',
+                viewMode === 'kanban'
+                  ? 'bg-brand-light text-brand-dark font-medium shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+              )}
+              title="Kanban view"
+              aria-label="Kanban view"
+              aria-pressed={viewMode === 'kanban'}
             >
-              <span>Group By</span>
-              <ChevronDown className="w-3 h-3 text-gray-400" />
+              <Kanban className="w-3.5 h-3.5" />
             </button>
+
+            {showCalendarView && (
+              <button
+                type="button"
+                onClick={() => setViewMode('calendar')}
+                className={cn(
+                  'p-1.5 rounded transition-colors cursor-pointer',
+                  viewMode === 'calendar'
+                    ? 'bg-brand-light text-brand-dark font-medium shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                )}
+                title="Calendar view"
+                aria-label="Calendar view"
+                aria-pressed={viewMode === 'calendar'}
+              >
+                <CalendarIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ── KPI Cards ─────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+      {/* ── Operational KPI Metrics Summary Strip ───────────────────── */}
+      <div className="bg-white border border-slate-200/80 rounded-lg grid grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 shadow-2xs">
         {stats.map((stat, idx) => (
-          <div
-            key={idx}
-            className="bg-view border border-slate-200/90 rounded-md px-3 py-2 shadow-xs"
-          >
-            <div className="text-[11px] font-medium text-slate-600 leading-none">
+          <div key={idx} className="p-4 sm:p-5">
+            <div className="text-xs font-medium text-slate-500">
               {stat.label}
             </div>
-            <div className="text-lg sm:text-xl font-heading font-bold text-gray-900 mt-1 leading-tight">
+            <div className="text-2xl font-semibold tracking-tight text-slate-900 font-heading mt-1">
               {stat.value}
             </div>
             {stat.change && (
               <div
                 className={cn(
-                  'mt-0.5 text-[11px] font-medium',
+                  'mt-1.5 text-xs font-medium flex items-center gap-1',
                   stat.trend === 'up'
-                    ? 'text-success-text'
+                    ? 'text-emerald-600'
                     : stat.trend === 'down'
-                    ? 'text-danger-text'
-                    : 'text-gray-500'
+                    ? 'text-rose-600'
+                    : 'text-slate-500'
                 )}
               >
                 {stat.change}
@@ -347,71 +296,108 @@ export function PlaceholderPage({
         ))}
       </div>
 
-      {/* ── Bulk Selection Bar ─────────────────────────────────────────── */}
-      {selectedRows.length > 0 && (
-        <div className="px-3 py-2 bg-gray-50 border border-slate-200 rounded-md flex items-center justify-between text-xs animate-[fadeIn_100ms_ease-out]">
-          <div className="flex items-center gap-2 text-gray-700 font-medium">
-            <CheckSquare className="w-3.5 h-3.5 text-brand" aria-hidden="true" />
-            <span>
-              {selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'} selected
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            {/* Print Slip — only shown for pages with a slip workflow */}
-            {showPrintSlip && (
-              <button
-                type="button"
-                onClick={() => handleAction('Print slips')}
-                className="px-2.5 py-1 rounded border border-slate-300 bg-view text-gray-700 hover:bg-slate-100 transition-colors cursor-pointer flex items-center gap-1 text-xs"
-                aria-label="Print slips for selected items"
-              >
-                <Printer className="w-3 h-3" />
-                <span>Print Slip</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => handleAction('Export selected')}
-              className="px-2.5 py-1 rounded border border-slate-300 bg-view text-gray-700 hover:bg-slate-100 transition-colors cursor-pointer text-xs"
-              aria-label="Export selected items"
-            >
-              Export
-            </button>
-            <button
-              type="button"
-              onClick={() => setSelectedRows([])}
-              className="px-2.5 py-1 text-gray-500 hover:text-gray-800 text-xs cursor-pointer ml-1"
-              aria-label="Clear selection"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* ── View 1: List ───────────────────────────────────────────────── */}
       {viewMode === 'list' && (
-        <>
-          {/* Desktop / tablet table */}
-          <div className="hidden sm:block overflow-hidden border border-slate-200/90 rounded-lg shadow-xs bg-view">
+        <div className="space-y-4">
+          {/* Desktop Table Surface */}
+          <div className="hidden sm:block bg-white border border-slate-200/80 rounded-lg overflow-hidden shadow-2xs">
 
-            {/* Table header bar */}
-            <div className="flex items-center justify-between py-1.5 px-3.5 bg-slate-50/80 border-b border-slate-200">
-              <span className="font-semibold text-xs text-gray-700 font-heading">
-                {tableTitle}
-              </span>
-              <span className="text-[11px] text-slate-500 font-mono">
-                {filteredRows.length} of {sampleRows.length}
-                {searchFilter ? ' matching' : ' entries'}
-              </span>
+            {/* Table Toolbar */}
+            <div className="p-3 sm:px-4 sm:py-3 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+              <div className="flex items-center gap-2 flex-1 max-w-md">
+                <div className="relative flex-1">
+                  <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="search"
+                    value={searchFilter}
+                    onChange={(e) => setSearchFilter(e.target.value)}
+                    placeholder={searchPlaceholder}
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-slate-50/80 border border-slate-200 rounded-md focus:bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-colors placeholder:text-slate-400 text-slate-800"
+                    aria-label={searchPlaceholder}
+                  />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleAction('Open filters')}
+                  className="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer text-xs shrink-0"
+                  aria-label="Open filter panel"
+                >
+                  <Filter className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Filters</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAction('Group by')}
+                  className="px-2.5 py-1.5 rounded-md border border-slate-200 bg-white hover:bg-slate-50 text-slate-600 hover:text-slate-900 flex items-center gap-1.5 transition-colors cursor-pointer text-xs shrink-0"
+                  aria-label="Group results"
+                >
+                  <span>Group By</span>
+                  <ChevronDown className="w-3 h-3 text-slate-400" />
+                </button>
+              </div>
+
+              {/* Table meta count */}
+              <div className="text-xs text-slate-500 font-mono flex items-center gap-2 shrink-0">
+                <span className="font-semibold text-slate-700 font-sans">{tableTitle}</span>
+                <span className="text-slate-300">|</span>
+                <span>
+                  {filteredRows.length} of {sampleRows.length}
+                  {searchFilter ? ' matching' : ' entries'}
+                </span>
+              </div>
             </div>
 
+            {/* Bulk Selection Bar */}
+            {selectedRows.length > 0 && (
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs">
+                <div className="flex items-center gap-2 text-slate-700 font-medium">
+                  <CheckSquare className="w-3.5 h-3.5 text-brand" aria-hidden="true" />
+                  <span>
+                    {selectedRows.length} {selectedRows.length === 1 ? 'item' : 'items'} selected
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  {showPrintSlip && (
+                    <button
+                      type="button"
+                      onClick={() => handleAction('Print slips')}
+                      className="px-2.5 py-1 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1 text-xs"
+                      aria-label="Print slips for selected items"
+                    >
+                      <Printer className="w-3 h-3" />
+                      <span>Print Slip</span>
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleAction('Export selected')}
+                    className="px-2.5 py-1 rounded-md border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors cursor-pointer text-xs"
+                    aria-label="Export selected items"
+                  >
+                    Export
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSelectedRows([])}
+                    className="px-2 py-1 text-slate-500 hover:text-slate-800 text-xs cursor-pointer ml-1"
+                    aria-label="Clear selection"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Table */}
             <div className="overflow-x-auto">
-              <table className="data-table">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr>
-                    <th className="w-8">
+                  <tr className="bg-slate-50/70 border-b border-slate-200/80">
+                    <th className="w-10 px-4 py-2.5">
                       <input
                         type="checkbox"
                         checked={
@@ -419,28 +405,33 @@ export function PlaceholderPage({
                           selectedRows.length === sampleRows.length
                         }
                         onChange={toggleSelectAll}
-                        className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                        className="rounded border-slate-300 text-brand focus:ring-brand cursor-pointer"
                         aria-label="Select all rows"
                       />
                     </th>
                     {columns.map((col, idx) => (
-                      <th key={idx}>
-                        <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900 select-none">
+                      <th
+                        key={idx}
+                        className="px-4 py-2.5 text-xs font-medium text-slate-500 select-none whitespace-nowrap"
+                      >
+                        <div className="flex items-center gap-1 cursor-pointer hover:text-slate-900">
                           <span>{col}</span>
-                          <ArrowUpDown className="w-3 h-3 text-gray-400 shrink-0" aria-hidden="true" />
+                          <ArrowUpDown className="w-3 h-3 text-slate-400 shrink-0" aria-hidden="true" />
                         </div>
                       </th>
                     ))}
-                    <th className="w-20 text-right">Actions</th>
+                    <th className="w-20 px-4 py-2.5 text-right text-xs font-medium text-slate-500 whitespace-nowrap">
+                      Actions
+                    </th>
                   </tr>
                 </thead>
 
-                <tbody>
+                <tbody className="divide-y divide-slate-100">
                   {filteredRows.length === 0 ? (
                     <tr>
                       <td
                         colSpan={columns.length + 2}
-                        className="py-10 text-center text-sm text-gray-400"
+                        className="py-12 text-center text-sm text-slate-400"
                       >
                         No records match your search.
                       </td>
@@ -452,28 +443,30 @@ export function PlaceholderPage({
                         <tr
                           key={idx}
                           className={cn(
-                            'hover:bg-slate-50 transition-colors',
-                            isSelected && 'bg-brand-light/20'
+                            'transition-colors',
+                            isSelected
+                              ? 'bg-[#f4f0f9]'
+                              : 'hover:bg-slate-50/60 bg-white'
                           )}
                         >
-                          <td>
+                          <td className="px-4 py-3">
                             <input
                               type="checkbox"
                               checked={isSelected}
                               onChange={() => toggleRow(idx)}
-                              className="rounded border-gray-300 text-brand focus:ring-brand cursor-pointer"
+                              className="rounded border-slate-300 text-brand focus:ring-brand cursor-pointer"
                               aria-label={`Select ${row.ref}`}
                             />
                           </td>
 
                           {/* SKU / reference — secondary monospace */}
-                          <td className="td-mono text-xs font-normal text-slate-500">
+                          <td className="px-4 py-3 font-mono text-xs text-slate-500">
                             <div className="flex items-center gap-1.5 group">
-                              <span className="font-mono">{row.ref}</span>
+                              <span>{row.ref}</span>
                               <button
                                 type="button"
                                 onClick={() => copyRef(row.ref)}
-                                className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-brand transition-opacity cursor-pointer p-0.5 rounded"
+                                className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-brand transition-opacity cursor-pointer p-0.5 rounded"
                                 title={`Copy ${row.ref}`}
                                 aria-label={`Copy reference ${row.ref}`}
                               >
@@ -483,27 +476,33 @@ export function PlaceholderPage({
                           </td>
 
                           {/* Name / description — strong visual hierarchy */}
-                          <td className="font-semibold text-gray-900 text-sm">{row.desc}</td>
+                          <td className="px-4 py-3 text-sm font-medium text-slate-900">
+                            {row.desc}
+                          </td>
 
                           {/* Quantity / On-hand — strong visual hierarchy */}
-                          <td className="td-mono text-sm font-bold text-gray-900">{row.qty}</td>
+                          <td className="px-4 py-3 font-mono text-sm font-semibold text-slate-900">
+                            {row.qty}
+                          </td>
 
                           {/* Status badge */}
-                          <td>
+                          <td className="px-4 py-3">
                             <Badge variant={row.status} dot>
                               {statusLabel(row.status)}
                             </Badge>
                           </td>
 
-                          {/* Category / last modified — secondary */}
-                          <td className="text-gray-500 text-xs">{row.updated}</td>
+                          {/* Category / last modified — secondary metadata */}
+                          <td className="px-4 py-3 text-xs text-slate-500">
+                            {row.updated}
+                          </td>
 
                           {/* Action — prominent compact button */}
-                          <td className="text-right">
+                          <td className="px-4 py-3 text-right">
                             <button
                               type="button"
                               onClick={() => handleAction(`${actionLabel} ${row.ref}`)}
-                              className="inline-flex items-center px-2.5 py-0.5 text-xs font-medium rounded text-brand-dark bg-brand-light/70 hover:bg-brand hover:text-white border border-brand/20 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40 shadow-2xs"
+                              className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md text-brand-dark bg-brand-light/60 hover:bg-brand hover:text-white border border-brand/20 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand/40"
                               aria-label={`${actionLabel} ${row.ref}`}
                             >
                               {actionLabel}
@@ -517,21 +516,22 @@ export function PlaceholderPage({
               </table>
             </div>
 
-            <div className="py-2 px-3.5 bg-slate-50/70 border-t border-slate-200 flex items-center justify-between text-xs text-gray-500">
+            {/* Pagination Footer */}
+            <div className="px-4 py-3 bg-white border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
               <span>
                 Showing {filteredRows.length === 0 ? 0 : 1}–{filteredRows.length} of {sampleRows.length} entries
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1.5">
                 <button
                   type="button"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={isPrevDisabled}
                   aria-disabled={isPrevDisabled}
                   className={cn(
-                    'px-2.5 py-1 rounded border border-slate-300 text-xs transition-colors',
+                    'px-2.5 py-1 rounded-md border border-slate-200 text-xs transition-colors',
                     isPrevDisabled
-                      ? 'bg-slate-50 text-gray-400 opacity-50 cursor-not-allowed'
-                      : 'bg-view text-gray-700 hover:bg-slate-50 cursor-pointer'
+                      ? 'bg-slate-50 text-slate-400 opacity-50 cursor-not-allowed'
+                      : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
                   )}
                 >
                   Previous
@@ -542,10 +542,10 @@ export function PlaceholderPage({
                   disabled={isNextDisabled}
                   aria-disabled={isNextDisabled}
                   className={cn(
-                    'px-2.5 py-1 rounded border border-slate-300 text-xs transition-colors',
+                    'px-2.5 py-1 rounded-md border border-slate-200 text-xs transition-colors',
                     isNextDisabled
-                      ? 'bg-slate-50 text-gray-400 opacity-50 cursor-not-allowed'
-                      : 'bg-view text-gray-700 hover:bg-slate-50 cursor-pointer'
+                      ? 'bg-slate-50 text-slate-400 opacity-50 cursor-not-allowed'
+                      : 'bg-white text-slate-700 hover:bg-slate-50 cursor-pointer'
                   )}
                 >
                   Next
@@ -555,8 +555,8 @@ export function PlaceholderPage({
           </div>
 
           {/* Mobile card list */}
-          <div className="sm:hidden space-y-2">
-            <p className="text-xs text-gray-500 font-medium px-1">
+          <div className="sm:hidden space-y-2.5">
+            <p className="text-xs text-slate-500 font-medium px-1">
               {filteredRows.length} {filteredRows.length === 1 ? 'item' : 'items'}
               {searchFilter ? ' matching' : ''}
             </p>
@@ -567,8 +567,8 @@ export function PlaceholderPage({
                 <div
                   key={idx}
                   className={cn(
-                    'bg-view border rounded-lg p-3 shadow-xs space-y-2 transition-colors',
-                    isSelected ? 'border-brand/40 bg-brand-light/10' : 'border-slate-200'
+                    'bg-white border rounded-lg p-3.5 shadow-2xs space-y-2.5 transition-colors',
+                    isSelected ? 'border-brand/40 bg-[#f8f6fc]' : 'border-slate-200/80'
                   )}
                 >
                   <div className="flex items-center justify-between">
@@ -577,7 +577,7 @@ export function PlaceholderPage({
                         type="checkbox"
                         checked={isSelected}
                         onChange={() => toggleRow(idx)}
-                        className="rounded border-gray-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
+                        className="rounded border-slate-300 text-brand focus:ring-brand w-4 h-4 cursor-pointer"
                         aria-label={`Select ${row.ref}`}
                       />
                       <span className="font-mono text-xs text-slate-500">
@@ -586,7 +586,7 @@ export function PlaceholderPage({
                       <button
                         type="button"
                         onClick={() => copyRef(row.ref)}
-                        className="text-gray-400 hover:text-brand p-1 rounded"
+                        className="text-slate-400 hover:text-brand p-1 rounded"
                         aria-label={`Copy reference ${row.ref}`}
                       >
                         <Copy className="w-3 h-3" />
@@ -597,20 +597,20 @@ export function PlaceholderPage({
                     </Badge>
                   </div>
 
-                  <div className="text-sm font-semibold text-gray-900 leading-snug">
+                  <div className="text-sm font-semibold text-slate-900 leading-snug">
                     {row.desc}
                   </div>
 
-                  <div className="flex items-center justify-between text-xs pt-1 border-t border-slate-100">
-                    <div className="flex items-center gap-2 text-gray-500">
-                      <span className="font-mono font-bold text-gray-900">{row.qty}</span>
+                  <div className="flex items-center justify-between text-xs pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-500">
+                      <span className="font-mono font-bold text-slate-900">{row.qty}</span>
                       <span aria-hidden="true">&middot;</span>
                       <span>{row.updated}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => handleAction(`${actionLabel} ${row.ref}`)}
-                      className="inline-flex items-center px-2 py-0.5 text-xs font-medium rounded text-brand-dark bg-brand-light/70 hover:bg-brand hover:text-white border border-brand/20 transition-colors cursor-pointer"
+                      className="inline-flex items-center px-2.5 py-1 text-xs font-medium rounded-md text-brand-dark bg-brand-light/70 hover:bg-brand hover:text-white border border-brand/20 transition-colors cursor-pointer"
                       aria-label={`${actionLabel} ${row.ref}`}
                     >
                       {actionLabel}
@@ -620,32 +620,32 @@ export function PlaceholderPage({
               )
             })}
           </div>
-        </>
+        </div>
       )}
 
       {/* ── View 2: Kanban ─────────────────────────────────────────────── */}
       {viewMode === 'kanban' && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 animate-[fadeIn_150ms_ease-out]">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kanbanStages.map((stage) => {
             const stageRows = sampleRows.filter((r) => r.status === stage)
             return (
               <div
                 key={stage}
-                className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5"
+                className="bg-slate-50/70 border border-slate-200/80 rounded-lg p-3 space-y-2.5"
               >
-                <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200/70">
                   <div className="flex items-center gap-1.5">
-                    <span className="font-semibold text-xs text-gray-700 font-heading">
+                    <span className="font-semibold text-xs text-slate-700 font-heading">
                       {statusLabel(stage)}
                     </span>
-                    <span className="px-1.5 rounded-full text-[10px] font-mono bg-view border border-slate-200 text-gray-500">
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-white border border-slate-200 text-slate-500 font-medium">
                       {stageRows.length}
                     </span>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="!p-1 !h-auto text-gray-400 hover:text-gray-700"
+                    className="!p-1 !h-auto text-slate-400 hover:text-slate-700"
                     onClick={() => handleAction(`Add to ${stage}`)}
                     aria-label={`Add item to ${statusLabel(stage)}`}
                   >
@@ -655,12 +655,12 @@ export function PlaceholderPage({
 
                 <div className="space-y-2">
                   {stageRows.length === 0 ? (
-                    <p className="py-6 text-center text-xs text-gray-400">No items</p>
+                    <p className="py-6 text-center text-xs text-slate-400">No items</p>
                   ) : (
                     stageRows.map((row, idx) => (
                       <div
                         key={idx}
-                        className="bg-view border border-slate-200/90 rounded-md p-2.5 shadow-xs space-y-1.5 hover:shadow-sm hover:border-slate-300 transition-all cursor-pointer"
+                        className="bg-white border border-slate-200/80 rounded-md p-3 shadow-2xs space-y-2 hover:border-brand/40 transition-colors cursor-pointer"
                         onClick={() => handleAction(`${actionLabel} ${row.ref}`)}
                         role="button"
                         tabIndex={0}
@@ -668,15 +668,15 @@ export function PlaceholderPage({
                         aria-label={`${actionLabel} ${row.ref}`}
                       >
                         <div className="flex items-center justify-between text-xs">
-                          <span className="font-mono font-bold text-brand-dark text-[11px]">
+                          <span className="font-mono text-slate-500 text-[11px]">
                             {row.ref}
                           </span>
-                          <span className="font-mono text-[10px] text-gray-500">{row.qty}</span>
+                          <span className="font-mono text-xs font-semibold text-slate-800">{row.qty}</span>
                         </div>
-                        <p className="text-xs text-gray-800 font-medium leading-snug">{row.desc}</p>
-                        <div className="flex items-center justify-between text-[10px] text-gray-400 pt-1">
+                        <p className="text-xs text-slate-900 font-medium leading-snug">{row.desc}</p>
+                        <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1 border-t border-slate-50">
                           <span>{row.updated}</span>
-                          <Badge variant={row.status} className="!text-[9px] !px-1.5">
+                          <Badge variant={row.status} className="!text-[10px] !px-1.5">
                             {statusLabel(row.status)}
                           </Badge>
                         </div>
@@ -692,34 +692,34 @@ export function PlaceholderPage({
 
       {/* ── View 3: Calendar (operations pages only) ───────────────────── */}
       {viewMode === 'calendar' && showCalendarView && (
-        <div className="bg-view border border-slate-200 rounded-lg shadow-xs p-4 sm:p-6 space-y-4 animate-[fadeIn_150ms_ease-out]">
-          <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-            <h3 className="font-heading font-bold text-sm text-gray-900">
+        <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs p-5 sm:p-6 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+            <h3 className="font-heading font-semibold text-sm text-slate-900">
               Operations Schedule & Handoff Timeline
             </h3>
-            <span className="text-xs font-mono text-gray-500">Today: September 26, 2026</span>
+            <span className="text-xs font-mono text-slate-500">Today: September 26, 2026</span>
           </div>
 
           <div className="space-y-2.5">
             {sampleRows.map((row, idx) => (
               <div
                 key={idx}
-                className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-md border border-slate-200 hover:border-brand/40 bg-slate-50/50 transition-colors gap-2"
+                className="flex flex-col sm:flex-row sm:items-center justify-between p-3.5 rounded-lg border border-slate-200/80 hover:border-brand/30 bg-white hover:bg-slate-50/50 transition-colors gap-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded bg-brand-light text-brand-dark font-mono font-bold text-xs flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-md bg-brand-light text-brand-dark font-mono font-semibold text-xs flex items-center justify-center shrink-0">
                     {`0${idx + 9}:00`}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="font-mono font-bold text-xs text-brand-dark">{row.ref}</span>
+                      <span className="font-mono text-xs text-slate-500">{row.ref}</span>
                       <Badge variant={row.status} dot>{statusLabel(row.status)}</Badge>
                     </div>
-                    <div className="text-xs font-medium text-gray-800 mt-0.5">{row.desc}</div>
+                    <div className="text-xs font-medium text-slate-900 mt-0.5">{row.desc}</div>
                   </div>
                 </div>
-                <div className="flex items-center justify-between sm:justify-end gap-3 text-xs text-gray-500 font-mono">
-                  <span>{row.qty}</span>
+                <div className="flex items-center justify-between sm:justify-end gap-3 text-xs text-slate-500 font-mono">
+                  <span className="font-semibold text-slate-800">{row.qty}</span>
                   <span aria-hidden="true">&middot;</span>
                   <span>Slot #{String(idx + 1).padStart(2, '0')}</span>
                 </div>

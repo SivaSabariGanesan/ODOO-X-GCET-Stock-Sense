@@ -32,7 +32,7 @@ export function AppLayout() {
         <Header onToggleMobileMenu={() => setIsMobileOpen(true)} />
 
         {/* Dynamic Route Content */}
-        <main className="page-content flex-1 overflow-y-auto p-3 sm:p-4 md:p-5">
+        <main className="page-content flex-1 overflow-y-auto px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
           <Outlet />
         </main>
       </div>

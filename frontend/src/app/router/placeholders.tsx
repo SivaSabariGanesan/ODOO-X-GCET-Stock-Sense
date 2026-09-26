@@ -377,28 +377,28 @@ export function ProfilePlaceholder() {
   const { user } = useAuth()
 
   return (
-    <div className="max-w-4xl mx-auto space-y-4">
+    <div className="w-full max-w-4xl mx-auto space-y-6">
       {/* Page Header */}
-      <div className="pb-3 border-b border-gray-200 flex items-center justify-between">
+      <div className="pb-4 border-b border-slate-200/80 flex items-center justify-between">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-xl font-heading font-bold text-gray-900 leading-tight">
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-xl sm:text-2xl font-heading font-semibold text-slate-900 tracking-tight">
               Operator Profile
             </h1>
             <Badge variant="brand" dot className="text-[11px]">
               Active Session
             </Badge>
           </div>
-          <p className="text-xs text-gray-500 mt-1 font-sans">
+          <p className="text-sm text-slate-500 mt-1 font-sans">
             User credentials, role permissions, and active warehouse node assignments
           </p>
         </div>
       </div>
 
       {/* Profile Card */}
-      <div className="card overflow-hidden">
-        <div className="card-header bg-gray-50/50 py-3 px-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded bg-brand text-white font-heading font-bold flex items-center justify-center text-sm shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-lg overflow-hidden shadow-2xs">
+        <div className="bg-slate-50/70 border-b border-slate-200/80 py-3.5 px-5 flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-md bg-brand text-white font-heading font-semibold flex items-center justify-center text-sm shadow-2xs">
             {user?.name
               ? user.name
                   .split(' ')
@@ -409,54 +409,54 @@ export function ProfilePlaceholder() {
               : 'AM'}
           </div>
           <div>
-            <h2 className="text-sm font-heading font-semibold text-gray-900 leading-tight">
+            <h2 className="text-sm font-heading font-semibold text-slate-900 leading-tight">
               {user?.name || 'Alex Mercer'}
             </h2>
-            <p className="text-xs text-gray-500 font-sans">
+            <p className="text-xs text-slate-500 font-sans mt-0.5">
               Lead Inventory Operations Specialist
             </p>
           </div>
         </div>
 
-        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-gray-700">
+        <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5 text-slate-700">
               <Mail className="w-4 h-4 text-brand shrink-0" />
               <div>
-                <span className="text-gray-500 block text-[11px]">Email Address</span>
-                <span className="font-medium font-mono">{user?.email || 'alex.mercer@stocksense.io'}</span>
+                <span className="text-slate-400 block text-[11px]">Email Address</span>
+                <span className="font-medium font-mono text-slate-800">{user?.email || 'alex.mercer@stocksense.io'}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-gray-700">
+            <div className="flex items-center gap-2.5 text-slate-700">
               <Shield className="w-4 h-4 text-brand shrink-0" />
               <div>
-                <span className="text-gray-500 block text-[11px]">System Role</span>
-                <span className="font-medium capitalize">{user?.role || 'Inventory Manager'} (Full Access)</span>
+                <span className="text-slate-400 block text-[11px]">System Role</span>
+                <span className="font-medium capitalize text-slate-800">{user?.role || 'Inventory Manager'} (Full Access)</span>
               </div>
             </div>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-gray-700">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2.5 text-slate-700">
               <Warehouse className="w-4 h-4 text-brand shrink-0" />
               <div>
-                <span className="text-gray-500 block text-[11px]">Assigned Warehouse</span>
-                <span className="font-medium">{user?.warehouseName || 'WH01 - Main Central Hub'}</span>
+                <span className="text-slate-400 block text-[11px]">Assigned Warehouse</span>
+                <span className="font-medium text-slate-800">{user?.warehouseName || 'WH01 — Main Central Warehouse'}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-2 text-gray-700">
+            <div className="flex items-center gap-2.5 text-slate-700">
               <Key className="w-4 h-4 text-brand shrink-0" />
               <div>
-                <span className="text-gray-500 block text-[11px]">Security Level</span>
-                <span className="font-medium text-success-text">MFA Verified &middot; RSA 4096</span>
+                <span className="text-slate-400 block text-[11px]">Security Level</span>
+                <span className="font-medium text-emerald-600">MFA Verified &middot; RSA 4096</span>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="card-footer bg-gray-50/50 py-3 px-4 flex items-center justify-between text-xs text-gray-500">
+        <div className="bg-slate-50/50 border-t border-slate-100 py-3 px-5 flex items-center justify-between text-xs text-slate-500">
           <span>Session Node: SS-PROD-EUR-01</span>
           <span className="font-mono text-[11px]">User ID: {user?.id || 'usr_01HXYZ789'}</span>
         </div>

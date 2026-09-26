@@ -57,9 +57,9 @@ export default {
         },
 
         // Surface / chrome colors
-        app:     '#f0eeee', // $o-main-bg-color — app shell
-        view:    '#ffffff', // $o-view-background-color — form/list content
-        sidebar: '#f8f9fa', // $o-gray-100 — navigation rail
+        app:     '#f8fafc', // Modern clean slate app canvas
+        view:    '#ffffff', // Clean white view/table surface
+        sidebar: '#ffffff', // Clean white sidebar surface
 
         // Odoo special semantic colors
         favorite: '#f3cc00', // $o-main-favorite-color

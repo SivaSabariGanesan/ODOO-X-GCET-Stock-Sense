@@ -223,19 +223,18 @@
   }
 
   .data-table thead tr {
-    @apply bg-gray-100;
+    @apply bg-slate-50/70;
   }
 
   .data-table th {
-    @apply px-3 py-1.5 text-left
-           text-xs font-semibold text-gray-600
-           uppercase tracking-wide
-           border-b border-gray-200
+    @apply px-4 py-2.5 text-left
+           text-xs font-medium text-slate-500
+           border-b border-slate-200/80
            whitespace-nowrap;
   }
 
   .data-table td {
-    @apply px-3 py-1.5 text-gray-700 border-b border-gray-200;
+    @apply px-4 py-3 text-slate-700 border-b border-slate-100;
   }
 
   .data-table tbody tr:last-child td {
@@ -243,11 +242,11 @@
   }
 
   .data-table tbody tr:hover td {
-    @apply bg-gray-100;
+    @apply bg-slate-50/60;
   }
 
   .data-table tbody tr.selected td {
-    @apply bg-brand-light;
+    @apply bg-[#f4f0f9];
   }
 
   /* Monospace cell — quantities, SKUs, references, lot numbers */
