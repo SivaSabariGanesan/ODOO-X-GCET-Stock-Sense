@@ -227,6 +227,20 @@ export const openApiSpec = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      UnitOfMeasure: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string", example: "Kilogram" },
+          abbreviation: { type: "string", example: "kg" },
+          description: { type: "string", nullable: true, example: "Unit of mass" },
+          measureType: { type: "string", nullable: true, example: "weight" },
+          isActive: { type: "boolean", example: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -1233,6 +1247,138 @@ export const openApiSpec = {
             },
           },
           404: { description: "Category not found" },
+        },
+      },
+    },
+    "/api/uoms": {
+      get: {
+        summary: "List Units of Measure",
+        tags: ["UOM CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "measureType", in: "query", schema: { type: "string" } },
+          { name: "isActive", in: "query", schema: { type: "boolean" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of units of measure",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/UnitOfMeasure" } },
+                    meta: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: "Unauthorized" },
+        },
+      },
+      post: {
+        summary: "Create Unit of Measure Record",
+        tags: ["UOM CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "abbreviation"],
+                properties: {
+                  name: { type: "string", example: "Kilogram" },
+                  abbreviation: { type: "string", example: "kg" },
+                  description: { type: "string", example: "Unit of mass" },
+                  measureType: { type: "string", example: "weight" },
+                  isActive: { type: "boolean", default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Unit of Measure created successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/UnitOfMeasure" } } } } } },
+          400: { description: "Validation error" },
+          409: { description: "Duplicate UOM name or abbreviation error" },
+        },
+      },
+    },
+    "/api/uoms/{id}": {
+      get: {
+        summary: "Get Unit of Measure by ID",
+        tags: ["UOM CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Unit of Measure details", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/UnitOfMeasure" } } } } } },
+          404: { description: "Unit of Measure not found" },
+        },
+      },
+      patch: {
+        summary: "Update Unit of Measure Record",
+        tags: ["UOM CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  abbreviation: { type: "string" },
+                  description: { type: "string", nullable: true },
+                  measureType: { type: "string", nullable: true },
+                  isActive: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Unit of Measure updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/UnitOfMeasure" } } } } } },
+          400: { description: "Validation error" },
+          404: { description: "Unit of Measure not found" },
+          409: { description: "Duplicate UOM name or abbreviation error" },
+        },
+      },
+      delete: {
+        summary: "Delete or Deactivate Unit of Measure",
+        tags: ["UOM CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "UOM deleted if unreferenced, or deactivated if referenced by products",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    message: { type: "string" },
+                    mode: { type: "string", enum: ["deleted", "deactivated"] },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: "Unit of Measure not found" },
         },
       },
     },

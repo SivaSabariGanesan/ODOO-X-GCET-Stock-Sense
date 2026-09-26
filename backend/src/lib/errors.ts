@@ -283,6 +283,20 @@ export class CategoryReferencedError extends AppError {
   }
 }
 
+export class DuplicateUomError extends AppError {
+  constructor(identifier: string) {
+    super(`A Unit of Measure with name or abbreviation '${identifier}' already exists`, 409);
+    this.name = "DuplicateUomError";
+  }
+}
+
+export class UomReferencedError extends AppError {
+  constructor(id: string, message = `Unit of Measure '${id}' is referenced by existing products and cannot be hard deleted. Deactivate it instead.`) {
+    super(message, 400);
+    this.name = "UomReferencedError";
+  }
+}
+
 
 
 
