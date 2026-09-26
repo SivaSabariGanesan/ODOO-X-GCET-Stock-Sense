@@ -35,6 +35,29 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 
 ---
 
+## 💡 Architectural Rationale & Technical Justifications
+
+### 1. Why Bun + Hono instead of Python / FastAPI?
+- **End-to-End Type Safety**: Shared TypeScript interfaces across frontend and backend eliminated schema mismatch bugs and context-switching overhead.
+- **Superior Throughput & Startup Speed**: Bun's Zig runtime outperforms Python/Uvicorn by up to **4x-10x** in HTTP request handling and starts instantly with zero boot latency.
+- **Native WebSockets**: Bun natively supports low-overhead WebSockets without requiring Gunicorn/Uvicorn worker process wrappers or external ASGI adapters.
+
+### 2. Why PostgreSQL 16 + Drizzle ORM instead of Prisma / SQLAlchemy?
+- **ACID Transaction Integrity**: PostgreSQL 16 provides row-level locking (`SELECT ... FOR UPDATE`) and foreign key guarantees essential for stock management.
+- **Zero Runtime Binary Overhead**: Unlike Prisma (which runs a heavy Rust binary query engine CLI) or SQLAlchemy (heavy Python session ORM reflection), Drizzle compiles directly to clean, lightweight SQL queries with full TypeScript inference.
+- **Explicit Transaction Boundaries**: Drizzle makes `db.transaction(async (tx) => { ... })` explicit and lightweight, ensuring rollback safety across multi-table updates.
+
+### 3. Why WebSockets (`ws://`) instead of Server-Sent Events (SSE)?
+- **Bi-Directional Communication**: WebSockets allow 2-way real-time messaging on a single persistent TCP socket, supporting client handshake authentication, role-based channel subscriptions, and ping/pong liveness checks.
+- **Multi-Channel Targeted Pub/Sub**: WebSockets natively support channel filtering (`inventory`, `role:admin`, `user:id`), whereas SSE requires separate HTTP connections or complex custom protocol layering.
+- **Lower Header Overhead**: SSE sends HTTP headers on every event frame, whereas WebSocket frames use minimal byte framing headers for high-frequency stock ledger broadcasts.
+
+### 4. Why Grounded AI Assistant with System Tools instead of Generic RAG/Chatbots?
+- **Zero Hallucination Guarantee**: Generic LLM chatbots invent product names and quantities. StockSense's AI Orchestrator executes deterministic backend service calls (`StockBalanceService`, `StockLedgerService`) for factual queries.
+- **Action Confirmation Safeguard**: Prevents unauthorized or accidental stock mutations by requiring explicit confirmation before calling write services.
+
+---
+
 ## 🏗️ System Architecture
 
 ```text
