@@ -4,9 +4,10 @@ import { ArrowLeft, Plus, Trash2, Save, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/context/ToastContext'
-import { SUPPLIERS, RECEIPT_WAREHOUSES, createMockReceipt } from '../mockReceipts'
+import { receiptsApi, CreateReceiptPayload } from '../api'
+import { ApiError } from '@/lib/apiClient'
 import { getMockProducts } from '@/features/products/mockProducts'
-
+import { RECEIPT_WAREHOUSES } from '../mockReceipts'
 
 interface ProductLineForm {
   productId: string
@@ -23,10 +24,9 @@ export function ReceiptFormPage() {
   const catalog = getMockProducts()
 
   // ── Header State ──────────────────────────────────────────────────────────
-  const [supplier, setSupplier] = useState(SUPPLIERS[0]!)
+  const [supplierName, setSupplierName] = useState('')
   const [supplierReference, setSupplierReference] = useState('')
   const [warehouseId, setWarehouseId] = useState(RECEIPT_WAREHOUSES[0]!.id)
-  const [scheduledDate, setScheduledDate] = useState('Today, 15:00')
   const [notes, setNotes] = useState('')
 
   const activeWarehouse = (RECEIPT_WAREHOUSES.find((w) => w.id === warehouseId) || RECEIPT_WAREHOUSES[0])!
@@ -111,11 +111,12 @@ export function ReceiptFormPage() {
   }
 
   const isValid =
-    supplier.trim().length > 0 &&
+    warehouseId.trim().length > 0 &&
     lines.length > 0 &&
     lines.every((l) => l.productId && l.quantity > 0)
 
-  const handleSubmit = (statusToSave: 'draft' | 'ready' | 'done') => {
+  // ── Submit → POST /api/receipts ────────────────────────────────────────────
+  const handleSubmit = async (validate: boolean) => {
     if (!isValid) {
       toast.error('Validation Error', 'Please complete all required fields and ensure product lines have valid quantities.')
       return
@@ -123,26 +124,53 @@ export function ReceiptFormPage() {
 
     setIsSubmitting(true)
 
-    setTimeout(() => {
-      setIsSubmitting(false)
-      const created = createMockReceipt({
-        supplier,
+    try {
+      // Build payload matching the backend CreateReceiptInput schema
+      const payload: CreateReceiptPayload = {
+        supplierName: supplierName.trim() || undefined,
         supplierReference: supplierReference.trim() || undefined,
         warehouseId,
-        destinationLocation: activeWarehouse.defaultLocation,
-        scheduledDate,
         notes: notes.trim() || undefined,
-        status: statusToSave,
-        lines,
-      })
+        items: lines.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+          // destinationLocationId: left out; backend will resolve from warehouseId default
+        })),
+      }
 
-      toast.success(
-        statusToSave === 'done' ? 'Receipt Validated' : 'Receipt Created',
-        `${created.receiptNumber} successfully created with ${created.itemCount} product lines (${created.totalQuantity} total units).`
-      )
+      // Create the draft receipt
+      const created = await receiptsApi.create(payload)
+
+      // If user clicked "Validate & Receive", also trigger validate → process
+      if (validate) {
+        try {
+          await receiptsApi.validate(created.id)
+          await receiptsApi.process(created.id)
+          toast.success(
+            'Receipt Validated & Received',
+            `${created.receiptNumber} created and stock booked into warehouse inventory.`
+          )
+        } catch (actionErr: unknown) {
+          // Receipt was created even if validate/process failed — navigate to it
+          const msg = actionErr instanceof ApiError ? actionErr.message : 'Created but validation failed.'
+          toast.warning('Receipt Created', `${created.receiptNumber} saved as draft. ${msg}`)
+        }
+      } else {
+        toast.success(
+          'Draft Saved',
+          `${created.receiptNumber} saved as draft with ${created.items.length} product line${created.items.length !== 1 ? 's' : ''}.`
+        )
+      }
 
       navigate(`/operations/receipts/${created.id}`)
-    }, 350)
+    } catch (err: unknown) {
+      const message = err instanceof ApiError
+        ? err.message
+        : 'Failed to create receipt. Please try again.'
+      toast.error('Creation Failed', message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -182,27 +210,15 @@ export function ReceiptFormPage() {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Supplier */}
+            {/* Supplier Name */}
             <div>
-              <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Supplier / Vendor <span className="text-brand ml-1">*</span>
-              </label>
-              <div className="relative mt-1.5">
-                <select
-                  value={supplier}
-                  onChange={(e) => setSupplier(e.target.value)}
-                  className="w-full h-9 px-3 text-sm text-gray-800 bg-view border border-gray-300 rounded shadow-xs appearance-none pr-8 focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
-                >
-                  {SUPPLIERS.map((s) => (
-                    <option key={s} value={s}>
-                      {s}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                  ▼
-                </div>
-              </div>
+              <Input
+                label="Supplier / Vendor Name"
+                placeholder="e.g. Acme Corp"
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                hint="Optional — enter vendor name for reference"
+              />
             </div>
 
             {/* Warehouse */}
@@ -222,9 +238,7 @@ export function ReceiptFormPage() {
                     </option>
                   ))}
                 </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                  ▼
-                </div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">▼</div>
               </div>
             </div>
 
@@ -236,16 +250,6 @@ export function ReceiptFormPage() {
                 value={supplierReference}
                 onChange={(e) => setSupplierReference(e.target.value)}
                 hint="Vendor dispatch slip or PO tracking code"
-              />
-            </div>
-
-            {/* Scheduled Date */}
-            <div>
-              <Input
-                label="Scheduled Arrival Date"
-                placeholder="e.g. Today, 14:00"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
               />
             </div>
           </div>
@@ -292,9 +296,7 @@ export function ReceiptFormPage() {
                         </option>
                       ))}
                     </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
-                      ▼
-                    </div>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">▼</div>
                   </div>
                 </div>
 
@@ -383,7 +385,8 @@ export function ReceiptFormPage() {
               variant="secondary"
               size="sm"
               disabled={!isValid || isSubmitting}
-              onClick={() => handleSubmit('draft')}
+              isLoading={isSubmitting}
+              onClick={() => handleSubmit(false)}
               leftIcon={<Save className="w-3.5 h-3.5" />}
             >
               Save Draft
@@ -395,7 +398,7 @@ export function ReceiptFormPage() {
               size="sm"
               disabled={!isValid || isSubmitting}
               isLoading={isSubmitting}
-              onClick={() => handleSubmit('done')}
+              onClick={() => handleSubmit(true)}
               leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
             >
               Validate & Receive
