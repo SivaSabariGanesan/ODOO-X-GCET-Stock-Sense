@@ -16,6 +16,7 @@ import { inventoryAdjustments } from "../src/db/schema/inventory-adjustments.js"
 import { inventoryAdjustmentItems } from "../src/db/schema/inventory-adjustment-items.js";
 import { stockBalances } from "../src/db/schema/stock-balances.js";
 import { stockMovements } from "../src/db/schema/stock-movements.js";
+import { StockLedgerService } from "../src/modules/stock-movements/service.js";
 import { eq, inArray } from "drizzle-orm";
 
 const TEST_TIMESTAMP = Date.now().toString().slice(-6);
@@ -494,4 +495,150 @@ describe("StockSense Move History / Stock Ledger API Module", () => {
 
     expect(totalAfter).toBe(totalBefore);
   });
+
+  // -------------------------------------------------------------------------
+  // 9. StockLedgerService.recordMovement & Service Methods
+  // -------------------------------------------------------------------------
+  it("records an append-only stock movement using StockLedgerService.recordMovement", async () => {
+    const movement = await StockLedgerService.recordMovement({
+      productId: product2Id,
+      destinationLocationId: locationAId,
+      quantity: 50,
+      movementType: "RECEIPT",
+      referenceType: "RECEIPT",
+      referenceId: receiptId,
+      createdBy: userId,
+    });
+
+    expect(movement.id).toBeDefined();
+    expect(movement.productId).toBe(product2Id);
+    expect(parseFloat(movement.quantity)).toBe(50);
+
+    const fetched = await StockLedgerService.getMovementById(movement.id);
+    expect(fetched.id).toBe(movement.id);
+    expect(fetched.product?.id).toBe(product2Id);
+  });
+
+  it("records transfer movements using StockLedgerService.recordTransferMovements", async () => {
+    const movement = await StockLedgerService.recordTransferMovements({
+      productId: product2Id,
+      sourceLocationId: locationAId,
+      destinationLocationId: locationBId,
+      quantity: 15,
+      referenceType: "INTERNAL_TRANSFER",
+      referenceId: transferId,
+      createdBy: userId,
+    });
+
+    expect(movement.movementType).toBe("TRANSFER");
+    expect(movement.sourceLocationId).toBe(locationAId);
+    expect(movement.destinationLocationId).toBe(locationBId);
+  });
+
+  it("verifies StockLedgerService.recordMovement does NOT update stock_balances", async () => {
+    // Record movement directly via StockLedgerService
+    await StockLedgerService.recordMovement({
+      productId: product2Id,
+      destinationLocationId: locationBId,
+      quantity: 999,
+      movementType: "RECEIPT",
+      referenceType: "RECEIPT",
+      referenceId: receiptId,
+    });
+
+    // Check stock_balances for product2Id at locationBId (should remain unchanged/non-existent)
+    const [bal] = await db
+      .select()
+      .from(stockBalances)
+      .where(eq(stockBalances.productId, product2Id));
+
+    // Either no balance row exists or its quantity was untouched by recordMovement
+    if (bal) {
+      expect(parseFloat(bal.quantity)).not.toBe(999);
+    } else {
+      expect(bal).toBeUndefined();
+    }
+  });
+
+  it("rollbacks ledger inserts when outer transaction fails", async () => {
+    const testRefId = "11111111-2222-4333-8444-555555555555";
+    try {
+      await db.transaction(async (tx) => {
+        await StockLedgerService.recordMovement(
+          {
+            productId: product1Id,
+            destinationLocationId: locationAId,
+            quantity: 10,
+            movementType: "RECEIPT",
+            referenceType: "RECEIPT",
+            referenceId: testRefId,
+          },
+          tx
+        );
+        // Force transaction rollback
+        throw new Error("Simulated outer transaction failure");
+      });
+    } catch (err: any) {
+      expect(err.message).toBe("Simulated outer transaction failure");
+    }
+
+    // Verify ledger entry was rolled back
+    const movements = await StockLedgerService.getMovementsByReference("RECEIPT", testRefId);
+    expect(movements.length).toBe(0);
+  });
+
+  it("filters stock movements by warehouseId", async () => {
+    const res = await app.request(`/api/stock-movements?warehouseId=${warehouseId}`, {
+      method: "GET",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.data.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it("records movement via POST /api/stock-movements endpoint", async () => {
+    const res = await app.request("/api/stock-movements", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({
+        productId: product1Id,
+        sourceLocationId: locationAId,
+        quantity: 5,
+        movementType: "DELIVERY",
+        referenceType: "DELIVERY",
+        referenceId: deliveryId,
+      }),
+    });
+
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.data.id).toBeDefined();
+    expect(body.data.movementType).toBe("DELIVERY");
+  });
+
+  it("enforces immutability: returns HTTP 405 for PUT, PATCH, DELETE requests", async () => {
+    const putRes = await app.request("/api/stock-movements/some-id", {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    expect(putRes.status).toBe(405);
+
+    const patchRes = await app.request("/api/stock-movements/some-id", {
+      method: "PATCH",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    expect(patchRes.status).toBe(405);
+
+    const deleteRes = await app.request("/api/stock-movements/some-id", {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${authToken}` },
+    });
+    expect(deleteRes.status).toBe(405);
+  });
 });
+

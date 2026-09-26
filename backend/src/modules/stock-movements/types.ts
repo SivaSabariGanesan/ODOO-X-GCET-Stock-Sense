@@ -14,10 +14,32 @@ export interface StockMovementWithDetails extends StockMovement {
   creator?: Partial<User>;
 }
 
+export interface RecordMovementInput {
+  productId: string;
+  sourceLocationId?: string | null;
+  destinationLocationId?: string | null;
+  quantity: number | string;
+  movementType: MovementType;
+  referenceType: ReferenceType;
+  referenceId: string;
+  createdBy?: string | null;
+}
+
+export interface RecordTransferMovementsInput {
+  productId: string;
+  sourceLocationId: string;
+  destinationLocationId: string;
+  quantity: number | string;
+  referenceType?: ReferenceType;
+  referenceId: string;
+  createdBy?: string | null;
+}
+
 export interface ListStockMovementsQuery {
   page?: number;
   limit?: number;
   productId?: string;
+  warehouseId?: string;
   locationId?: string;
   sourceLocationId?: string;
   destinationLocationId?: string;
@@ -28,4 +50,14 @@ export interface ListStockMovementsQuery {
   fromDate?: string;
   toDate?: string;
   search?: string;
+}
+
+export interface PaginatedStockMovementsResponse {
+  data: StockMovementWithDetails[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
 }

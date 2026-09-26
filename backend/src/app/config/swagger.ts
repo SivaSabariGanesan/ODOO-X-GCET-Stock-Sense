@@ -321,6 +321,21 @@ export const openApiSpec = {
           warehouseShortCode: { type: "string", nullable: true },
         },
       },
+      StockMovement: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" },
+          productId: { type: "string", format: "uuid" },
+          sourceLocationId: { type: "string", format: "uuid", nullable: true },
+          destinationLocationId: { type: "string", format: "uuid", nullable: true },
+          quantity: { type: "string", example: "10.0000" },
+          movementType: { type: "string", enum: ["RECEIPT", "DELIVERY", "TRANSFER", "ADJUSTMENT"], example: "RECEIPT" },
+          referenceType: { type: "string", enum: ["RECEIPT", "DELIVERY", "INTERNAL_TRANSFER", "INVENTORY_ADJUSTMENT"], example: "RECEIPT" },
+          referenceId: { type: "string", format: "uuid" },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
