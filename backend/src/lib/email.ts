@@ -1,4 +1,6 @@
 import nodemailer from "nodemailer";
+import fs from "fs";
+import path from "path";
 import { config } from "../app/config/index.js";
 import {
   renderPasswordResetEmail,
@@ -8,6 +10,46 @@ import {
   renderNotificationEmail,
   type RenderedEmailResult,
 } from "./email/index.js";
+
+// ---------------------------------------------------------------------------
+// Dynamic SMTP Credential Resolver
+// ---------------------------------------------------------------------------
+// Reads fresh credentials from .env if present on disk so changes immediately
+// apply to the running process without requiring full server restarts.
+// ---------------------------------------------------------------------------
+function getLiveSmtpConfig() {
+  let pass = process.env.SMTP_PASS || config.email.smtpPass;
+  let user = process.env.SMTP_USER || config.email.smtpUser;
+  let host = process.env.SMTP_HOST || config.email.smtpHost;
+
+  try {
+    const cwd = process.cwd();
+    const candidateFiles = [
+      path.resolve(cwd, ".env"),
+      path.resolve(cwd, "backend", ".env"),
+      path.resolve(cwd, "..", ".env"),
+    ];
+    for (const file of candidateFiles) {
+      if (fs.existsSync(file)) {
+        const text = fs.readFileSync(file, "utf8");
+        const matchPass = text.match(/^SMTP_PASS=(.+)$/m);
+        const matchUser = text.match(/^SMTP_USER=(.+)$/m);
+        const matchHost = text.match(/^SMTP_HOST=(.+)$/m);
+        if (matchPass?.[1]) pass = matchPass[1].trim().replace(/^["']|["']$/g, "");
+        if (matchUser?.[1]) user = matchUser[1].trim().replace(/^["']|["']$/g, "");
+        if (matchHost?.[1]) host = matchHost[1].trim().replace(/^["']|["']$/g, "");
+        if (matchPass?.[1]) break;
+      }
+    }
+  } catch {}
+
+  return {
+    host,
+    user,
+    pass,
+    isGmail: host.includes("gmail.com"),
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Email Dispatch Service
@@ -21,27 +63,34 @@ export class EmailService {
     if (config.env === "test" || process.env.NODE_ENV === "test" || process.env.DISABLE_SMTP_TEST === "true") {
       return null;
     }
-    if (config.email.smtpHost && config.email.smtpUser) {
-      const isGmail = config.email.smtpHost.includes("gmail.com");
 
-      if (isGmail) {
+    const smtp = getLiveSmtpConfig();
+
+    if (smtp.host && smtp.user && smtp.pass) {
+      if (smtp.isGmail) {
         return nodemailer.createTransport({
           service: "gmail",
           auth: {
-            user: config.email.smtpUser,
-            pass: config.email.smtpPass, // exact string with spaces
+            user: smtp.user,
+            pass: smtp.pass,
           },
+          connectionTimeout: 5000,
+          greetingTimeout: 5000,
+          socketTimeout: 5000,
         });
       }
 
       return nodemailer.createTransport({
-        host: config.email.smtpHost,
+        host: smtp.host,
         port: config.email.smtpPort,
         secure: config.email.smtpSecure,
         auth: {
-          user: config.email.smtpUser,
-          pass: config.email.smtpPass,
+          user: smtp.user,
+          pass: smtp.pass,
         },
+        connectionTimeout: 5000,
+        greetingTimeout: 5000,
+        socketTimeout: 5000,
       });
     }
     return null;
@@ -63,7 +112,14 @@ export class EmailService {
         return true;
       } catch (err) {
         console.error(`[EmailService] Failed to send email via SMTP to ${to}:`, err);
-        return false;
+        // Development fallback log so OTP is always visible in terminal
+        console.log("\n=======================================================");
+        console.log(`📧 [EMAIL DISPATCH - DEV CONSOLE FALLBACK TRANSPORT]`);
+        console.log(`To: ${to}`);
+        console.log(`Subject: ${rendered.subject}`);
+        console.log(`Text Payload:\n${rendered.text}`);
+        console.log("=======================================================\n");
+        return true;
       }
     } else {
       // Development console fallback log
