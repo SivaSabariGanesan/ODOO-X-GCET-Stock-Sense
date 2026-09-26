@@ -8,13 +8,10 @@ import {
   Printer,
   XCircle,
   Copy,
-  ChevronRight,
   Warehouse,
   History,
   Info,
   Check,
-  MapPin,
-  ArrowRight,
   Layers,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
@@ -27,6 +24,7 @@ import { cn } from '@/lib/cn'
 
 export function TransferDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
 
   const [transfer, setTransfer] = useState<Transfer | undefined>(

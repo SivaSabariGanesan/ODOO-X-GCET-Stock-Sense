@@ -34,11 +34,11 @@ export function TransferFormPage() {
   const catalog = getMockProducts()
 
   // ── Header State ──────────────────────────────────────────────────────────
-  const [sourceWarehouseId, setSourceWarehouseId] = useState(TRANSFER_WAREHOUSES[0].id)
-  const [sourceLocation, setSourceLocation] = useState(TRANSFER_WAREHOUSES[0].locations[0])
+  const [sourceWarehouseId, setSourceWarehouseId] = useState(TRANSFER_WAREHOUSES[0]!.id)
+  const [sourceLocation, setSourceLocation] = useState(TRANSFER_WAREHOUSES[0]!.locations[0]!)
 
-  const [destinationWarehouseId, setDestinationWarehouseId] = useState(TRANSFER_WAREHOUSES[1].id)
-  const [destinationLocation, setDestinationLocation] = useState(TRANSFER_WAREHOUSES[1].locations[0])
+  const [destinationWarehouseId, setDestinationWarehouseId] = useState(TRANSFER_WAREHOUSES[1]!.id)
+  const [destinationLocation, setDestinationLocation] = useState(TRANSFER_WAREHOUSES[1]!.locations[0]!)
 
   const [scheduledDate, setScheduledDate] = useState('Today, 16:00')
   const [notes, setNotes] = useState('')
@@ -56,15 +56,15 @@ export function TransferFormPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const activeSrcWh = TRANSFER_WAREHOUSES.find((w) => w.id === sourceWarehouseId) || TRANSFER_WAREHOUSES[0]
-  const activeDstWh = TRANSFER_WAREHOUSES.find((w) => w.id === destinationWarehouseId) || TRANSFER_WAREHOUSES[1]
+  const activeSrcWh = (TRANSFER_WAREHOUSES.find((w) => w.id === sourceWarehouseId) || TRANSFER_WAREHOUSES[0])!
+  const activeDstWh = (TRANSFER_WAREHOUSES.find((w) => w.id === destinationWarehouseId) || TRANSFER_WAREHOUSES[1])!
 
   // Handle warehouse changes and update default locations
   const handleSourceWarehouseChange = (whId: string) => {
     setSourceWarehouseId(whId)
     const wh = TRANSFER_WAREHOUSES.find((w) => w.id === whId)
     if (wh && wh.locations.length > 0) {
-      setSourceLocation(wh.locations[0])
+      setSourceLocation(wh.locations[0]!)
     }
   }
 
@@ -72,12 +72,12 @@ export function TransferFormPage() {
     setDestinationWarehouseId(whId)
     const wh = TRANSFER_WAREHOUSES.find((w) => w.id === whId)
     if (wh && wh.locations.length > 0) {
-      setDestinationLocation(wh.locations[0])
+      setDestinationLocation(wh.locations[0]!)
     }
   }
 
   const handleAddLine = () => {
-    const nextProd = catalog[lines.length % catalog.length] || catalog[0]
+    const nextProd = (catalog[lines.length % catalog.length] || catalog[0])!
     setLines((prev) => [
       ...prev,
       {

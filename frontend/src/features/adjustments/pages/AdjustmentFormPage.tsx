@@ -4,14 +4,11 @@ import {
   ArrowLeft,
   Save,
   CheckCircle2,
-  SlidersHorizontal,
-  Info,
   Package,
   MapPin,
   TrendingDown,
   TrendingUp,
   Minus,
-  AlertTriangle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -33,14 +30,15 @@ export function AdjustmentFormPage() {
 
   // Selected Product
   const [selectedProductId, setSelectedProductId] = useState(catalog[0]?.id || 'prod-001')
-  const activeProduct = catalog.find((p) => p.id === selectedProductId) || catalog[0]
+  const activeProduct = (catalog.find((p) => p.id === selectedProductId) || catalog[0])!
 
   // Warehouse & Location
-  const [warehouseId, setWarehouseId] = useState(ADJUSTMENT_WAREHOUSES[0].id)
-  const activeWarehouse =
+  const [warehouseId, setWarehouseId] = useState(ADJUSTMENT_WAREHOUSES[0]!.id)
+  const activeWarehouse = (
     ADJUSTMENT_WAREHOUSES.find((w) => w.id === warehouseId) || ADJUSTMENT_WAREHOUSES[0]
+  )!
 
-  const [location, setLocation] = useState(activeWarehouse.locations[0])
+  const [location, setLocation] = useState(activeWarehouse.locations[0]!)
 
   // Quantities
   // Initial system quantity is derived from product onHand or default
@@ -49,7 +47,7 @@ export function AdjustmentFormPage() {
     Math.max(0, (activeProduct.onHand || 100) - 3)
   )
 
-  const [reason, setReason] = useState<AdjustmentReason>(ADJUSTMENT_REASONS[0])
+  const [reason, setReason] = useState<AdjustmentReason>(ADJUSTMENT_REASONS[0]!)
   const [notes, setNotes] = useState('')
 
   // Confirmation Modal state
@@ -77,7 +75,7 @@ export function AdjustmentFormPage() {
     setWarehouseId(whId)
     const wh = ADJUSTMENT_WAREHOUSES.find((w) => w.id === whId)
     if (wh && wh.locations.length > 0) {
-      setLocation(wh.locations[0])
+      setLocation(wh.locations[0]!)
     }
   }
 

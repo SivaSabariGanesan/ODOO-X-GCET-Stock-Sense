@@ -277,7 +277,7 @@ export function getMockReceiptById(id: string): Receipt | undefined {
 export function createMockReceipt(input: CreateReceiptInput): Receipt {
   const nextNum = (receiptsStore.length + 144).toString().padStart(5, '0')
   const totalUnits = input.lines.reduce((acc, l) => acc + (Number(l.quantity) || 0), 0)
-  const warehouse = RECEIPT_WAREHOUSES.find((w) => w.id === input.warehouseId) || RECEIPT_WAREHOUSES[0]
+  const warehouse = (RECEIPT_WAREHOUSES.find((w) => w.id === input.warehouseId) || RECEIPT_WAREHOUSES[0])!
 
   const newReceipt: Receipt = {
     id: `rec-${Date.now().toString().slice(-4)}`,
@@ -290,7 +290,7 @@ export function createMockReceipt(input: CreateReceiptInput): Receipt {
     itemCount: input.lines.length,
     totalQuantity: totalUnits,
     scheduledDate: input.scheduledDate || 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    createdDate: new Date().toISOString().split('T')[0],
+    createdDate: new Date().toISOString().split('T')[0]!,
     status: input.status || 'draft',
     notes: input.notes,
     lines: input.lines.map((l, idx) => ({

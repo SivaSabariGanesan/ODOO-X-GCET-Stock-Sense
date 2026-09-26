@@ -3,13 +3,10 @@ import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowUpFromLine,
-  CheckCircle2,
   Clock,
   Printer,
   XCircle,
   Copy,
-  ChevronRight,
-  Warehouse,
   History,
   Check,
   PackageCheck,
@@ -26,6 +23,7 @@ import { cn } from '@/lib/cn'
 
 export function DeliveryDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
 
   const [delivery, setDelivery] = useState<Delivery | undefined>(

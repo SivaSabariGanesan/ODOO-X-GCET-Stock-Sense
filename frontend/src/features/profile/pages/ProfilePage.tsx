@@ -2,17 +2,12 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   User as UserIcon,
-  Mail,
-  Shield,
-  Warehouse,
   Key,
   LogOut,
   Save,
   CheckCircle2,
   Lock,
   Globe,
-  Smartphone,
-  AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useToast } from '@/context/ToastContext'
@@ -20,6 +15,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ConfirmationModal } from '@/components/common/ConfirmationModal'
+import { cn } from '@/lib/cn'
 
 export function ProfilePage() {
   const { user, logout, updateUser } = useAuth()

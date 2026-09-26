@@ -302,7 +302,7 @@ export function getMockDeliveryById(id: string): Delivery | undefined {
 export function createMockDelivery(input: CreateDeliveryInput): Delivery {
   const nextNum = (deliveriesStore.length + 292).toString().padStart(5, '0')
   const totalUnits = input.lines.reduce((acc, l) => acc + (Number(l.quantity) || 0), 0)
-  const warehouse = DELIVERY_WAREHOUSES.find((w) => w.id === input.warehouseId) || DELIVERY_WAREHOUSES[0]
+  const warehouse = (DELIVERY_WAREHOUSES.find((w) => w.id === input.warehouseId) || DELIVERY_WAREHOUSES[0])!
 
   const newDelivery: Delivery = {
     id: `del-${Date.now().toString().slice(-4)}`,
@@ -315,7 +315,7 @@ export function createMockDelivery(input: CreateDeliveryInput): Delivery {
     itemCount: input.lines.length,
     totalQuantity: totalUnits,
     scheduledDate: input.scheduledDate || 'Today, ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    createdDate: new Date().toISOString().split('T')[0],
+    createdDate: new Date().toISOString().split('T')[0]!,
     status: input.status || 'draft',
     isPicked: input.status === 'ready' || input.status === 'done',
     isPacked: input.status === 'done',

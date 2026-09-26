@@ -8,10 +8,7 @@ import {
   Printer,
   XCircle,
   Copy,
-  ChevronRight,
-  Warehouse,
   History,
-  AlertCircle,
   Check,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
@@ -24,6 +21,7 @@ import { cn } from '@/lib/cn'
 
 export function ReceiptDetailsPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const toast = useToast()
 
   const [receipt, setReceipt] = useState<Receipt | undefined>(
@@ -306,7 +304,6 @@ export function ReceiptDetailsPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {receipt.lines.map((line) => {
-                const isFullyReceived = line.receivedQuantity === line.quantity
 
                 return (
                   <tr key={line.id} className="hover:bg-slate-50/70 transition-colors">

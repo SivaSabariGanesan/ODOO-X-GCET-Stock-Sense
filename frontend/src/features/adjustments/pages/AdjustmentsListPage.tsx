@@ -13,7 +13,6 @@ import {
   TrendingDown,
   TrendingUp,
   Minus,
-  AlertTriangle,
   MapPin,
   Package,
 } from 'lucide-react'

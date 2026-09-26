@@ -1,11 +1,11 @@
 import { Search, X, RotateCcw } from 'lucide-react'
 import {
-  DashboardFiltersState,
   DOCUMENT_TYPE_OPTIONS,
   STATUS_OPTIONS,
   WAREHOUSE_OPTIONS,
   CATEGORY_OPTIONS,
 } from '../mockData'
+import { DashboardFiltersState } from '../types'
 import { cn } from '@/lib/cn'
 
 interface DashboardFiltersProps {

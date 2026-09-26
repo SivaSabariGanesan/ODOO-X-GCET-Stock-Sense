@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save, CheckCircle2, ArrowDownToLine, Package } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/context/ToastContext'
 import { SUPPLIERS, RECEIPT_WAREHOUSES, createMockReceipt } from '../mockReceipts'
 import { getMockProducts } from '@/features/products/mockProducts'
-import { cn } from '@/lib/cn'
+
 
 interface ProductLineForm {
   productId: string
@@ -23,13 +23,13 @@ export function ReceiptFormPage() {
   const catalog = getMockProducts()
 
   // ── Header State ──────────────────────────────────────────────────────────
-  const [supplier, setSupplier] = useState(SUPPLIERS[0])
+  const [supplier, setSupplier] = useState(SUPPLIERS[0]!)
   const [supplierReference, setSupplierReference] = useState('')
-  const [warehouseId, setWarehouseId] = useState(RECEIPT_WAREHOUSES[0].id)
+  const [warehouseId, setWarehouseId] = useState(RECEIPT_WAREHOUSES[0]!.id)
   const [scheduledDate, setScheduledDate] = useState('Today, 15:00')
   const [notes, setNotes] = useState('')
 
-  const activeWarehouse = RECEIPT_WAREHOUSES.find((w) => w.id === warehouseId) || RECEIPT_WAREHOUSES[0]
+  const activeWarehouse = (RECEIPT_WAREHOUSES.find((w) => w.id === warehouseId) || RECEIPT_WAREHOUSES[0])!
 
   // ── Lines State (Supports multiple product lines) ──────────────────────────
   const [lines, setLines] = useState<ProductLineForm[]>([
@@ -57,7 +57,7 @@ export function ReceiptFormPage() {
   }
 
   const handleAddLine = () => {
-    const nextProd = catalog[lines.length % catalog.length] || catalog[0]
+    const nextProd = (catalog[lines.length % catalog.length] || catalog[0])!
     setLines((prev) => [
       ...prev,
       {

@@ -1,7 +1,7 @@
 import { PlaceholderPage } from '@/components/common/PlaceholderPage'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { Badge } from '@/components/ui/Badge'
-import { User, Shield, Warehouse, Mail, Key } from 'lucide-react'
+import { Shield, Warehouse, Mail, Key } from 'lucide-react'
 
 export function DashboardPlaceholder() {
   return (

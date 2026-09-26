@@ -3,8 +3,8 @@ import { Loader2 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'link' | 'outline'
-  size?: 'sm' | 'md' | 'lg'
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'destructive' | 'link' | 'outline'
+  size?: 'xs' | 'sm' | 'md' | 'lg'
   isLoading?: boolean
   leftIcon?: React.ReactNode
   rightIcon?: React.ReactNode
@@ -26,6 +26,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ref
   ) => {
     const sizeClasses = {
+      xs: 'px-2 py-1 text-[11px] gap-1 rounded font-medium',
       sm: 'px-2.5 py-1.5 text-xs gap-1.5 rounded-md font-medium',
       md: 'px-3.5 py-2 text-sm gap-2 rounded-md font-medium',
       lg: 'px-4.5 py-2.5 text-base gap-2 rounded-md font-semibold',
@@ -41,6 +42,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ghost:
         'bg-transparent text-slate-600 hover:text-slate-900 hover:bg-slate-100/70 active:bg-slate-200/50',
       danger:
+        'bg-rose-600 text-white border border-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-2xs',
+      destructive:
         'bg-rose-600 text-white border border-rose-600 hover:bg-rose-700 active:bg-rose-800 shadow-2xs',
       link: 'bg-transparent text-brand hover:underline hover:text-brand-dark p-0 h-auto border-0 shadow-none font-normal',
     }[variant]

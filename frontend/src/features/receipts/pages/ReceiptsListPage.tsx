@@ -4,10 +4,8 @@ import {
   Search,
   Plus,
   ArrowDownToLine,
-  ChevronRight,
   RotateCcw,
   Eye,
-  CheckCircle2,
   Clock,
   X,
 } from 'lucide-react'
