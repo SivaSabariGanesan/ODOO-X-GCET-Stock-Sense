@@ -9,14 +9,16 @@
 // operation domain (receipts, deliveries, transfers, adjustments, movements).
 // ---------------------------------------------------------------------------
 
-export * from "./users.js";
-export * from "./password-reset-otps.js";
-export * from "./categories.js";
-export * from "./units-of-measure.js";
-export * from "./products.js";
-export * from "./warehouses.js";
-export * from "./locations.js";
-export * from "./reorder-rules.js";
-export * from "./stock-balances.js";
-export * from "./receipts.js";
-export * from "./receipt-items.js";
+export * from "./users";
+export * from "./password-reset-otps";
+export * from "./categories";
+export * from "./units-of-measure";
+export * from "./products";
+export * from "./warehouses";
+export * from "./locations";
+export * from "./reorder-rules";
+export * from "./stock-balances";
+export * from "./receipts";
+export * from "./receipt-items";
+export * from "./deliveries";
+export * from "./delivery-items";

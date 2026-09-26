@@ -5,16 +5,9 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { receipts } from "./receipts.js";
-import { products } from "./products.js";
-import { locations } from "./locations.js";
-
-// ---------------------------------------------------------------------------
-// receipt_items
-// ---------------------------------------------------------------------------
-// Line items contained within an incoming receipt.
-// Specifies product, destination location inside the warehouse, and quantity.
-// ---------------------------------------------------------------------------
+import { receipts } from "./receipts";
+import { products } from "./products";
+import { locations } from "./locations";
 
 export const receiptItems = pgTable(
   "receipt_items",

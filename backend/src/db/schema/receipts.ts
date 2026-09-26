@@ -6,19 +6,9 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { warehouses } from "./warehouses.js";
-import { locations } from "./locations.js";
-import { users } from "./users.js";
-
-// ---------------------------------------------------------------------------
-// receipts
-// ---------------------------------------------------------------------------
-// Header entity for incoming inventory receipts (Purchase Orders, vendor
-// deliveries, stock returns).
-//
-// receipt_number is the unique human-readable tracking identifier (e.g. "REC/2026/00001").
-// status lifecycle: DRAFT -> WAITING -> READY -> DONE | CANCELED
-// ---------------------------------------------------------------------------
+import { warehouses } from "./warehouses";
+import { locations } from "./locations";
+import { users } from "./users";
 
 export const receiptStatusEnum = [
   "DRAFT",

@@ -7,18 +7,7 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { users } from "./users.js";
-
-// ---------------------------------------------------------------------------
-// warehouses
-// ---------------------------------------------------------------------------
-// A warehouse is the top-level physical facility. Locations are nested inside
-// warehouses. A single deployment can manage multiple warehouses (e.g.
-// Main Warehouse, Cold Storage, Production Site).
-//
-// short_code is used as a human-readable prefix in location paths and
-// in picking/transfer references (e.g. "MWH/Rack A/Shelf 1").
-// ---------------------------------------------------------------------------
+import { users } from "./users";
 
 export const warehouses = pgTable(
   "warehouses",
@@ -30,7 +19,7 @@ export const warehouses = pgTable(
     shortCode: varchar("short_code", { length: 10 }).notNull().unique(),
     description: text("description"),
 
-    // Address (optional — useful for multi-site reporting)
+    // Address
     address: text("address"),
 
     // State

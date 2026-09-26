@@ -7,36 +7,21 @@ import {
   timestamp,
   index,
 } from "drizzle-orm/pg-core";
-import { categories } from "./categories.js";
-import { unitsOfMeasure } from "./units-of-measure.js";
-import { users } from "./users.js";
-
-// ---------------------------------------------------------------------------
-// products
-// ---------------------------------------------------------------------------
-// Core product master. Intentionally lean — only data that belongs to the
-// product itself, not to any operation (receipt, delivery, transfer).
-//
-// Stock quantity is NOT stored here. It lives in stock_balances
-// (product + location → quantity) and is maintained exclusively by the
-// inventory-operation domain (Person 2).
-//
-// SKU (stock-keeping unit) is the canonical human-readable unique identifier.
-// ---------------------------------------------------------------------------
+import { categories } from "./categories";
+import { unitsOfMeasure } from "./units-of-measure";
+import { users } from "./users";
 
 export const products = pgTable(
   "products",
   {
     id: uuid("id").primaryKey().defaultRandom(),
 
-    // Identity
     name: varchar("name", { length: 255 }).notNull(),
     sku: varchar("sku", { length: 100 }).notNull().unique(),
     description: text("description"),
 
-    // Classification
     categoryId: uuid("category_id").references(() => categories.id, {
-      onDelete: "restrict", // Don't silently orphan products
+      onDelete: "restrict",
     }),
     uomId: uuid("uom_id")
       .notNull()
@@ -44,14 +29,11 @@ export const products = pgTable(
         onDelete: "restrict",
       }),
 
-    // Physical / display attributes (optional metadata for picking/packing)
     barcode: varchar("barcode", { length: 100 }).unique(),
     imageUrl: text("image_url"),
 
-    // State — inactive products cannot be used in new operations
     isActive: boolean("is_active").notNull().default(true),
 
-    // Audit
     createdBy: uuid("created_by").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -59,7 +41,6 @@ export const products = pgTable(
       onDelete: "set null",
     }),
 
-    // Timestamps
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
