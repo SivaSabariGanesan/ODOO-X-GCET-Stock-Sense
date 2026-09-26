@@ -37,9 +37,9 @@ StockSense is a full-stack inventory management system built for multi-warehouse
 │       │   ├── dashboard/      # KPI cards, low stock, pending operations
 │       │   ├── products/       # Product catalog
 │       │   ├── receipts/       # Inbound receipts ← API integrated
-│       │   ├── deliveries/     # Outbound deliveries (mock)
+│       │   ├── deliveries/     # Outbound deliveries ← API integrated
 │       │   ├── transfers/      # Internal transfers (mock)
-│       │   ├── adjustments/    # Inventory adjustments (mock)
+│       │   ├── adjustments/    # Inventory adjustments ← API integrated
 │       │   └── moves/          # Stock movement history (mock)
 │       ├── hooks/              # Shared custom hooks
 │       ├── lib/
@@ -276,9 +276,9 @@ bun --cwd backend test --timeout 60000
 | Feature | Status |
 |---|---|
 | Receipts | ✅ Fully integrated (`api.ts`, `useReceipts`, `useReceipt`) |
-| Deliveries | 🔲 Mock data |
+| Deliveries | ✅ Fully integrated (`api.ts`, `useDeliveries`, `useDelivery`) |
 | Transfers | 🔲 Mock data |
-| Adjustments | 🔲 Mock data |
+| Adjustments | ✅ Fully integrated (`api.ts`, `useAdjustments`, `useAdjustment`) |
 | Products | 🔲 Mock data |
 | Dashboard | 🔲 Mock data |
 | Auth | 🔲 Mock (localStorage) |

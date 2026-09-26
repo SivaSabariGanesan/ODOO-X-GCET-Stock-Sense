@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react'
 import { User, AuthState } from '@/types/auth'
+import { apiClient } from '@/lib/apiClient'
+import { setAuthToken, clearAuthToken, getAuthToken } from '@/lib/apiClient'
 
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
 interface AuthContextType extends AuthState {
   login: (email: string, password?: string) => Promise<boolean>
   signup: (name: string, email: string, password?: string) => Promise<boolean>
@@ -12,38 +17,48 @@ interface AuthContextType extends AuthState {
   resetPassword: (password: string) => Promise<boolean>
 }
 
-const DEFAULT_USER: User = {
-  id: 'usr_01HXYZ789',
-  name: 'Alex Mercer',
-  email: 'alex.mercer@stocksense.io',
-  role: 'inventory_manager',
-  warehouseId: 'WH01',
-  warehouseName: 'Main Central Hub',
+// ---------------------------------------------------------------------------
+// Backend response shapes
+// ---------------------------------------------------------------------------
+interface LoginResponse {
+  user: User
+  token: string
 }
 
-const STORAGE_KEY = 'stocksense_mock_user'
+interface RegisterResponse {
+  user: User
+}
+
+// ---------------------------------------------------------------------------
+// Storage key for persisting user profile (NOT the JWT — that lives in apiClient)
+// ---------------------------------------------------------------------------
+const USER_STORAGE_KEY = 'stocksense_user'
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(() => {
     try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) {
-        return JSON.parse(stored) as User
-      }
-      // Initialize with default demo user for frictionless review
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_USER))
-      return DEFAULT_USER
+      const stored = localStorage.getItem(USER_STORAGE_KEY)
+      return stored ? (JSON.parse(stored) as User) : null
     } catch {
-      return DEFAULT_USER
+      return null
     }
   })
 
   const [isLoading, setIsLoading] = useState(false)
+
   const [pendingOtpEmail, setPendingOtpEmail] = useState<string | null>(() => {
-    return sessionStorage.getItem('stocksense_pending_email') || 'alex.mercer@stocksense.io'
+    return sessionStorage.getItem('stocksense_pending_email') || null
   })
+
+  // On mount: if we have a stored user but no token, clear the stale user
+  useEffect(() => {
+    if (user && !getAuthToken()) {
+      setUser(null)
+      localStorage.removeItem(USER_STORAGE_KEY)
+    }
+  }, [])
 
   useEffect(() => {
     if (pendingOtpEmail) {
@@ -53,89 +68,144 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pendingOtpEmail])
 
-  const login = async (email: string): Promise<boolean> => {
-    setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    const authenticatedUser: User = {
-      ...DEFAULT_USER,
-      email: email || DEFAULT_USER.email,
-    }
-    setUser(authenticatedUser)
+  // ---------------------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------------------
+  function persistUser(u: User) {
+    setUser(u)
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(authenticatedUser))
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(u))
     } catch {
-      // Ignore localStorage errors
+      // ignore
     }
-    setIsLoading(false)
-    return true
   }
 
-  const signup = async (name: string, email: string): Promise<boolean> => {
-    setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    const newUser: User = {
-      id: `usr_${Date.now()}`,
-      name,
-      email,
-      role: 'inventory_manager',
-      warehouseId: 'WH01',
-      warehouseName: 'Main Central Hub',
-    }
-    setUser(newUser)
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(newUser))
-    } catch {
-      // Ignore localStorage errors
-    }
-    setIsLoading(false)
-    return true
-  }
-
-  const logout = () => {
+  function clearUser() {
     setUser(null)
     try {
-      localStorage.removeItem(STORAGE_KEY)
+      localStorage.removeItem(USER_STORAGE_KEY)
     } catch {
-      // Ignore localStorage errors
+      // ignore
     }
   }
 
+  // ---------------------------------------------------------------------------
+  // Login — calls real backend, stores JWT via setAuthToken
+  // ---------------------------------------------------------------------------
+  const login = async (email: string, password?: string): Promise<boolean> => {
+    setIsLoading(true)
+    try {
+      const res = await apiClient.postPublic<LoginResponse>('/api/auth/login', {
+        email,
+        password,
+      })
+      setAuthToken(res.token)
+      persistUser(res.user)
+      return true
+    } catch (err) {
+      // Re-throw so the login page's catch block can show the error
+      throw err
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Signup — calls real backend register endpoint
+  // ---------------------------------------------------------------------------
+  const signup = async (name: string, email: string, password?: string): Promise<boolean> => {
+    setIsLoading(true)
+    try {
+      const res = await apiClient.postPublic<RegisterResponse>('/api/auth/register', {
+        name,
+        email,
+        password,
+      })
+      // After register, log them in automatically
+      persistUser(res.user)
+      // Get a token by logging in immediately
+      const loginRes = await apiClient.postPublic<LoginResponse>('/api/auth/login', {
+        email,
+        password,
+      })
+      setAuthToken(loginRes.token)
+      persistUser(loginRes.user)
+      return true
+    } catch {
+      return false
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Logout — clears token and user, calls backend logout
+  // ---------------------------------------------------------------------------
+  const logout = () => {
+    // Fire-and-forget backend logout (clears the httpOnly cookie)
+    apiClient.post('/api/auth/logout').catch(() => {})
+    clearAuthToken()
+    clearUser()
+  }
+
+  // ---------------------------------------------------------------------------
+  // Update user profile in context (for profile page saves)
+  // ---------------------------------------------------------------------------
   const updateUser = (data: Partial<User>) => {
     setUser((prev) => {
       if (!prev) return null
       const updated = { ...prev, ...data }
       try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
+        localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(updated))
       } catch {
-        // Ignore localStorage errors
+        // ignore
       }
       return updated
     })
   }
 
+  // ---------------------------------------------------------------------------
+  // OTP verification — calls real backend
+  // ---------------------------------------------------------------------------
   const verifyOtp = async (code: string): Promise<{ success: boolean; error?: string }> => {
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 700))
-    setIsLoading(false)
-    // Accept standard test code '123456' or any 6 digits that don't end in '00' for demo flexibility
-    if (code === '000000' || code === '999999') {
-      return { success: false, error: 'The code entered has expired or is invalid.' }
+    try {
+      await apiClient.postPublic('/api/auth/verify-otp', {
+        email: pendingOtpEmail,
+        otp: code,
+      })
+      return { success: true }
+    } catch (err: any) {
+      const message = err?.message || 'The code entered has expired or is invalid.'
+      return { success: false, error: message }
+    } finally {
+      setIsLoading(false)
     }
-    return { success: true }
   }
 
-  const resetPassword = async (): Promise<boolean> => {
+  // ---------------------------------------------------------------------------
+  // Reset password — calls real backend
+  // ---------------------------------------------------------------------------
+  const resetPassword = async (password: string): Promise<boolean> => {
     setIsLoading(true)
-    await new Promise((resolve) => setTimeout(resolve, 600))
-    setIsLoading(false)
-    return true
+    try {
+      await apiClient.postPublic('/api/auth/reset-password', {
+        email: pendingOtpEmail,
+        password,
+      })
+      return true
+    } catch {
+      return false
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: Boolean(user),
+        isAuthenticated: Boolean(user) && Boolean(getAuthToken()),
         isLoading,
         login,
         signup,
