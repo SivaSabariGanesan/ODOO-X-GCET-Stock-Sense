@@ -18,3 +18,5 @@ export * from "./warehouses.js";
 export * from "./locations.js";
 export * from "./reorder-rules.js";
 export * from "./stock-balances.js";
+export * from "./receipts.js";
+export * from "./receipt-items.js";
