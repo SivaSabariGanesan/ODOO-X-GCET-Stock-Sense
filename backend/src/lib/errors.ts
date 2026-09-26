@@ -156,9 +156,42 @@ export class DeliveryValidationError extends AppError {
 }
 
 export class InsufficientStockError extends AppError {
-  constructor(message = "Insufficient stock available for delivery") {
+  constructor(message = "Insufficient stock available") {
     super(message, 400);
     this.name = "InsufficientStockError";
   }
 }
+
+// ---------------------------------------------------------------------------
+// Internal Transfer Domain Errors
+// ---------------------------------------------------------------------------
+
+export class TransferNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Internal transfer with ID '${id}' was not found` : "Internal transfer not found", 404);
+    this.name = "TransferNotFoundError";
+  }
+}
+
+export class TransferItemNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Internal transfer item with ID '${id}' was not found` : "Internal transfer item not found", 404);
+    this.name = "TransferItemNotFoundError";
+  }
+}
+
+export class TransferLockedError extends AppError {
+  constructor(status: string) {
+    super(`Cannot modify internal transfer in '${status}' state. Completed or cancelled transfers are locked from editing.`, 400);
+    this.name = "TransferLockedError";
+  }
+}
+
+export class TransferValidationError extends AppError {
+  constructor(message: string, errors: string[]) {
+    super(message, 400, errors);
+    this.name = "TransferValidationError";
+  }
+}
+
 

@@ -4,13 +4,14 @@ import { stockMovements } from "../../db/schema/stock-movements";
 import { products } from "../../db/schema/products";
 import { locations } from "../../db/schema/locations";
 import { eq, and, sql } from "drizzle-orm";
-import { ReceiveStockInput, DeliverStockInput } from "./types";
+import { ReceiveStockInput, DeliverStockInput, TransferStockInput } from "./types";
 import {
   ProductNotFoundError,
   LocationNotFoundError,
   InsufficientStockError,
   AppError,
 } from "../../lib/errors";
+
 
 export class InventoryService {
   /**
@@ -195,5 +196,145 @@ export class InventoryService {
       });
     }
   }
+
+  /**
+   * Authoritative Inventory Method: Transfers stock between internal locations.
+   * Decreases stock balance at source location, increases stock balance at
+   * destination location (upsert), and logs an immutable stock movement record.
+   * Throws InsufficientStockError if source stock < requested quantity.
+   */
+  static async transferStock(
+    input: TransferStockInput,
+    txContext?: any
+  ): Promise<void> {
+    const executor = txContext ?? db;
+
+    if (!input.items || input.items.length === 0) {
+      throw new AppError("No stock items provided for internal transfer", 400);
+    }
+
+    for (const item of input.items) {
+      const qtyNum = parseFloat(item.quantity.toString());
+      if (isNaN(qtyNum) || qtyNum <= 0) {
+        throw new AppError(`Invalid quantity '${item.quantity}' for stock transfer`, 400);
+      }
+
+      if (item.sourceLocationId === item.destinationLocationId) {
+        throw new AppError("Source location and destination location must be different", 400);
+      }
+
+      // 1. Verify Product existence
+      const [prod] = await executor
+        .select()
+        .from(products)
+        .where(eq(products.id, item.productId))
+        .limit(1);
+
+      if (!prod) {
+        throw new ProductNotFoundError(item.productId);
+      }
+
+      // 2. Verify Source Location existence
+      const [srcLoc] = await executor
+        .select()
+        .from(locations)
+        .where(eq(locations.id, item.sourceLocationId))
+        .limit(1);
+
+      if (!srcLoc) {
+        throw new LocationNotFoundError(item.sourceLocationId);
+      }
+
+      // 3. Verify Destination Location existence
+      const [destLoc] = await executor
+        .select()
+        .from(locations)
+        .where(eq(locations.id, item.destinationLocationId))
+        .limit(1);
+
+      if (!destLoc) {
+        throw new LocationNotFoundError(item.destinationLocationId);
+      }
+
+      // 4. Fetch Source Stock Balance & Check Availability
+      const [sourceBalance] = await executor
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, item.productId),
+            eq(stockBalances.locationId, item.sourceLocationId)
+          )
+        )
+        .limit(1);
+
+      const currentSourceQty = sourceBalance ? parseFloat(sourceBalance.quantity) : 0;
+
+      if (currentSourceQty < qtyNum) {
+        throw new InsufficientStockError(
+          `Insufficient stock for product '${prod.name}' at location '${srcLoc.name}'. Available: ${currentSourceQty}, Requested: ${qtyNum}`
+        );
+      }
+
+      // 5. Decrease Source Stock Balance
+      const updatedSourceQty = (currentSourceQty - qtyNum).toFixed(4);
+
+      await executor
+        .update(stockBalances)
+        .set({
+          quantity: updatedSourceQty,
+          lastMovedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(stockBalances.id, sourceBalance.id));
+
+      // 6. Increase Destination Stock Balance (Upsert)
+      const [destBalance] = await executor
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, item.productId),
+            eq(stockBalances.locationId, item.destinationLocationId)
+          )
+        )
+        .limit(1);
+
+      if (destBalance) {
+        const currentDestQty = parseFloat(destBalance.quantity);
+        const updatedDestQty = (currentDestQty + qtyNum).toFixed(4);
+
+        await executor
+          .update(stockBalances)
+          .set({
+            quantity: updatedDestQty,
+            lastMovedAt: new Date(),
+            updatedAt: new Date(),
+          })
+          .where(eq(stockBalances.id, destBalance.id));
+      } else {
+        await executor.insert(stockBalances).values({
+          productId: item.productId,
+          locationId: item.destinationLocationId,
+          quantity: qtyNum.toFixed(4),
+          reservedQuantity: "0.0000",
+          lastMovedAt: new Date(),
+        });
+      }
+
+      // 7. Log Immutable Stock Movement (Ledger Audit Record)
+      await executor.insert(stockMovements).values({
+        productId: item.productId,
+        sourceLocationId: item.sourceLocationId,
+        destinationLocationId: item.destinationLocationId,
+        quantity: qtyNum.toFixed(4),
+        movementType: input.movementType ?? "TRANSFER",
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+        createdBy: input.createdBy ?? null,
+      });
+    }
+  }
 }
+
 

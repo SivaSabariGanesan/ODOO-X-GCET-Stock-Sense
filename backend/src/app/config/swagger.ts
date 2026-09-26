@@ -112,6 +112,37 @@ export const openApiSpec = {
           },
         },
       },
+      InternalTransferItem: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          transferId: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          quantity: { type: "string", example: "25.0000" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      InternalTransfer: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          transferNumber: { type: "string", example: "INT/20260926/4819" },
+          notes: { type: "string", nullable: true },
+          sourceLocationId: { type: "string", format: "uuid" },
+          destinationLocationId: { type: "string", format: "uuid" },
+          status: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"], example: "DRAFT" },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          completedAt: { type: "string", format: "date-time", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          items: {
+            type: "array",
+            items: { $ref: "#/components/schemas/InternalTransferItem" },
+          },
+        },
+      },
+
       ErrorResponse: {
         type: "object",
         properties: {
@@ -620,6 +651,86 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/transfers": {
+      post: {
+        summary: "Create Internal Transfer",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: { "application/json": { schema: { $ref: "#/components/schemas/InternalTransfer" } } },
+        },
+        responses: {
+          201: { description: "Internal transfer created successfully" },
+          400: { description: "Validation error or same source/destination location" },
+        },
+      },
+      get: {
+        summary: "List Internal Transfers",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        responses: {
+          200: { description: "List of internal transfers" },
+        },
+      },
+    },
+    "/api/transfers/{id}": {
+      get: {
+        summary: "Get Internal Transfer by ID",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Internal transfer details" },
+          404: { description: "Internal transfer not found" },
+        },
+      },
+      patch: {
+        summary: "Update Internal Transfer Header",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Internal transfer updated successfully" },
+        },
+      },
+    },
+    "/api/transfers/{id}/validate": {
+      post: {
+        summary: "Validate Internal Transfer Document",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Internal transfer validated" },
+        },
+      },
+    },
+    "/api/transfers/{id}/process": {
+      post: {
+        summary: "Process Internal Transfer (Mutates Stock)",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Internal transfer processed and stock moved" },
+          400: { description: "Insufficient stock or invalid transfer" },
+          409: { description: "Transfer already completed" },
+        },
+      },
+    },
+    "/api/transfers/{id}/cancel": {
+      post: {
+        summary: "Cancel Internal Transfer",
+        tags: ["Internal Transfers"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Internal transfer cancelled" },
+        },
+      },
+    },
   },
 };
+
 

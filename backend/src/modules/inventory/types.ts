@@ -38,6 +38,22 @@ export interface DeliverStockInput {
   createdBy?: string | null;
 }
 
+export interface TransferStockItemInput {
+  productId: string;
+  sourceLocationId: string;
+  destinationLocationId: string;
+  quantity: string | number;
+  notes?: string | null;
+}
+
+export interface TransferStockInput {
+  items: TransferStockItemInput[];
+  referenceType: ReferenceType; // e.g. "INTERNAL_TRANSFER"
+  referenceId: string;          // e.g. transferId
+  movementType?: MovementType;  // Default: "TRANSFER"
+  createdBy?: string | null;
+}
+
 export interface StockBalanceDTO {
   id: string;
   productId: string;
@@ -46,4 +62,5 @@ export interface StockBalanceDTO {
   reservedQuantity: string;
   lastMovedAt: Date;
 }
+
 
