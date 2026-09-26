@@ -9,10 +9,22 @@ import {
 } from '@/features/auth'
 import { DashboardPage } from '@/features/dashboard'
 import {
+  ProductsListPage,
+  ProductFormPage,
+  ProductDetailsPage,
+} from '@/features/products'
+import {
+  ReceiptsListPage,
+  ReceiptFormPage,
+  ReceiptDetailsPage,
+} from '@/features/receipts'
+import {
+  DeliveriesListPage,
+  DeliveryFormPage,
+  DeliveryDetailsPage,
+} from '@/features/deliveries'
+import {
   DashboardPlaceholder,
-  ProductsPlaceholder,
-  ReceiptsPlaceholder,
-  DeliveriesPlaceholder,
   TransfersPlaceholder,
   AdjustmentsPlaceholder,
   HistoryPlaceholder,
@@ -58,7 +70,24 @@ export const router = createBrowserRouter([
       },
       {
         path: 'products',
-        element: <ProductsPlaceholder />,
+        children: [
+          {
+            index: true,
+            element: <ProductsListPage />,
+          },
+          {
+            path: 'new',
+            element: <ProductFormPage />,
+          },
+          {
+            path: ':id',
+            element: <ProductDetailsPage />,
+          },
+          {
+            path: ':id/edit',
+            element: <ProductFormPage isEdit />,
+          },
+        ],
       },
       {
         path: 'operations',
@@ -69,11 +98,37 @@ export const router = createBrowserRouter([
           },
           {
             path: 'receipts',
-            element: <ReceiptsPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <ReceiptsListPage />,
+              },
+              {
+                path: 'new',
+                element: <ReceiptFormPage />,
+              },
+              {
+                path: ':id',
+                element: <ReceiptDetailsPage />,
+              },
+            ],
           },
           {
             path: 'deliveries',
-            element: <DeliveriesPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <DeliveriesListPage />,
+              },
+              {
+                path: 'new',
+                element: <DeliveryFormPage />,
+              },
+              {
+                path: ':id',
+                element: <DeliveryDetailsPage />,
+              },
+            ],
           },
           {
             path: 'transfers',

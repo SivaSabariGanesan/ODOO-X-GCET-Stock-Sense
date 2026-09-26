@@ -111,7 +111,16 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         history: 'Move History',
       }
       if (segments[1] && opNames[segments[1]]) {
-        crumbs.push({ label: opNames[segments[1]] })
+        const hasSub = Boolean(segments[2])
+        crumbs.push({
+          label: opNames[segments[1]],
+          href: hasSub ? `/operations/${segments[1]}` : undefined,
+        })
+        if (segments[2] === 'new') {
+          crumbs.push({ label: segments[1] === 'receipts' ? 'New Receipt' : 'New Delivery' })
+        } else if (segments[2]) {
+          crumbs.push({ label: segments[1] === 'receipts' ? 'Receipt Details' : 'Delivery Details' })
+        }
       }
     } else if (segments[0] === 'settings') {
       crumbs.push({ label: 'Settings', href: '/settings/warehouses' })
@@ -119,7 +128,15 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         crumbs.push({ label: 'Warehouses' })
       }
     } else if (segments[0] === 'products') {
-      crumbs.push({ label: 'Products' })
+      crumbs.push({ label: 'Products', href: segments.length > 1 ? '/products' : undefined })
+      if (segments[1] === 'new') {
+        crumbs.push({ label: 'New Product' })
+      } else if (segments[1] && segments[2] === 'edit') {
+        crumbs.push({ label: 'Product Details', href: `/products/${segments[1]}` })
+        crumbs.push({ label: 'Edit' })
+      } else if (segments[1]) {
+        crumbs.push({ label: 'Product Details' })
+      }
     } else if (segments[0] === 'profile') {
       crumbs.push({ label: 'User Profile' })
     }
