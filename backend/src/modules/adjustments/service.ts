@@ -10,6 +10,7 @@ import {
 import { locations } from "../../db/schema/locations";
 import { products } from "../../db/schema/products";
 import { InventoryService } from "../inventory/service";
+import { EventBus } from "../websocket/event-bus";
 import {
   CreateInventoryAdjustmentInput,
   UpdateInventoryAdjustmentInput,
@@ -696,7 +697,35 @@ export class AdjustmentService {
         .where(eq(inventoryAdjustments.id, id));
     });
 
-    // 7. Return complete updated adjustment details
-    return await this.getAdjustment(id);
+    // 7. Post-Commit WebSocket Event Publishing
+    try {
+      const updatedAdjustment = await this.getAdjustment(id);
+
+      EventBus.publish("stock.adjusted", {
+        adjustmentId: id,
+        adjustmentNumber: updatedAdjustment.adjustmentNumber,
+        locationId: updatedAdjustment.locationId,
+        items: updatedAdjustment.items.map((i) => ({
+          productId: i.productId,
+          countedQuantity: i.countedQuantity,
+          previousQuantity: i.systemQuantity,
+          difference: i.difference,
+        })),
+        processedBy: processedByUserId,
+        timestamp: new Date().toISOString(),
+      });
+
+      EventBus.publish("inventory.updated", {
+        operationType: "ADJUSTMENT",
+        operationId: id,
+        locationId: updatedAdjustment.locationId,
+        timestamp: new Date().toISOString(),
+      });
+
+      return updatedAdjustment;
+    } catch (err) {
+      console.error(`[WebSocket] Post-commit adjustment broadcast error:`, err);
+      return await this.getAdjustment(id);
+    }
   }
 }

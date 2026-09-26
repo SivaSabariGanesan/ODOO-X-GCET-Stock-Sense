@@ -3,6 +3,7 @@ import { deliveries } from "../../db/schema/deliveries";
 import { deliveryItems } from "../../db/schema/delivery-items";
 import { DeliveryCoreService } from "./service";
 import { InventoryService } from "../inventory/service";
+import { EventBus } from "../websocket/event-bus";
 import { DeliveryWithDetails } from "./types";
 import {
   DeliveryNotFoundError,
@@ -113,7 +114,34 @@ export class DeliveryProcessingService {
         .where(eq(deliveries.id, deliveryId));
     });
 
-    // 7. Return complete updated delivery details
-    return await DeliveryCoreService.getDelivery(deliveryId);
+    // 7. Post-Commit WebSocket Event Publishing
+    try {
+      const updatedDelivery = await DeliveryCoreService.getDelivery(deliveryId);
+
+      EventBus.publish("stock.delivered", {
+        deliveryId,
+        deliveryNumber: updatedDelivery.deliveryNumber,
+        warehouseId: updatedDelivery.warehouseId,
+        items: updatedDelivery.items.map((i) => ({
+          productId: i.productId,
+          sourceLocationId: i.sourceLocationId,
+          quantity: i.quantity,
+        })),
+        processedBy: processedByUserId,
+        timestamp: new Date().toISOString(),
+      });
+
+      EventBus.publish("inventory.updated", {
+        operationType: "DELIVERY",
+        operationId: deliveryId,
+        warehouseId: updatedDelivery.warehouseId,
+        timestamp: new Date().toISOString(),
+      });
+
+      return updatedDelivery;
+    } catch (err) {
+      console.error(`[WebSocket] Post-commit delivery broadcast error:`, err);
+      return await DeliveryCoreService.getDelivery(deliveryId);
+    }
   }
 }

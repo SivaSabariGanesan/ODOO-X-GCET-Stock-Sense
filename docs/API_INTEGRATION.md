@@ -26,7 +26,7 @@
 | **Stock Ledger / Movements** | Implemented | `/api/stock-movements` | Immutable audit movement history queries with date/product/location filters. |
 | **Inventory Service** | Integrated | Handled in `/process` | Central orchestration engine linking operation processing to balance & ledger. |
 | **Dashboard** | Implemented | `/api/dashboard` | Read-only metrics: Summary, Stock breakdown, Low-Stock items, Movements, Warehouses. |
-| **WebSockets** | *Not Implemented* | N/A | Real-time push updates are **not implemented yet**. Use HTTP polling if needed. |
+| **WebSockets** | Implemented | `/ws` | Centralized real-time event broadcasting for stock updates, dashboard invalidation, low stock alerts, and role/room channels. |
 | **AI Features** | *Not Implemented* | N/A | AI-based demand forecasting is **not implemented yet**. |
 
 ---
@@ -815,6 +815,268 @@ export async function processReceipt(receiptId: string) {
 ## 10. Non-Existent & Unimplemented Features Note
 
 Member 3 should **NOT** implement integrations for the following features as they are **not currently implemented** on the backend:
-1. **WebSockets**: No live socket connections or `/ws` endpoints exist. Use HTTP GET polling for live metrics.
-2. **AI Forecasting**: No AI demand prediction APIs exist.
-3. **Purchase Order Generation**: Purchase Orders are handled via Receipts (`supplierName`).
+1. **AI Forecasting**: No AI demand prediction APIs exist.
+2. **Purchase Order Generation**: Purchase Orders are handled via Receipts (`supplierName`).
+
+---
+
+## 11. WebSocket Real-Time Communication API
+
+### 11.1 Connection URL & Transport
+- **URL**: `ws://localhost:3000/ws` (Local Dev) / `wss://api.stocksense.com/ws` (Production)
+- **Protocol**: Standard WebSockets (Bun + Hono native upgrade)
+
+---
+
+### 11.2 Authentication Mechanisms
+WebSocket connections require user authentication. Four mechanisms are supported during the handshake:
+
+1. **Query Parameter (Recommended for web clients)**:
+   ```text
+   ws://localhost:3000/ws?token=<YOUR_JWT_TOKEN>
+   ```
+2. **Authorization Header**:
+   ```text
+   Authorization: Bearer <YOUR_JWT_TOKEN>
+   ```
+3. **WebSocket Subprotocol Header**:
+   ```text
+   Sec-WebSocket-Protocol: bearer, <YOUR_JWT_TOKEN>
+   ```
+4. **HTTP-Only Cookie**:
+   The `stocksense_token` cookie (automatically sent by browsers during WebSocket upgrade requests).
+
+Unauthenticated connection attempts receive an **HTTP 401 Unauthorized** response and are immediately closed.
+
+---
+
+### 11.3 Client Connection Lifecycle
+```text
+Client Handshake (GET /ws?token=...)
+        │
+        ▼
+   Server Authenticates JWT
+        │
+        ├── Invalid Token → 401 Unauthorized (Closed)
+        │
+        ▼
+   Register Connection
+        │
+   Auto-subscribe Default Channels (all, inventory, dashboard, user:<id>, role:<role>)
+        │
+        ▼
+┌──────────────────────────────────────────────┐
+│ Interactive Event Stream                     │
+│  - Receive server push notifications          │
+│  - Send client ping: {"type": "ping"}         │
+│  - Subscribe/unsubscribe to channels          │
+└──────────────────────────────────────────────┘
+        │
+        ▼
+   Client Disconnect / Network Error
+        │
+        ▼
+   Server Cleanup (Remove from all channels & connection registry)
+```
+
+---
+
+### 11.4 Client-to-Server Messages
+Clients can send minimal JSON control frames to the server:
+
+#### 1. Heartbeat Ping
+```json
+{
+  "type": "ping"
+}
+```
+**Server Response**:
+```json
+{
+  "type": "pong"
+}
+```
+
+#### 2. Channel Subscription
+```json
+{
+  "type": "subscribe",
+  "channel": "warehouse:12345"
+}
+```
+
+#### 3. Channel Unsubscription
+```json
+{
+  "type": "unsubscribe",
+  "channel": "warehouse:12345"
+}
+```
+
+> **Security Guard**: Clients can **NEVER** publish business events (such as `inventory.updated` or `stock.received`) over WebSockets. Client attempts to publish unknown or business events trigger an `error` frame from the server.
+
+---
+
+### 11.5 Room / Channel Model & Permission Matrix
+
+| Channel Name | Description | Access Permission |
+| :--- | :--- | :--- |
+| `all` | Global system broadcasts | All authenticated users |
+| `inventory` | Real-time inventory mutations & stock alerts | All authenticated users |
+| `dashboard` | Lightweight dashboard state invalidation alerts | All authenticated users |
+| `warehouse:<id>` | Events scoped to specific warehouse | All authenticated users |
+| `location:<id>` | Events scoped to specific location | All authenticated users |
+| `user:<userId>` | Scoped private events for specific user | Authenticated user (`user.id` matching) |
+| `role:<role>` | Role-restricted streams (`role:admin`, `role:manager`, `role:staff`) | Verified user role (`user.role`) |
+| `admin` | Admin-only system alerts | Verified `admin` role required |
+
+> **Role Guard**: Subscribing to restricted channels (e.g. `admin` or `role:admin`) requires the user to hold the corresponding role. Unauthorized channel subscription attempts are rejected with a channel access error.
+
+---
+
+### 11.6 Server-to-Client Event Envelope
+All server events follow a unified, predictable JSON envelope format:
+
+```typescript
+interface EventEnvelope<T = any> {
+  type: string;        // Unique event type identifier
+  eventId: string;     // Unique event ID (evt_<timestamp>_<random>)
+  timestamp: string;   // ISO-8601 UTC string
+  data: T;             // Strongly typed payload
+}
+```
+
+Example JSON Payload:
+```json
+{
+  "type": "inventory.updated",
+  "eventId": "evt_1790415600000_a1b2c3d4",
+  "timestamp": "2026-09-26T10:00:00.000Z",
+  "data": {
+    "productId": "17600ff1-9576-401b-8bce-21061cc8ee1b",
+    "locationId": "28711aa2-0687-512c-9cdf-32172dd9ff2c",
+    "warehouseId": "0c817f25-8b9e-4e96-8499-369d5978b71e",
+    "totalQuantity": 450,
+    "changeQuantity": 50,
+    "movementType": "RECEIPT",
+    "reference": "REC-20260926-0001"
+  }
+}
+```
+
+---
+
+### 11.7 Event Contract Table
+
+| Event | Trigger | Default Target Channels | Payload Data Fields |
+| :--- | :--- | :--- | :--- |
+| `inventory.updated` | Published after any successful stock mutation | `inventory`, `dashboard`, `role:admin`, `role:manager` | `productId`, `locationId`, `warehouseId`, `totalQuantity`, `changeQuantity`, `movementType`, `reference` |
+| `stock.received` | Published post-commit when a Receipt document is processed | `inventory`, `dashboard` | `receiptId`, `receiptNumber`, `locationId`, `warehouseId`, `items` array (`productId`, `quantityReceived`), `processedAt` |
+| `stock.delivered` | Published post-commit when a Delivery document is processed | `inventory`, `dashboard` | `deliveryId`, `deliveryNumber`, `locationId`, `warehouseId`, `items` array (`productId`, `quantityDelivered`), `processedAt` |
+| `stock.transferred` | Published post-commit when an Internal Transfer is processed | `inventory`, `dashboard` | `transferId`, `transferNumber`, `sourceLocationId`, `destinationLocationId`, `items` array (`productId`, `quantityTransferred`), `processedAt` |
+| `stock.adjusted` | Published post-commit when an Inventory Adjustment is processed | `inventory`, `dashboard` | `adjustmentId`, `adjustmentNumber`, `locationId`, `items` array (`productId`, `previousQuantity`, `newQuantity`, `difference`), `processedAt` |
+| `inventory.low_stock` | Published post-commit when stock balance crosses reorder threshold | `inventory`, `dashboard`, `role:admin`, `role:manager` | `productId`, `locationId`, `currentQuantity`, `minQuantity`, `maxQuantity`, `reorderRuleId` |
+
+---
+
+### 11.8 Post-Commit Transaction Safety & Architecture
+
+```text
+               REST Request (POST /receipts/:id/process)
+                               │
+                               ▼
+                       InventoryService
+                               │
+                       BEGIN TRANSACTION
+                        ├── StockBalanceService (Update counts)
+                        └── StockLedgerService (Audit movement)
+                       COMMIT TRANSACTION
+                               │
+             ┌─────────────────┴─────────────────┐
+             ▼ (Transaction SUCCESS)             ▼ (Transaction ROLLBACK)
+    EventBus.publish(...)                   NO WS EVENT PUBLISHED
+             │
+     ConnectionManager
+             │
+     WebSocket Clients
+```
+
+1. **Transaction Guarantee**: WebSockets publish events **ONLY AFTER** PostgreSQL database transactions successfully commit.
+2. **Rollback Guarantee**: If a database transaction fails or rolls back, zero WebSocket events are published.
+3. **Fault Tolerance**: If WebSocket broadcasting fails (e.g., disconnected socket), the database transaction remains committed and intact. WebSocket errors never roll back committed inventory data.
+
+---
+
+### 11.9 Reconnection & Missed Events Strategy (Member 3 Guidance)
+
+- **Notification-Only Strategy**: WebSockets in StockSense serve as **real-time notification triggers**, NOT the primary source of truth.
+- **Frontend Reconnection Flow**:
+  1. Frontend loses connection → automatically attempts WebSocket reconnect with token.
+  2. Upon successful reconnect & handshake, the frontend MUST immediately execute authoritative REST queries:
+     - `GET /api/dashboard/summary`
+     - `GET /api/stock-balances`
+  3. Resume processing incoming WebSocket notifications.
+
+This pattern guarantees zero stale data state even after extended network outages.
+
+---
+
+### 11.10 Frontend Integration Code Example (React / Vanilla JS)
+
+```typescript
+// stock-ws-client.ts
+export class StockSenseWS {
+  private socket: WebSocket | null = null;
+
+  connect(token: string) {
+    const wsUrl = `ws://localhost:3000/ws?token=${encodeURIComponent(token)}`;
+    this.socket = new WebSocket(wsUrl);
+
+    this.socket.onopen = () => {
+      console.log("[StockSense WS] Connected successfully");
+      // Subscribe to specific warehouse channel if needed
+      this.subscribe("warehouse:0c817f25-8b9e-4e96-8499-369d5978b71e");
+    };
+
+    this.socket.onmessage = (event) => {
+      try {
+        const envelope = JSON.parse(event.data);
+        console.log(`[StockSense WS] Received: ${envelope.type}`, envelope);
+
+        switch (envelope.type) {
+          case "inventory.updated":
+          case "stock.received":
+          case "stock.delivered":
+          case "stock.transferred":
+          case "stock.adjusted":
+            // Trigger REST refetch of affected view
+            window.dispatchEvent(new CustomEvent("stocksense:inventory-changed", { detail: envelope.data }));
+            break;
+
+          case "inventory.low_stock":
+            // Display toast notification to Manager/Admin
+            console.warn("Low Stock Alert!", envelope.data);
+            break;
+        }
+      } catch (err) {
+        console.error("Failed to parse WS message", err);
+      }
+    };
+
+    this.socket.onclose = () => {
+      console.warn("[StockSense WS] Disconnected. Reconnecting in 3s...");
+      setTimeout(() => this.connect(token), 3000);
+    };
+  }
+
+  subscribe(channel: string) {
+    if (this.socket?.readyState === WebSocket.OPEN) {
+      this.socket.send(JSON.stringify({ type: "subscribe", channel }));
+    }
+  }
+
+  disconnect() {
+    this.socket?.close();
+  }
+}
+```
