@@ -1,0 +1,404 @@
+/*
+ * StockSense — Tailwind Entry Point
+ * ===================================
+ * Load order:
+ *   1. globals.css  — CSS custom properties, font import, base resets
+ *   2. Tailwind     — utility layer
+ *
+ * Import this file once in main.tsx:
+ *   import '@/styles/index.css'
+ */
+
+@import './globals.css';
+
+/* ── Tailwind Directives ───────────────────────────────────────────────────── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+/* ── Tailwind Base Layer Overrides ───────────────────────────────────────── */
+/*
+ * These @layer base rules extend Tailwind's Preflight with Odoo-specific
+ * base styles. They use @apply so they stay consistent with the config tokens.
+ */
+@layer base {
+  html {
+    @apply text-base antialiased;
+  }
+
+  body {
+    @apply bg-app text-gray-700 font-sans;
+  }
+
+  h1 { @apply text-display font-heading; }
+  h2 { @apply text-heading font-heading; }
+  h3 { @apply text-subhead font-heading; }
+  h4 { @apply text-base font-medium font-heading; }
+  h5 { @apply text-sm font-medium font-heading; }
+  h6 { @apply text-xs font-medium font-heading; }
+
+  a {
+    @apply text-brand-dark transition-colors duration-150;
+  }
+  a:hover {
+    @apply text-brand;
+  }
+
+  code, kbd, samp {
+    @apply font-mono text-code;
+  }
+
+  /* Focus ring — keyboard navigation */
+  :focus-visible {
+    @apply outline-none ring-2 ring-brand ring-offset-1;
+  }
+}
+
+
+/* ── Component Layer ─────────────────────────────────────────────────────── */
+/*
+ * Reusable component classes built from Tailwind utilities.
+ * Prefer these over raw utility chains in JSX for maintainability.
+ * Component-specific variants live in the component files themselves.
+ */
+@layer components {
+
+  /* ── Buttons ──────────────────────────────────────────────────────────── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5
+           rounded text-base font-medium
+           transition-colors duration-150
+           cursor-pointer select-none
+           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand focus-visible:ring-offset-1;
+  }
+
+  /* Sizes */
+  .btn-sm   { @apply px-2 py-0.5 text-xs; }
+  .btn-md   { @apply px-3.5 py-1.5 text-base; }  /* default */
+  .btn-lg   { @apply px-5 py-2 text-touch; }
+
+  /* Variants — mirror Odoo's $o-btns-bs-override map */
+  .btn-primary {
+    @apply bg-brand text-white border border-brand
+           hover:bg-brand-dark hover:border-brand-dark
+           active:bg-brand-dark;
+  }
+
+  .btn-secondary {
+    @apply bg-gray-300 text-gray-800 border border-gray-300
+           hover:bg-gray-400 hover:border-gray-400
+           active:bg-gray-300;
+  }
+
+  .btn-ghost {
+    @apply bg-transparent text-brand border border-brand
+           hover:bg-brand-light
+           active:bg-brand-light;
+  }
+
+  .btn-danger {
+    @apply bg-danger-DEFAULT text-white border border-danger-DEFAULT
+           hover:opacity-90
+           active:opacity-80;
+  }
+
+  .btn-link {
+    @apply bg-transparent border-0 text-brand underline-offset-2
+           hover:underline hover:text-brand-dark p-0;
+  }
+
+  /* Disabled state — $o-opacity-disabled */
+  .btn:disabled,
+  .btn[aria-disabled="true"] {
+    @apply opacity-disabled pointer-events-none;
+  }
+
+
+  /* ── Form Fields ──────────────────────────────────────────────────────── */
+
+  .field-label {
+    /* 14px × $o-label-font-size-factor (0.8) = 11.2px */
+    @apply block text-label font-medium text-gray-600 mb-0.5;
+  }
+
+  .input {
+    /* $o-input-padding-y: 2px · $o-input-padding-x: 4px */
+    @apply w-full py-0.5 px-1
+           text-base text-gray-700
+           bg-view border border-gray-300 rounded
+           transition-colors duration-150
+           focus:outline-none focus:border-brand focus:shadow-focus
+           placeholder:text-gray-400;
+  }
+
+  .input-required {
+    /* $o-input-border-required: $o-brand-primary */
+    @apply border-brand;
+  }
+
+  .input-error {
+    @apply border-danger-DEFAULT focus:border-danger-DEFAULT focus:shadow-none;
+  }
+
+  .field-error {
+    @apply text-xs text-danger-text mt-0.5;
+  }
+
+  .field-hint {
+    @apply text-xs text-gray-500 mt-0.5;
+  }
+
+  textarea.input {
+    @apply resize-y min-h-[80px];
+  }
+
+  select.input {
+    @apply pr-8 appearance-none bg-no-repeat bg-right;
+    /* Caret — matches Odoo's $o-caret-down inline SVG */
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='7' height='4' viewBox='0 0 7 4'%3E%3Cpolygon fill='%23495057' points='3.5 4 7 0 0 0'/%3E%3C/svg%3E");
+    background-position: right 8px center;
+  }
+
+
+  /* ── Cards ────────────────────────────────────────────────────────────── */
+  .card {
+    @apply bg-view border border-gray-200 rounded shadow-sm;
+  }
+
+  .card-body {
+    @apply p-4;
+  }
+
+  .card-header {
+    @apply px-4 py-3 border-b border-gray-200 font-medium text-gray-900;
+  }
+
+  .card-footer {
+    @apply px-4 py-3 border-t border-gray-200;
+  }
+
+
+  /* ── KPI / Stat Card — mirrors Odoo's stat button ($o-statbutton-height: 44px) */
+  .stat-card {
+    @apply bg-view border border-gray-300 rounded
+           px-2.5 py-1.5 min-h-statbtn
+           flex flex-col justify-center
+           hover:shadow-md transition-shadow duration-150
+           cursor-default;
+  }
+
+  .stat-label {
+    @apply text-xs font-medium text-gray-600 uppercase tracking-wide leading-none;
+  }
+
+  .stat-value {
+    @apply text-xl font-semibold text-gray-900 font-mono leading-tight;
+  }
+
+  .stat-trend-up   { @apply text-xs text-success-text; }
+  .stat-trend-down { @apply text-xs text-danger-text; }
+
+
+  /* ── Status Badges ────────────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5
+           rounded-full text-xs font-medium leading-none;
+  }
+
+  .badge-draft     { @apply bg-gray-100 text-gray-600; }
+  .badge-confirmed { @apply bg-info-bg text-info-text; }
+  .badge-ready     { @apply bg-warning-bg text-warning-text; }
+  .badge-done      { @apply bg-success-bg text-success-text; }
+  .badge-cancelled { @apply bg-danger-bg text-danger-text; }
+
+
+  /* ── Data Table ───────────────────────────────────────────────────────── */
+  .table-container {
+    @apply overflow-x-auto border border-gray-200 rounded;
+  }
+
+  .data-table {
+    @apply w-full text-sm border-collapse;
+  }
+
+  .data-table thead tr {
+    @apply bg-gray-100;
+  }
+
+  .data-table th {
+    @apply px-3 py-1.5 text-left
+           text-xs font-semibold text-gray-600
+           uppercase tracking-wide
+           border-b border-gray-200
+           whitespace-nowrap;
+  }
+
+  .data-table td {
+    @apply px-3 py-1.5 text-gray-700 border-b border-gray-200;
+  }
+
+  .data-table tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .data-table tbody tr:hover td {
+    @apply bg-gray-100;
+  }
+
+  .data-table tbody tr.selected td {
+    @apply bg-brand-light;
+  }
+
+  /* Monospace cell — quantities, SKUs, references, lot numbers */
+  .td-mono {
+    @apply font-mono text-xs;
+  }
+
+
+  /* ── Sidebar Navigation ───────────────────────────────────────────────── */
+  .sidebar {
+    @apply bg-sidebar border-r border-gray-200
+           flex flex-col w-sidebar shrink-0;
+  }
+
+  .nav-section-label {
+    @apply px-4 pt-4 pb-1
+           text-xs font-semibold text-gray-500
+           uppercase tracking-widest;
+  }
+
+  .nav-item {
+    @apply flex items-center gap-3
+           px-4 py-2 mx-2 rounded
+           text-base text-gray-700
+           transition-colors duration-100
+           cursor-pointer select-none;
+  }
+
+  .nav-item:hover {
+    @apply bg-gray-200 text-gray-900;
+  }
+
+  .nav-item.active {
+    @apply bg-brand-light text-brand font-medium;
+  }
+
+  .nav-item svg {
+    @apply shrink-0 text-current;
+    width: 16px;
+    height: 16px;
+  }
+
+
+  /* ── Dropdown ─────────────────────────────────────────────────────────── */
+  .dropdown-menu {
+    /* $o-dropdown-max-height: 70vh · $o-dropdown-hpadding: 20px */
+    @apply bg-view border border-gray-200 rounded shadow-lg
+           overflow-y-auto;
+    max-height: var(--dropdown-max-height);
+  }
+
+  .dropdown-item {
+    @apply flex items-center px-5 py-1.5
+           text-base text-gray-700
+           cursor-pointer
+           hover:bg-gray-100
+           transition-colors duration-100;
+  }
+
+  .dropdown-divider {
+    @apply border-t border-gray-200 my-1;
+  }
+
+
+  /* ── Modal ────────────────────────────────────────────────────────────── */
+  .modal-overlay {
+    @apply fixed inset-0 z-50
+           bg-black/50
+           flex items-center justify-center p-4;
+  }
+
+  .modal {
+    @apply bg-view rounded-lg shadow-xl
+           w-full
+           flex flex-col
+           animate-[fadeIn_200ms_ease-out];
+  }
+
+  .modal-sm { @apply max-w-modal-sm; }
+  .modal-md { @apply max-w-modal-md; }  /* $o-modal-md: 650px */
+  .modal-lg { @apply max-w-modal-lg; }  /* $o-modal-lg: 980px */
+
+  .modal-header {
+    @apply px-6 py-4 border-b border-gray-200
+           flex items-center justify-between;
+  }
+
+  .modal-body {
+    @apply px-6 py-4 overflow-y-auto;
+  }
+
+  .modal-footer {
+    @apply px-6 py-4 border-t border-gray-200
+           flex items-center justify-end gap-2;
+  }
+
+
+  /* ── Breadcrumb — $o-cp-breadcrumb-height: 30px ──────────────────────── */
+  .breadcrumb {
+    @apply flex items-center gap-1 text-sm text-gray-600;
+    height: var(--height-breadcrumb);
+  }
+
+  .breadcrumb-item {
+    @apply flex items-center gap-1;
+  }
+
+  .breadcrumb-item:last-child {
+    @apply text-gray-900 font-medium;
+  }
+
+  .breadcrumb-sep {
+    @apply text-gray-400 select-none;
+  }
+
+
+  /* ── Page Shell ───────────────────────────────────────────────────────── */
+  .page-layout {
+    @apply flex h-screen overflow-hidden bg-app;
+  }
+
+  .page-main {
+    @apply flex flex-col flex-1 overflow-hidden;
+  }
+
+  .page-topbar {
+    @apply flex items-center justify-between
+           px-4 py-2 bg-view border-b border-gray-200
+           shrink-0;
+  }
+
+  .page-content {
+    @apply flex-1 overflow-y-auto p-4;
+  }
+}
+
+
+/* ── Utility Layer Additions ─────────────────────────────────────────────── */
+@layer utilities {
+  /* Catch-attention animation — mirrors Odoo's .o_catch_attention */
+  .catch-attention {
+    animation: catchAttention 200ms ease infinite;
+  }
+
+  /* Monospace for data fields */
+  .font-data {
+    font-family: var(--font-mono);
+  }
+
+  /* Muted opacity — $o-opacity-muted: 0.76 */
+  .opacity-muted {
+    opacity: var(--opacity-muted);
+  }
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!--
+      StockSense — Inventory Management
+      Built on Odoo · React 18 + Tailwind CSS + TypeScript
+    -->
+    <title>StockSense</title>
+
+    <!-- Favicon (replace with actual asset) -->
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!--
+      Font preconnect — reduces latency for Google Fonts.
+      The actual @import is in globals.css; preconnect here
+      ensures the DNS + TLS handshake happens as early as possible.
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!--
+      Meta description for SEO / link previews
+    -->
+    <meta
+      name="description"
+      content="StockSense — Real-time inventory management powered by Odoo"
+    />
+
+    <!--
+      Theme color — matches $o-community-color (Odoo brand purple).
+      Controls browser chrome on mobile (address bar, task switcher).
+    -->
+    <meta name="theme-color" content="#71639e" />
+  </head>
+  <body>
+    <!--
+      React mounts here.
+      Background color set inline so there's no flash of white
+      before the CSS loads — matches --color-app-bg.
+    -->
+    <div id="root" style="background-color: #f0eeee; min-height: 100vh;"></div>
+
+    <!-- Vite entry point -->
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
