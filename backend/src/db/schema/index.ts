@@ -24,3 +24,6 @@ export * from "./deliveries";
 export * from "./delivery-items";
 export * from "./internal-transfers";
 export * from "./internal-transfer-items";
+export * from "./inventory-adjustments";
+export * from "./inventory-adjustment-items";
+export * from "./stock-movements";
