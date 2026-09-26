@@ -43,6 +43,7 @@ import { UomsListPage } from '@/features/uoms'
 import { ReorderingRulesListPage } from '@/features/reordering-rules'
 import { StockBalancesListPage } from '@/features/inventory'
 import { ProfilePage } from '@/features/profile'
+import { AiAssistantPage } from '@/features/ai'
 
 export const router = createBrowserRouter([
   // ── Authentication Routes ──────────────────────────────────────────────
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
       {
         path: 'dashboard',
         element: <DashboardPage />,
+      },
+      {
+        path: 'ai',
+        element: <AiAssistantPage />,
       },
       {
         path: 'products',

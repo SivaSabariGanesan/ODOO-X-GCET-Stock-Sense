@@ -17,6 +17,7 @@ import {
   ChevronDown,
   ChevronRight,
   X,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/cn'
 
@@ -190,6 +191,7 @@ export function Sidebar({
         {/* ── OVERVIEW ───────────────────────────────────────────────── */}
         <SectionLabel label="Overview" />
         <NavItem to="/dashboard" icon={LayoutDashboard} label="Dashboard" />
+        <NavItem to="/ai" icon={Sparkles} label="AI Copilot" tooltip="Grounded AI Assistant" />
 
         {/* ── INVENTORY ──────────────────────────────────────────────── */}
         <div className="pt-2">

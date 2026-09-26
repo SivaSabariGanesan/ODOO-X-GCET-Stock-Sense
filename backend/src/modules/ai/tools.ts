@@ -223,7 +223,7 @@ export const aiTools: Record<string, ToolDefinition> = {
         warehouseId: params.warehouseId,
         limit,
       });
-      return { total: res.pagination.totalItems, lowStockItems: res.data };
+      return { total: res.pagination?.total ?? res.data?.length ?? 0, lowStockItems: res.data ?? [] };
     },
   },
 
