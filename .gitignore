@@ -1,21 +1,110 @@
-# Dependencies
-node_modules
-.bun
+# =============================================================================
+# StockSense — .gitignore
+# Bun monorepo: frontend (React + Vite) + backend (Bun + Hono + Drizzle)
+# =============================================================================
 
-# Build outputs
-dist
-build
-.drizzle
-
-# Environment variables
+# -----------------------------------------------------------------------------
+# Environment variables — NEVER commit secrets
+# -----------------------------------------------------------------------------
 .env
 .env.local
+.env.*.local
+.env.development
+.env.staging
 .env.production
+# Keep .env.example — it documents required variables without exposing values
 
+# -----------------------------------------------------------------------------
+# Dependencies
+# -----------------------------------------------------------------------------
+node_modules/
+.bun/
+
+# -----------------------------------------------------------------------------
+# Bun
+# -----------------------------------------------------------------------------
+# bun.lock is intentionally TRACKED (equivalent to package-lock.json)
+# — do not add it here
+
+# -----------------------------------------------------------------------------
+# Build outputs
+# -----------------------------------------------------------------------------
+dist/
+build/
+out/
+
+# Backend compiled output
+backend/dist/
+
+# Frontend Vite build
+frontend/dist/
+
+# -----------------------------------------------------------------------------
+# Drizzle
+# -----------------------------------------------------------------------------
+# drizzle-kit generates a meta folder alongside SQL snapshots.
+# The hand-written migration SQL in src/db/migrations/ IS tracked.
+# The auto-generated drizzle/ snapshot folder is NOT (it can be regenerated).
+backend/drizzle/
+.drizzle/
+
+# -----------------------------------------------------------------------------
+# TypeScript
+# -----------------------------------------------------------------------------
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# -----------------------------------------------------------------------------
 # Logs
+# -----------------------------------------------------------------------------
 *.log
+*.log.*
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+bun-error.log*
+pnpm-debug.log*
 
-# OS / IDE
+# -----------------------------------------------------------------------------
+# OS artifacts
+# -----------------------------------------------------------------------------
 .DS_Store
-.vscode
-.idea
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# IDE / Editor
+# -----------------------------------------------------------------------------
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# -----------------------------------------------------------------------------
+# Testing
+# -----------------------------------------------------------------------------
+coverage/
+.nyc_output/
+*.lcov
+
+# -----------------------------------------------------------------------------
+# Misc
+# -----------------------------------------------------------------------------
+*.pem
+*.key
+*.cert
+.cache/
+.temp/
+.tmp/
