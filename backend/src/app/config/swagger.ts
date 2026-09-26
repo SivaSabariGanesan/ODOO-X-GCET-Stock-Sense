@@ -47,6 +47,39 @@ export const openApiSpec = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      ReceiptItem: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          receiptId: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          quantity: { type: "string", example: "10.5" },
+          unitPrice: { type: "string", nullable: true, example: "45.00" },
+          subtotal: { type: "string", nullable: true, example: "472.50" },
+          notes: { type: "string", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      Receipt: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          receiptNumber: { type: "string", example: "REC-2026-0001" },
+          supplierId: { type: "string", format: "uuid" },
+          warehouseId: { type: "string", format: "uuid" },
+          status: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"], example: "DRAFT" },
+          receiptDate: { type: "string", format: "date-time" },
+          notes: { type: "string", nullable: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          items: {
+            type: "array",
+            items: { $ref: "#/components/schemas/ReceiptItem" },
+          },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -313,6 +346,118 @@ export const openApiSpec = {
             },
           },
           400: { description: "Invalid OTP or weak password", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorResponse" } } } },
+        },
+      },
+    },
+    "/api/receipts": {
+      get: {
+        summary: "List Receipts",
+        tags: ["Receipt Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "status", in: "query", schema: { type: "string", enum: ["DRAFT", "WAITING", "READY", "DONE", "CANCELED"] } },
+          { name: "supplierId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "warehouseId", in: "query", schema: { type: "string", format: "uuid" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated receipts list",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/Receipt" } },
+                    meta: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      post: {
+        summary: "Create Receipt Document",
+        tags: ["Receipt Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["supplierId", "warehouseId"],
+                properties: {
+                  supplierId: { type: "string", format: "uuid" },
+                  warehouseId: { type: "string", format: "uuid" },
+                  receiptNumber: { type: "string" },
+                  receiptDate: { type: "string", format: "date-time" },
+                  notes: { type: "string" },
+                  items: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      required: ["productId", "quantity"],
+                      properties: {
+                        productId: { type: "string", format: "uuid" },
+                        quantity: { type: "number", minimum: 0.0001 },
+                        unitPrice: { type: "number", minimum: 0 },
+                        notes: { type: "string" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Receipt created", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Receipt" } } } } } },
+        },
+      },
+    },
+    "/api/receipts/{id}": {
+      get: {
+        summary: "Get Receipt by ID",
+        tags: ["Receipt Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Receipt details with items", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Receipt" } } } } } },
+          404: { description: "Receipt not found" },
+        },
+      },
+      patch: {
+        summary: "Update Receipt Header",
+        tags: ["Receipt Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Receipt header updated" },
+          400: { description: "Attempt to edit locked receipt (DONE or CANCELED)" },
+        },
+      },
+    },
+    "/api/receipts/{id}/cancel": {
+      post: {
+        summary: "Cancel Receipt Document",
+        tags: ["Receipt Core"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Receipt cancelled" },
+          400: { description: "Cannot cancel completed receipt" },
         },
       },
     },

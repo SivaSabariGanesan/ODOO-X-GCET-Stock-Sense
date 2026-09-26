@@ -62,3 +62,63 @@ export class TooManyOtpAttemptsError extends AppError {
     this.name = "TooManyOtpAttemptsError";
   }
 }
+
+// ---------------------------------------------------------------------------
+// Receipt Core Domain Errors
+// ---------------------------------------------------------------------------
+
+export class ReceiptNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Receipt with ID '${id}' was not found` : "Receipt not found", 404);
+    this.name = "ReceiptNotFoundError";
+  }
+}
+
+export class ReceiptItemNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Receipt item with ID '${id}' was not found` : "Receipt item not found", 404);
+    this.name = "ReceiptItemNotFoundError";
+  }
+}
+
+export class WarehouseNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Warehouse with ID '${id}' was not found` : "Warehouse not found", 404);
+    this.name = "WarehouseNotFoundError";
+  }
+}
+
+export class LocationNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Location with ID '${id}' was not found` : "Location not found", 404);
+    this.name = "LocationNotFoundError";
+  }
+}
+
+export class ProductNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Product with ID '${id}' was not found` : "Product not found", 404);
+    this.name = "ProductNotFoundError";
+  }
+}
+
+export class ReceiptLockedError extends AppError {
+  constructor(status: string) {
+    super(`Cannot modify receipt in '${status}' state. Completed or cancelled receipts are locked from editing.`, 400);
+    this.name = "ReceiptLockedError";
+  }
+}
+
+export class InvalidStatusTransitionError extends AppError {
+  constructor(fromStatus: string, toStatus: string) {
+    super(`Invalid status transition from '${fromStatus}' to '${toStatus}'`, 400);
+    this.name = "InvalidStatusTransitionError";
+  }
+}
+
+export class ReceiptValidationError extends AppError {
+  constructor(message: string, errors: string[]) {
+    super(message, 400, errors);
+    this.name = "ReceiptValidationError";
+  }
+}

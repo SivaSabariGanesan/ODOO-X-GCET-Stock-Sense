@@ -5,6 +5,7 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { config } from "../app/config";
 import { openApiSpec } from "../app/config/swagger";
 import authRouter from "../modules/auth/route";
+import receiptsRouter from "../modules/receipts/route";
 import { AppError } from "../lib/errors";
 
 const app = new Hono();
@@ -45,6 +46,7 @@ app.get("/ui", swaggerUI({ url: "/swagger.json" }));
 // API Route Modules
 // ---------------------------------------------------------------------------
 app.route("/api/auth", authRouter);
+app.route("/api/receipts", receiptsRouter);
 
 // ---------------------------------------------------------------------------
 // Global Error Handler
