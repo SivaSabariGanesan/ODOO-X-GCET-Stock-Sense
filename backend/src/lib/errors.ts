@@ -371,6 +371,31 @@ export class LocationWarehouseMoveError extends AppError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Reordering Rule Domain Errors
+// ---------------------------------------------------------------------------
+
+export class ReorderRuleNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Reordering rule with ID '${id}' was not found` : "Reordering rule not found", 404);
+    this.name = "ReorderRuleNotFoundError";
+  }
+}
+
+export class DuplicateReorderRuleError extends AppError {
+  constructor() {
+    super("A reordering rule for this product and location already exists", 409);
+    this.name = "DuplicateReorderRuleError";
+  }
+}
+
+export class InvalidReorderQuantityError extends AppError {
+  constructor(message = "Minimum quantity cannot be greater than maximum quantity") {
+    super(message, 400);
+    this.name = "InvalidReorderQuantityError";
+  }
+}
+
 
 
 

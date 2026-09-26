@@ -275,6 +275,29 @@ export const openApiSpec = {
           childrenCount: { type: "integer", nullable: true },
         },
       },
+      ReorderRule: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          locationId: { type: "string", format: "uuid" },
+          minQuantity: { type: "string", example: "50.0000" },
+          maxQuantity: { type: "string", nullable: true, example: "200.0000" },
+          reorderQty: { type: "string", example: "50.0000" },
+          isActive: { type: "boolean", example: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          updatedBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          productName: { type: "string", nullable: true },
+          productSku: { type: "string", nullable: true },
+          locationName: { type: "string", nullable: true },
+          locationFullPath: { type: "string", nullable: true },
+          warehouseId: { type: "string", format: "uuid", nullable: true },
+          warehouseName: { type: "string", nullable: true },
+          warehouseShortCode: { type: "string", nullable: true },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -1684,6 +1707,145 @@ export const openApiSpec = {
           },
           400: { description: "Cannot delete location with active child locations" },
           404: { description: "Location not found" },
+        },
+      },
+    },
+    "/api/reordering-rules": {
+      get: {
+        summary: "List Reordering Rules with Pagination & Filtering",
+        tags: ["Reordering Rules CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 10 } },
+          { name: "productId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by product ID" },
+          { name: "locationId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by location ID" },
+          { name: "warehouseId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by warehouse ID" },
+          { name: "search", in: "query", schema: { type: "string" }, description: "Search by product name/SKU or location name/path" },
+          { name: "isActive", in: "query", schema: { type: "string", enum: ["true", "false"] } },
+          { name: "sortBy", in: "query", schema: { type: "string", enum: ["minQuantity", "maxQuantity", "reorderQty", "createdAt"], default: "createdAt" } },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"], default: "desc" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of reordering rules",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/ReorderRule" } },
+                    pagination: {
+                      type: "object",
+                      properties: {
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        total: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "Invalid query parameters" },
+        },
+      },
+      post: {
+        summary: "Create New Reordering Rule",
+        tags: ["Reordering Rules CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["productId", "locationId"],
+                properties: {
+                  productId: { type: "string", format: "uuid", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" },
+                  locationId: { type: "string", format: "uuid", example: "3b7d4bad-9bdd-2b0d-7b3d-cb6d9b1deb4d" },
+                  minQuantity: { type: "number", example: 50, default: 0 },
+                  maxQuantity: { type: "number", nullable: true, example: 200 },
+                  reorderQty: { type: "number", example: 50, default: 1 },
+                  isActive: { type: "boolean", default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Reordering rule created successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/ReorderRule" } } } } } },
+          400: { description: "Validation error or invalid quantity threshold (min > max)" },
+          404: { description: "Product or Location not found" },
+          409: { description: "Duplicate reordering rule for this product and location" },
+        },
+      },
+    },
+    "/api/reordering-rules/{id}": {
+      get: {
+        summary: "Get Reordering Rule Details by ID",
+        tags: ["Reordering Rules CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Reordering rule details", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/ReorderRule" } } } } } },
+          404: { description: "Reordering rule not found" },
+        },
+      },
+      patch: {
+        summary: "Update Reordering Rule Record",
+        tags: ["Reordering Rules CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  productId: { type: "string", format: "uuid" },
+                  locationId: { type: "string", format: "uuid" },
+                  minQuantity: { type: "number" },
+                  maxQuantity: { type: "number", nullable: true },
+                  reorderQty: { type: "number" },
+                  isActive: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Reordering rule updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/ReorderRule" } } } } } },
+          400: { description: "Validation error or invalid quantity threshold (min > max)" },
+          404: { description: "Reordering rule, Product, or Location not found" },
+          409: { description: "Duplicate reordering rule for target product and location" },
+        },
+      },
+      delete: {
+        summary: "Delete Reordering Rule",
+        tags: ["Reordering Rules CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "Reordering rule deleted successfully",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    message: { type: "string" },
+                    mode: { type: "string", enum: ["deleted"] },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: "Reordering rule not found" },
         },
       },
     },
