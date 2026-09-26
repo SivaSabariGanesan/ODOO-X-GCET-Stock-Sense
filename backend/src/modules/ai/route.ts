@@ -1,17 +1,21 @@
 import { Hono } from "hono";
 import { z } from "zod";
 import { authMiddleware } from "../../app/middleware/auth.js";
+import { rateLimiter } from "../../app/middleware/rate-limiter.js";
 import { AiOrchestrator } from "./orchestrator.js";
 import { aiTools } from "./tools.js";
 import { AppError } from "../../lib/errors.js";
 
 const aiRouter = new Hono();
 
+// Rate limiter for AI chat requests (30 requests per minute per IP)
+const aiChatLimiter = rateLimiter({ windowMs: 60 * 1000, max: 30, keyPrefix: "ai-chat" });
+
 // Protect all AI endpoints with authMiddleware
 aiRouter.use("*", authMiddleware);
 
 const chatSchema = z.object({
-  message: z.string().min(1, "Message content is required"),
+  message: z.string().min(1, "Message content is required").max(2000, "Message content exceeds maximum length of 2000 characters"),
   conversationId: z.string().optional(),
   confirmAction: z.boolean().optional(),
 });
@@ -19,7 +23,7 @@ const chatSchema = z.object({
 // ---------------------------------------------------------------------------
 // POST /api/ai/chat - Process Grounded AI Assistant Messages
 // ---------------------------------------------------------------------------
-aiRouter.post("/chat", async (c) => {
+aiRouter.post("/chat", aiChatLimiter, async (c) => {
   const body = await c.req.json().catch(() => ({}));
   const parseResult = chatSchema.safeParse(body);
   if (!parseResult.success) {

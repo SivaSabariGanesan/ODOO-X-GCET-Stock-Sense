@@ -1,12 +1,12 @@
 import { Hono } from "hono";
-import { authMiddleware } from "../../app/middleware/auth.js";
-import { WarehouseService } from "./service.js";
+import { authMiddleware, requireRole } from "../../app/middleware/auth";
+import { WarehouseService } from "./service";
 import {
   createWarehouseSchema,
   updateWarehouseSchema,
   listWarehousesQuerySchema,
-} from "./schema.js";
-import { AppError } from "../../lib/errors.js";
+} from "./schema";
+import { AppError } from "../../lib/errors";
 
 const warehousesRouter = new Hono();
 
@@ -14,9 +14,9 @@ const warehousesRouter = new Hono();
 warehousesRouter.use("*", authMiddleware);
 
 // ---------------------------------------------------------------------------
-// POST /api/warehouses - Create Warehouse
+// POST /api/warehouses - Create Warehouse (Admin/Manager only)
 // ---------------------------------------------------------------------------
-warehousesRouter.post("/", async (c) => {
+warehousesRouter.post("/", requireRole("admin", "manager"), async (c) => {
   const body = await c.req.json();
   const parseResult = createWarehouseSchema.safeParse(body);
   if (!parseResult.success) {
@@ -57,9 +57,9 @@ warehousesRouter.get("/:id", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /api/warehouses/:id - Update Warehouse
+// PATCH /api/warehouses/:id - Update Warehouse (Admin/Manager only)
 // ---------------------------------------------------------------------------
-warehousesRouter.patch("/:id", async (c) => {
+warehousesRouter.patch("/:id", requireRole("admin", "manager"), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json();
   const parseResult = updateWarehouseSchema.safeParse(body);
@@ -75,9 +75,9 @@ warehousesRouter.patch("/:id", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /api/warehouses/:id - Delete or Deactivate Warehouse
+// DELETE /api/warehouses/:id - Delete or Deactivate Warehouse (Admin/Manager)
 // ---------------------------------------------------------------------------
-warehousesRouter.delete("/:id", async (c) => {
+warehousesRouter.delete("/:id", requireRole("admin", "manager"), async (c) => {
   const id = c.req.param("id");
   const result = await WarehouseService.deleteWarehouse(id);
   return c.json(result, 200);

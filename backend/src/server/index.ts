@@ -49,7 +49,32 @@ app.use("*", async (c, next) => {
 app.use("*", logger());
 
 // ---------------------------------------------------------------------------
-// 3. CORS Middleware (Production & Development Origins)
+// 3. Security Headers Middleware
+// ---------------------------------------------------------------------------
+app.use("*", async (c, next) => {
+  c.header("X-Content-Type-Options", "nosniff");
+  c.header("X-Frame-Options", "DENY");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header("X-XSS-Protection", "1; mode=block");
+  if (config.env === "production") {
+    c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  await next();
+});
+
+// ---------------------------------------------------------------------------
+// 4. Request Body Size Limit Safeguard (Max 10MB)
+// ---------------------------------------------------------------------------
+app.use("*", async (c, next) => {
+  const contentLength = c.req.header("content-length");
+  if (contentLength && parseInt(contentLength, 10) > 10 * 1024 * 1024) {
+    throw new AppError("Payload Too Large: Request body exceeds maximum limit of 10MB", 413);
+  }
+  await next();
+});
+
+// ---------------------------------------------------------------------------
+// 5. CORS Middleware (Production & Development Origins)
 // ---------------------------------------------------------------------------
 const defaultOrigins = [
   "http://localhost:5173",
@@ -63,9 +88,9 @@ app.use(
   "*",
   cors({
     origin: (origin) => {
-      if (!origin || allowedOrigins.includes(origin) || config.env === "development") {
-        return origin ?? "*";
-      }
+      if (!origin) return "*";
+      if (allowedOrigins.includes(origin)) return origin;
+      if (config.env === "development") return origin;
       return null;
     },
     credentials: true,

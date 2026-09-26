@@ -62,7 +62,7 @@ export class AuthService {
     // 2. Hash password securely with Argon2id
     const passwordHash = await Bun.password.hash(input.password, {
       algorithm: "argon2id",
-      memoryCost: 65536,
+      memoryCost: 19456,
       timeCost: 2,
     });
 

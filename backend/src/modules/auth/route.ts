@@ -9,15 +9,21 @@ import {
   resetPasswordSchema,
 } from "./schema";
 import { authMiddleware } from "../../app/middleware/auth";
+import { rateLimiter } from "../../app/middleware/rate-limiter";
 import { config } from "../../app/config";
 import { AppError } from "../../lib/errors";
 
 const authRouter = new Hono();
 
+// Sensitive endpoint rate limiters
+const loginLimiter = rateLimiter({ windowMs: 15 * 60 * 1000, max: 15, keyPrefix: "auth-login" });
+const registerLimiter = rateLimiter({ windowMs: 60 * 60 * 1000, max: 10, keyPrefix: "auth-register" });
+const otpLimiter = rateLimiter({ windowMs: 15 * 60 * 1000, max: 5, keyPrefix: "auth-otp" });
+
 // ---------------------------------------------------------------------------
 // POST /api/auth/register
 // ---------------------------------------------------------------------------
-authRouter.post("/register", async (c) => {
+authRouter.post("/register", registerLimiter, async (c) => {
   const body = await c.req.json().catch(() => {
     throw new AppError("Invalid JSON body", 400);
   });
@@ -34,7 +40,7 @@ authRouter.post("/register", async (c) => {
 // ---------------------------------------------------------------------------
 // POST /api/auth/login
 // ---------------------------------------------------------------------------
-authRouter.post("/login", async (c) => {
+authRouter.post("/login", loginLimiter, async (c) => {
   const body = await c.req.json().catch(() => {
     throw new AppError("Invalid JSON body", 400);
   });
@@ -79,7 +85,7 @@ authRouter.get("/me", authMiddleware, (c) => {
 // ---------------------------------------------------------------------------
 // POST /api/auth/forgot-password
 // ---------------------------------------------------------------------------
-authRouter.post("/forgot-password", async (c) => {
+authRouter.post("/forgot-password", otpLimiter, async (c) => {
   const body = await c.req.json().catch(() => {
     throw new AppError("Invalid JSON body", 400);
   });
@@ -96,7 +102,7 @@ authRouter.post("/forgot-password", async (c) => {
 // ---------------------------------------------------------------------------
 // POST /api/auth/verify-otp
 // ---------------------------------------------------------------------------
-authRouter.post("/verify-otp", async (c) => {
+authRouter.post("/verify-otp", otpLimiter, async (c) => {
   const body = await c.req.json().catch(() => {
     throw new AppError("Invalid JSON body", 400);
   });
@@ -113,7 +119,7 @@ authRouter.post("/verify-otp", async (c) => {
 // ---------------------------------------------------------------------------
 // POST /api/auth/reset-password
 // ---------------------------------------------------------------------------
-authRouter.post("/reset-password", async (c) => {
+authRouter.post("/reset-password", otpLimiter, async (c) => {
   const body = await c.req.json().catch(() => {
     throw new AppError("Invalid JSON body", 400);
   });
