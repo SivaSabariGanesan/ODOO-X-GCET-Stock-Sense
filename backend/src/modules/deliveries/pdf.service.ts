@@ -63,18 +63,51 @@ function hRule(
 }
 
 // ---------------------------------------------------------------------------
-// Helper: truncate text to fit a pixel budget (rough estimate by char count)
+// Helper: sanitize dynamic string to ASCII-safe WinAnsi encoding
 // ---------------------------------------------------------------------------
-function trunc(text: string, maxChars: number): string {
-  if (text.length <= maxChars) return text;
-  return text.slice(0, maxChars - 1) + "…";
+function sanitizePdfText(input: string | null | undefined): string {
+  if (!input) return "";
+  const trimmed = input.trim();
+  if (
+    trimmed === "\u03A9" ||
+    trimmed === "\u03A9:" ||
+    trimmed === "\u2211" ||
+    trimmed === "\u03A3"
+  ) {
+    return "Total Quantity";
+  }
+  return input
+    .replace(/\b\u03A9\b/g, "Total Quantity")
+    .replace(/([0-9]+)\s*\u03A9/g, "$1 Ohm")
+    .replace(/\u03A9/g, " Ohm")
+    .replace(/\u03C9/g, " ohm")
+    .replace(/\u03A3/g, "Total ")
+    .replace(/[\u2014\u2013]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u00B7\u2022]/g, "-")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/\u00D7/g, "x")
+    .replace(/\u00B1/g, "+/-")
+    .replace(/\u00B0/g, " deg")
+    .replace(/\u00B5/g, "u")
+    .replace(/[^\x20-\x7E\t\n\r]/g, "");
 }
 
 // ---------------------------------------------------------------------------
-// Helper: format an ISO date string into "Sep 26, 2026"
+// Helper: truncate text to fit a pixel budget (rough estimate by char count)
 // ---------------------------------------------------------------------------
-function fmtDate(iso: string | null | undefined): string {
-  if (!iso) return "—";
+function trunc(text: string, maxChars: number): string {
+  const safeText = sanitizePdfText(text);
+  if (safeText.length <= maxChars) return safeText;
+  return safeText.slice(0, Math.max(0, maxChars - 3)) + "...";
+}
+
+// ---------------------------------------------------------------------------
+// Helper: format an ISO date string or Date into "Sep 26, 2026"
+// ---------------------------------------------------------------------------
+function fmtDate(iso: string | Date | null | undefined): string {
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleDateString("en-US", {
       month: "short",
@@ -82,15 +115,15 @@ function fmtDate(iso: string | null | undefined): string {
       year: "numeric",
     });
   } catch {
-    return iso;
+    return sanitizePdfText(String(iso));
   }
 }
 
 // ---------------------------------------------------------------------------
-// Helper: format an ISO date string into "Sep 26, 2026, 10:45 AM"
+// Helper: format an ISO date string or Date into "Sep 26, 2026, 10:45 AM"
 // ---------------------------------------------------------------------------
-function fmtDateTime(iso: string | null | undefined): string {
-  if (!iso) return "—";
+function fmtDateTime(iso: string | Date | null | undefined): string {
+  if (!iso) return "-";
   try {
     return new Date(iso).toLocaleString("en-US", {
       month: "short",
@@ -100,7 +133,7 @@ function fmtDateTime(iso: string | null | undefined): string {
       minute: "2-digit",
     });
   } catch {
-    return iso;
+    return sanitizePdfText(String(iso));
   }
 }
 
@@ -157,7 +190,7 @@ export class DeliveryPdfService {
     });
 
     // Reference number (right-aligned)
-    const refText = delivery.deliveryNumber;
+    const refText = sanitizePdfText(delivery.deliveryNumber);
     const refW = fontMono.widthOfTextAtSize(refText, 10);
     page.drawText(refText, {
       x: PAGE_W - MARGIN - refW,
@@ -176,7 +209,7 @@ export class DeliveryPdfService {
     const badgeY = cursorY - STATUS_BADGE_H + 4;
 
     fillRect(page, badgeX, badgeY, STATUS_BADGE_W, STATUS_BADGE_H, EMERALD);
-    const statusLabel = delivery.status;
+    const statusLabel = sanitizePdfText(delivery.status);
     const statusLabelW = fontBold.widthOfTextAtSize(statusLabel, 7.5);
     page.drawText(statusLabel, {
       x: badgeX + (STATUS_BADGE_W - statusLabelW) / 2,
@@ -189,14 +222,14 @@ export class DeliveryPdfService {
     // ── 3. Metadata Grid (2-column key-value) ────────────────────────────
     // Left column
     const metaItems: Array<[string, string]> = [
-      ["Delivery Ref", delivery.deliveryNumber],
+      ["Delivery Ref", sanitizePdfText(delivery.deliveryNumber)],
       [
         "Customer",
         trunc(delivery.customerName || "Not specified", 40),
       ],
       [
         "Customer Ref (SO)",
-        trunc(delivery.customerReference || "—", 40),
+        trunc(delivery.customerReference || "-", 40),
       ],
       [
         "Warehouse",
@@ -217,12 +250,12 @@ export class DeliveryPdfService {
         ),
       ],
       ["Delivery Date", fmtDate(delivery.validatedAt || delivery.createdAt)],
-      ["Status", delivery.status],
+      ["Status", sanitizePdfText(delivery.status)],
       [
         "Processed By",
         delivery.creator
           ? trunc(`${delivery.creator.name} (${delivery.creator.email})`, 40)
-          : "—",
+          : "-",
       ],
     ];
 
@@ -355,7 +388,7 @@ export class DeliveryPdfService {
       totalQty += qty;
 
       const productName = trunc(item.product?.name || "Unknown Product", 36);
-      const sku = trunc(item.product?.sku || "—", 18);
+      const sku = trunc(item.product?.sku || "-", 18);
       const location = trunc(
         item.sourceLocation?.name ||
           item.sourceLocation?.fullPath ||
@@ -363,7 +396,7 @@ export class DeliveryPdfService {
           "Warehouse Stock",
         20
       );
-      const qtyStr = qty % 1 === 0 ? String(qty) : qty.toFixed(2);
+      const qtyStr = sanitizePdfText(qty % 1 === 0 ? String(qty) : qty.toFixed(2));
 
       const textY = rowY + 7;
 
@@ -416,9 +449,9 @@ export class DeliveryPdfService {
 
     // ── 6. Totals Row ─────────────────────────────────────────────────────
     const TOTAL_ROW_Y = cursorY;
-    fillRect(page, MARGIN, TOTAL_ROW_Y - 4, CONTENT_W, 22, rgb(0.235, 0.365, 0.902, ));
+    fillRect(page, MARGIN, TOTAL_ROW_Y - 4, CONTENT_W, 22, BRAND);
 
-    page.drawText("TOTAL UNITS DISPATCHED", {
+    page.drawText("Total Quantity", {
       x: MARGIN + CONTENT_W - 200,
       y: TOTAL_ROW_Y + 4,
       size: 8,
@@ -426,8 +459,9 @@ export class DeliveryPdfService {
       color: WHITE,
     });
 
-    const totalStr =
-      totalQty % 1 === 0 ? String(totalQty) : totalQty.toFixed(2);
+    const totalStr = sanitizePdfText(
+      totalQty % 1 === 0 ? String(totalQty) : totalQty.toFixed(2)
+    );
     const totalW = fontBold.widthOfTextAtSize(totalStr, 11);
     page.drawText(totalStr, {
       x: PAGE_W - MARGIN - totalW - 6,
@@ -455,7 +489,8 @@ export class DeliveryPdfService {
       cursorY -= 12;
 
       // Word-wrap notes into lines of ~100 chars
-      const noteWords = delivery.notes.trim().split(" ");
+      const safeNotes = sanitizePdfText(delivery.notes);
+      const noteWords = safeNotes.trim().split(" ");
       const noteLines: string[] = [];
       let currentLine = "";
       for (const word of noteWords) {
@@ -469,7 +504,7 @@ export class DeliveryPdfService {
       if (currentLine) noteLines.push(currentLine.trim());
 
       for (const noteLine of noteLines.slice(0, 4)) {
-        page.drawText(noteLine, {
+        page.drawText(sanitizePdfText(noteLine), {
           x: MARGIN + 4,
           y: cursorY,
           size: 8.5,
@@ -511,7 +546,7 @@ export class DeliveryPdfService {
     fillRect(page, 0, 0, PAGE_W, FOOTER_Y + 8, rgb(0.973, 0.976, 0.984));
 
     page.drawText(
-      `Generated: ${fmtDateTime(new Date().toISOString())}   ·   StockSense WMS   ·   ${delivery.deliveryNumber}`,
+      `Generated: ${fmtDateTime(new Date().toISOString())}   -   StockSense WMS   -   ${sanitizePdfText(delivery.deliveryNumber)}`,
       {
         x: MARGIN,
         y: FOOTER_Y - 4,
