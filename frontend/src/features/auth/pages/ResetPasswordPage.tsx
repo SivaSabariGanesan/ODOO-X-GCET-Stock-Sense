@@ -1,17 +1,21 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@/lib/zodResolver'
 import { Lock, CheckCircle2, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react'
 import { AuthLayout } from '../layouts/AuthLayout'
 import { resetPasswordSchema, ResetPasswordFormData } from '@/schemas/auth'
+import { zodResolver } from '@/lib/zodResolver'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { RecoveryStepper } from '../components/RecoveryStepper'
+import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
   const { resetPassword } = useAuth()
+  const toast = useToast()
   const [formError, setFormError] = useState<string | null>(null)
   const [isSuccess, setIsSuccess] = useState(false)
 
@@ -34,20 +38,23 @@ export function ResetPasswordPage() {
     try {
       setFormError(null)
       await resetPassword(data.password)
+      toast.success('Password Updated', 'Your security credentials have been updated.')
       setIsSuccess(true)
     } catch {
       setFormError('Failed to reset password. Please try again.')
+      toast.error('Reset Failed', 'Could not update password.')
     }
   }
 
   if (isSuccess) {
     return (
       <AuthLayout
-        title="Password Updated"
-        subtitle="Your operator credentials have been successfully updated"
+        title="Password Restored"
+        subtitle="Your operator credentials have been refreshed across all terminal instances"
+        badgeText="CREDENTIALS-ACTIVE"
       >
-        <div className="py-4 text-center space-y-4">
-          <div className="w-12 h-12 rounded-full bg-success-bg border border-success-DEFAULT/20 flex items-center justify-center mx-auto text-success-DEFAULT">
+        <div className="py-4 text-center space-y-4 animate-[fadeIn_200ms_ease-out]">
+          <div className="w-12 h-12 rounded-full bg-success-bg border border-success-DEFAULT/30 flex items-center justify-center mx-auto text-success-DEFAULT shadow-sm">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
@@ -55,7 +62,7 @@ export function ResetPasswordPage() {
               Security Credentials Refreshed
             </h2>
             <p className="text-xs text-gray-600 mt-1 max-w-xs mx-auto">
-              Your new password is now active across all StockSense terminal instances.
+              Your new password is now active. You can now authenticate with your updated password on all terminal nodes.
             </p>
           </div>
           <div className="pt-2">
@@ -77,14 +84,12 @@ export function ResetPasswordPage() {
   return (
     <AuthLayout
       title="Create New Password"
-      subtitle="Define a secure authentication key for your StockSense operator profile"
+      subtitle="Finalize step 3 by defining your new operator master security key"
+      badgeText="STEP-3-SECURE"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        {/* Step Indicator Header */}
-        <div className="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded text-xs text-gray-600">
-          <ShieldCheck className="w-4 h-4 text-brand shrink-0" />
-          <span>Step 3 of 3: Set your new password</span>
-        </div>
+        {/* Progress Stepper */}
+        <RecoveryStepper currentStep={3} />
 
         {formError && (
           <div className="p-3 rounded bg-danger-bg border border-danger-DEFAULT/20 text-xs text-danger-text flex items-start gap-2">
@@ -93,36 +98,19 @@ export function ResetPasswordPage() {
           </div>
         )}
 
-        <Input
-          label="New Password"
-          isPassword
-          autoComplete="new-password"
-          placeholder="Enter new password"
-          required
-          leftIcon={<Lock className="w-4 h-4" />}
-          error={errors.password?.message}
-          {...register('password')}
-        />
-
-        {/* Password Strength Checklist */}
-        {passwordValue && (
-          <div className="p-2.5 bg-gray-50 border border-gray-200 rounded text-xs space-y-1">
-            <div className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-              Password Security Rules:
-            </div>
-            <div className="grid grid-cols-2 gap-1 text-[11px]">
-              <span className={passwordValue.length >= 8 ? 'text-success-text font-medium' : 'text-gray-500'}>
-                {passwordValue.length >= 8 ? '✓' : '○'} Min 8 characters
-              </span>
-              <span className={/[A-Z]/.test(passwordValue) ? 'text-success-text font-medium' : 'text-gray-500'}>
-                {/[A-Z]/.test(passwordValue) ? '✓' : '○'} One uppercase letter
-              </span>
-              <span className={/[0-9]/.test(passwordValue) ? 'text-success-text font-medium' : 'text-gray-500'}>
-                {/[0-9]/.test(passwordValue) ? '✓' : '○'} One numeric digit
-              </span>
-            </div>
-          </div>
-        )}
+        <div className="space-y-1.5">
+          <Input
+            label="New Security Password"
+            isPassword
+            autoComplete="new-password"
+            placeholder="Enter new password"
+            required
+            leftIcon={<Lock className="w-4 h-4" />}
+            error={errors.password?.message}
+            {...register('password')}
+          />
+          <PasswordStrengthMeter password={passwordValue} />
+        </div>
 
         <Input
           label="Confirm New Password"

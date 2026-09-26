@@ -239,8 +239,8 @@ export function OtpVerificationPage() {
                   errorMessage
                     ? 'border-danger-DEFAULT bg-danger-bg/20 text-danger-text focus:border-danger-DEFAULT focus:ring-danger-DEFAULT'
                     : digit
-                    ? 'border-brand bg-brand-light/30 text-gray-900'
-                    : 'border-gray-300 bg-view text-gray-900',
+                      ? 'border-brand bg-brand-light/30 text-gray-900'
+                      : 'border-gray-300 bg-view text-gray-900',
                   isExpired && 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
                 )}
                 aria-label={`Digit ${index + 1}`}

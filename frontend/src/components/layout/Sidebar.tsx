@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { NavLink, useLocation, Link } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -42,16 +42,28 @@ export function Sidebar({
   const isSettingsActive = location.pathname.startsWith('/settings')
   const [settingsOpen, setSettingsOpen] = useState(true)
 
+  // Listen for Ctrl+B shortcut to toggle sidebar
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault()
+        onToggleCollapse()
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onToggleCollapse])
+
   const operationsItems = [
-    { name: 'Receipts', href: '/operations/receipts', icon: ArrowDownToLine },
-    { name: 'Deliveries', href: '/operations/deliveries', icon: ArrowUpFromLine },
-    { name: 'Internal Transfers', href: '/operations/transfers', icon: ArrowLeftRight },
-    { name: 'Inventory Adjustments', href: '/operations/adjustments', icon: SlidersHorizontal },
+    { name: 'Receipts', href: '/operations/receipts', icon: ArrowDownToLine, count: '4' },
+    { name: 'Deliveries', href: '/operations/deliveries', icon: ArrowUpFromLine, count: '8' },
+    { name: 'Internal Transfers', href: '/operations/transfers', icon: ArrowLeftRight, count: '2' },
+    { name: 'Inventory Adjustments', href: '/operations/adjustments', icon: SlidersHorizontal, count: '1' },
     { name: 'Move History', href: '/operations/history', icon: History },
   ]
 
   const settingsItems = [
-    { name: 'Warehouses', href: '/settings/warehouses', icon: Warehouse },
+    { name: 'Warehouses', href: '/settings/warehouses', icon: Warehouse, count: '3' },
   ]
 
   const sidebarContent = (
@@ -88,7 +100,7 @@ export function Sidebar({
           type="button"
           onClick={onToggleCollapse}
           className="hidden md:flex p-1 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-200 transition-colors cursor-pointer"
-          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={isCollapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
         >
           {isCollapsed ? (
             <PanelLeftOpen className="w-4 h-4" />
@@ -116,7 +128,7 @@ export function Sidebar({
           onClick={onCloseMobile}
           className={({ isActive }) =>
             cn(
-              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-2.5',
+              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
               isActive
                 ? 'bg-brand-light text-brand font-semibold shadow-xs'
                 : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
@@ -125,8 +137,10 @@ export function Sidebar({
           }
           title={isCollapsed ? 'Dashboard' : undefined}
         >
-          <LayoutDashboard className="w-4 h-4 shrink-0 text-current" />
-          {!isCollapsed && <span>Dashboard</span>}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <LayoutDashboard className="w-4 h-4 shrink-0 text-current" />
+            {!isCollapsed && <span>Dashboard</span>}
+          </div>
         </NavLink>
 
         <NavLink
@@ -134,7 +148,7 @@ export function Sidebar({
           onClick={onCloseMobile}
           className={({ isActive }) =>
             cn(
-              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-2.5',
+              'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
               isActive
                 ? 'bg-brand-light text-brand font-semibold shadow-xs'
                 : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
@@ -143,8 +157,15 @@ export function Sidebar({
           }
           title={isCollapsed ? 'Products' : undefined}
         >
-          <Package className="w-4 h-4 shrink-0 text-current" />
-          {!isCollapsed && <span>Products</span>}
+          <div className="flex items-center gap-2.5 min-w-0">
+            <Package className="w-4 h-4 shrink-0 text-current" />
+            {!isCollapsed && <span>Products</span>}
+          </div>
+          {!isCollapsed && (
+            <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-200/80 text-gray-600 group-hover:bg-gray-300">
+              2.4k
+            </span>
+          )}
         </NavLink>
 
         {/* Operations Accordion */}
@@ -179,17 +200,25 @@ export function Sidebar({
                     onClick={onCloseMobile}
                     className={({ isActive }) =>
                       cn(
-                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-2.5',
+                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
                         isActive
                           ? 'bg-brand-light text-brand font-semibold shadow-xs'
                           : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
                         isCollapsed && 'justify-center !px-0'
                       )
                     }
-                    title={isCollapsed ? item.name : undefined}
+                    title={isCollapsed ? `${item.name} ${item.count ? `(${item.count})` : ''}` : undefined}
                   >
-                    <Icon className="w-4 h-4 shrink-0 text-current" />
-                    {!isCollapsed && <span className="truncate">{item.name}</span>}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="w-4 h-4 shrink-0 text-current" />
+                      {!isCollapsed && <span className="truncate">{item.name}</span>}
+                    </div>
+
+                    {!isCollapsed && item.count && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-200/80 text-gray-600 group-hover:bg-gray-300">
+                        {item.count}
+                      </span>
+                    )}
                   </NavLink>
                 )
               })}
@@ -229,7 +258,7 @@ export function Sidebar({
                     onClick={onCloseMobile}
                     className={({ isActive }) =>
                       cn(
-                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center gap-2.5',
+                        'nav-item !mx-0 !px-2.5 !py-1.5 text-xs font-medium rounded transition-colors flex items-center justify-between group',
                         isActive
                           ? 'bg-brand-light text-brand font-semibold shadow-xs'
                           : 'text-gray-700 hover:bg-gray-200 hover:text-gray-900',
@@ -238,8 +267,15 @@ export function Sidebar({
                     }
                     title={isCollapsed ? item.name : undefined}
                   >
-                    <Icon className="w-4 h-4 shrink-0 text-current" />
-                    {!isCollapsed && <span className="truncate">{item.name}</span>}
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <Icon className="w-4 h-4 shrink-0 text-current" />
+                      {!isCollapsed && <span className="truncate">{item.name}</span>}
+                    </div>
+                    {!isCollapsed && item.count && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-gray-200/80 text-gray-600">
+                        {item.count}
+                      </span>
+                    )}
                   </NavLink>
                 )
               })}
@@ -276,21 +312,22 @@ export function Sidebar({
 
       {/* Bottom Live System Indicator */}
       {!isCollapsed ? (
-        <div className="p-3 border-t border-gray-200 bg-gray-50/50">
+        <div className="p-3 border-t border-gray-200 bg-gray-50/70">
           <div className="flex items-center justify-between text-[11px] text-gray-500">
             <div className="flex items-center gap-1.5">
               <Radio className="w-3 h-3 text-success-DEFAULT animate-pulse" />
-              <span className="font-medium text-gray-700">WH01 Node Online</span>
+              <span className="font-semibold text-gray-800">WH01 Node Online</span>
             </div>
-            <span className="font-mono text-gray-400">99.98%</span>
+            <span className="font-mono text-gray-500">99.98% SLA</span>
           </div>
-          <div className="mt-1 text-[10px] text-gray-400 font-mono truncate">
-            DB: PostgreSQL 16 · Odoo
+          <div className="mt-1 text-[10px] text-gray-500 font-mono flex items-center justify-between">
+            <span>PostgreSQL 16</span>
+            <span className="text-gray-400">Ctrl+B toggle</span>
           </div>
         </div>
       ) : (
         <div className="p-2 border-t border-gray-200 flex justify-center">
-          <Radio className="w-3 h-3 text-success-DEFAULT" title="WH01 Online" />
+          <Radio className="w-3.5 h-3.5 text-success-DEFAULT" title="WH01 Online" />
         </div>
       )}
     </div>

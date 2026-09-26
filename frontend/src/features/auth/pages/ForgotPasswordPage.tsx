@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
-import { zodResolver } from '@/lib/zodResolver'
-import { Mail, ArrowRight, ArrowLeft, AlertCircle, KeyRound } from 'lucide-react'
+import { Mail, ArrowRight, ArrowLeft, AlertCircle } from 'lucide-react'
 import { AuthLayout } from '../layouts/AuthLayout'
 import { forgotPasswordSchema, ForgotPasswordFormData } from '@/schemas/auth'
+import { zodResolver } from '@/lib/zodResolver'
 import { useAuth } from '../context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { RecoveryStepper } from '../components/RecoveryStepper'
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
   const { setPendingOtpEmail, user } = useAuth()
+  const toast = useToast()
   const [formError, setFormError] = useState<string | null>(null)
 
   const {
@@ -29,31 +32,31 @@ export function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     try {
       setFormError(null)
-      // Simulate network request for sending OTP
       await new Promise((resolve) => setTimeout(resolve, 600))
       setPendingOtpEmail(data.email)
+      toast.success('Code Dispatched', `A 6-digit recovery OTP has been sent to ${data.email}`)
       navigate(`/verify-otp?email=${encodeURIComponent(data.email)}`)
     } catch {
       setFormError('Failed to dispatch recovery code. Please check the email address.')
+      toast.error('Dispatch Failed', 'Unable to send verification code.')
     }
   }
 
   const fillDemoEmail = () => {
     setValue('email', 'alex.mercer@stocksense.io', { shouldValidate: true })
     setFormError(null)
+    toast.info('Demo Email Filled', 'Click "Send Verification Code" to test OTP flow')
   }
 
   return (
     <AuthLayout
-      title="Reset Password"
-      subtitle="Enter your verified work email to receive a six-digit verification code"
+      title="Recover Password"
+      subtitle="Follow the 3-step security procedure to verify your identity and reset your credentials"
+      badgeText="SECURITY-FLOW"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-        {/* Step Indicator Header */}
-        <div className="flex items-center gap-2 p-2.5 bg-gray-50 border border-gray-200 rounded text-xs text-gray-600">
-          <KeyRound className="w-4 h-4 text-brand shrink-0" />
-          <span>Step 1 of 3: Provide your operator email address</span>
-        </div>
+        {/* Progress Stepper */}
+        <RecoveryStepper currentStep={1} />
 
         {formError && (
           <div className="p-3 rounded bg-danger-bg border border-danger-DEFAULT/20 text-xs text-danger-text flex items-start gap-2">
@@ -70,7 +73,7 @@ export function ForgotPasswordPage() {
           required
           leftIcon={<Mail className="w-4 h-4" />}
           error={errors.email?.message}
-          hint="We will send a 6-digit recovery OTP valid for 5 minutes."
+          hint="We will send a 6-digit OTP valid for 2 minutes."
           {...register('email')}
         />
 
@@ -89,12 +92,12 @@ export function ForgotPasswordPage() {
         <button
           type="button"
           onClick={fillDemoEmail}
-          className="w-full py-1 text-xs text-gray-500 hover:text-brand text-center hover:underline cursor-pointer"
+          className="w-full py-1 text-xs text-brand hover:text-brand-dark text-center hover:underline cursor-pointer font-medium"
         >
           Use demo email (alex.mercer@stocksense.io)
         </button>
 
-        <div className="pt-4 border-t border-gray-200 text-center">
+        <div className="pt-3 border-t border-gray-200 text-center">
           <Link
             to="/login"
             className="inline-flex items-center gap-1.5 text-xs text-gray-600 hover:text-brand font-medium"
