@@ -86,6 +86,46 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 
 ---
 
+## 🗄️ Database Schema Reference (18 Tables)
+
+StockSense uses **18 PostgreSQL tables** managed with Drizzle ORM:
+
+```text
+├── Master Data: users, categories, units_of_measure, products, warehouses, locations, reorder_rules
+├── Core Inventory: stock_balances (product_id + location_id primary key)
+├── Audit Trail: stock_movements (immutable audit log)
+├── Inbound: receipts, receipt_items
+├── Outbound: deliveries, delivery_items
+├── Inter-Facility: internal_transfers, internal_transfer_items
+├── Adjustments: inventory_adjustments, inventory_adjustment_items
+└── Bill of Materials: recipes, recipe_items
+```
+
+### Table Specifications
+
+| # | Table Name | Primary Key | Key Foreign Keys | Purpose & Key Columns |
+|---|---|---|---|---|
+| **1** | `users` | `id` (UUID) | — | User accounts: `email` (unique), `password_hash`, `role` (`admin`/`manager`/`user`), `is_email_verified`. |
+| **2** | `password_reset_otps` | `id` (UUID) | `user_id` → `users(id)` | Hashed 6-digit OTP codes with `expires_at` and `attempts_count`. |
+| **3** | `categories` | `id` (UUID) | `parent_id` → `categories(id)` | Product hierarchy: `name`, `code` (unique), `description`. |
+| **4** | `units_of_measure` | `id` (UUID) | — | Measurement units: `name`, `abbreviation` (unique), `measure_type` (`unit`/`weight`/`volume`/`length`). |
+| **5** | `products` | `id` (UUID) | `category_id`, `uom_id` | Master catalog: `sku` (unique), `name`, `barcode`, `is_active`, `created_at`. |
+| **6** | `warehouses` | `id` (UUID) | — | Physical facilities: `name`, `short_code` (unique), `address`, `is_active`. |
+| **7** | `locations` | `id` (UUID) | `warehouse_id` | Sub-locations: `name`, `code`, `location_type` (`shelf`/`aisle`/`bin`/`dock`), `warehouse_id`. |
+| **8** | `reorder_rules` | `id` (UUID) | `product_id`, `location_id` | Automated rules: `min_quantity`, `max_quantity`, `reorder_quantity`. |
+| **9** | `stock_balances` | Composite `(product_id, location_id)` | `product_id`, `location_id` | **Physical Source of Truth**: `available_quantity`, `reserved_quantity`, `last_updated`. |
+| **10** | `stock_movements` | `id` (UUID) | `product_id`, `location_id`, `created_by` | **Immutable Ledger**: `movement_type`, `quantity_change`, `reference_number`, `created_at`. |
+| **11** | `receipts` | `id` (UUID) | `destination_warehouse_id`, `created_by` | Inbound documents: `receipt_number` (unique), `status` (`DRAFT`/`READY`/`DONE`/`CANCELED`), `received_date`. |
+| **12** | `receipt_items` | `id` (UUID) | `receipt_id`, `product_id`, `location_id` | Inbound lines: `quantity_received`, `unit_price`, `total_price`. |
+| **13** | `deliveries` | `id` (UUID) | `source_warehouse_id`, `created_by` | Outbound documents: `delivery_number` (unique), `status`, `customer_name`, `shipped_date`. |
+| **14** | `delivery_items` | `id` (UUID) | `delivery_id`, `product_id`, `location_id` | Outbound lines: `quantity_shipped`, `unit_price`. |
+| **15** | `internal_transfers` | `id` (UUID) | `source_warehouse_id`, `dest_warehouse_id` | Inter-facility transfers: `transfer_number` (unique), `status`, `transferred_date`. |
+| **16** | `internal_transfer_items` | `id` (UUID) | `transfer_id`, `product_id`, `source_loc_id`, `dest_loc_id` | Transfer lines: `quantity_transferred`. |
+| **17** | `inventory_adjustments` | `id` (UUID) | `warehouse_id`, `created_by` | Count adjustments: `adjustment_number` (unique), `reason`, `status`. |
+| **18** | `inventory_adjustment_items` | `id` (UUID) | `adjustment_id`, `product_id`, `location_id` | Adjustment lines: `theoretical_quantity`, `actual_quantity`, `quantity_difference`. |
+
+---
+
 ## 🚀 Getting Started
 
 ### Prerequisites
@@ -184,21 +224,6 @@ All REST endpoints are prefixed with `/api`. Complete documentation lives in [`d
 | **Dashboard** | `/api/dashboard` | Aggregated KPI summary, stock valuation & low-stock alerts |
 | **AI Assistant** | `/api/ai` | Conversational project queries, grounded tool execution & confirmation |
 | **WebSockets** | `GET /ws` | Live real-time event updates via WebSocket connection |
-
----
-
-## 🗄️ Database Schema (18 Tables)
-
-```text
-├── Master Data: users, categories, units_of_measure, products, warehouses, locations, reorder_rules
-├── Core Inventory: stock_balances (product_id + location_id primary key)
-├── Audit Trail: stock_movements (immutable audit log)
-├── Inbound: receipts, receipt_items
-├── Outbound: deliveries, delivery_items
-├── Inter-Facility: internal_transfers, internal_transfer_items
-├── Adjustments: inventory_adjustments, inventory_adjustment_items
-└── Bill of Materials: recipes, recipe_items
-```
 
 ---
 
