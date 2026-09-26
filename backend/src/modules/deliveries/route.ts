@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { authMiddleware } from "../../app/middleware/auth.js";
 import { DeliveryCoreService } from "./service.js";
 import { DeliveryProcessingService } from "./processing.service.js";
+import { DeliveryPdfService } from "./pdf.service.js";
 import {
   createDeliverySchema,
   updateDeliverySchema,
@@ -132,6 +133,46 @@ deliveriesRouter.post("/:id/process", async (c) => {
   );
 });
 
+
+// ---------------------------------------------------------------------------
+// GET /api/deliveries/:id/pdf - Generate Delivery Note PDF
+// ---------------------------------------------------------------------------
+// Read-only endpoint: fetches delivery data and returns an A4 PDF.
+// Does NOT modify stock, status, or any other data.
+// Only available for deliveries in DONE status.
+// ---------------------------------------------------------------------------
+deliveriesRouter.get("/:id/pdf", async (c) => {
+  const id = c.req.param("id");
+
+  // Fetch complete delivery — throws DeliveryNotFoundError (404) if missing
+  const delivery = await DeliveryCoreService.getDelivery(id);
+
+  // Only DONE deliveries produce a printable note
+  if (delivery.status !== "DONE") {
+    throw new AppError(
+      `Delivery Note PDF is only available for completed deliveries. Current status: ${delivery.status}`,
+      422
+    );
+  }
+
+  // Generate PDF bytes (pure read operation)
+  const pdfBytes = await DeliveryPdfService.generate(delivery);
+
+  // Build a safe ASCII filename
+  const safeName = delivery.deliveryNumber.replace(/[^A-Za-z0-9\-_]/g, "-");
+  const filename = `Delivery-Note-${safeName}.pdf`;
+
+  return new Response(pdfBytes, {
+    status: 200,
+    headers: {
+      "Content-Type": "application/pdf",
+      "Content-Disposition": `inline; filename="${filename}"`,
+      "Content-Length": String(pdfBytes.byteLength),
+      // Prevent browser from caching the blob so repeated prints stay fresh
+      "Cache-Control": "no-store",
+    },
+  });
+});
 
 // ---------------------------------------------------------------------------
 // POST /api/deliveries/:id/items - Add Delivery Item

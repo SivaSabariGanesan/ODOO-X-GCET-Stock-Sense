@@ -127,11 +127,67 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 }
 
 // ---------------------------------------------------------------------------
+// Blob request helper (for binary responses such as application/pdf)
+// ---------------------------------------------------------------------------
+async function requestBlob(path: string, params?: RequestOptions['params']): Promise<Blob> {
+  const origin =
+    typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'http://localhost:3000'
+  const url = BASE_URL ? new URL(`${BASE_URL}${path}`) : new URL(path, origin)
+  if (params) {
+    Object.entries(params).forEach(([k, v]) => {
+      if (v !== undefined && v !== null && v !== '') {
+        url.searchParams.set(k, String(v))
+      }
+    })
+  }
+
+  const headers: Record<string, string> = {
+    Accept: 'application/pdf',
+  }
+  const token = getAuthToken()
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    headers,
+    credentials: 'include',
+  })
+
+  if (!response.ok) {
+    // Try to extract an error message from JSON body (backend error format)
+    let message = `Request failed: ${response.status} ${response.statusText}`
+    try {
+      const contentType = response.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        const errJson = (await response.json()) as { message?: string; error?: string }
+        message = errJson?.message || errJson?.error || message
+      }
+    } catch {
+      // ignore parse errors on error body
+    }
+    throw new ApiError(message, response.status)
+  }
+
+  return response.blob()
+}
+
+// ---------------------------------------------------------------------------
 // Convenience Methods
 // ---------------------------------------------------------------------------
 export const apiClient = {
   get<T>(path: string, params?: RequestOptions['params']): Promise<T> {
     return request<T>(path, { method: 'GET', params })
+  },
+  /**
+   * GET a binary response (e.g. application/pdf) as a Blob.
+   * Injects the auth token exactly like the JSON methods.
+   */
+  getBlob(path: string, params?: RequestOptions['params']): Promise<Blob> {
+    return requestBlob(path, params)
   },
   post<T>(path: string, body?: unknown): Promise<T> {
     return request<T>(path, { method: 'POST', body })

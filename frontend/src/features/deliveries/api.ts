@@ -243,4 +243,17 @@ export const deliveriesApi = {
       `/api/deliveries/${deliveryId}/items/${itemId}`
     )
   },
+
+  /**
+   * GET /api/deliveries/:id/pdf
+   * Request a Delivery Note PDF for a DONE delivery.
+   * Returns the raw PDF as a Blob — the caller is responsible for
+   * creating an object URL and opening/downloading it.
+   *
+   * Throws ApiError with status 422 if the delivery is not DONE.
+   * Throws ApiError with status 404 if the delivery does not exist.
+   */
+  generatePdf(id: string): Promise<Blob> {
+    return apiClient.getBlob(`/api/deliveries/${id}/pdf`)
+  },
 }
