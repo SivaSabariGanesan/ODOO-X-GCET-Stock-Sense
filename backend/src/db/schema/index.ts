@@ -22,3 +22,5 @@ export * from "./receipts";
 export * from "./receipt-items";
 export * from "./deliveries";
 export * from "./delivery-items";
+export * from "./internal-transfers";
+export * from "./internal-transfer-items";
