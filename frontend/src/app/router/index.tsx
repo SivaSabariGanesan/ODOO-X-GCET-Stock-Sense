@@ -24,9 +24,17 @@ import {
   DeliveryDetailsPage,
 } from '@/features/deliveries'
 import {
+  TransfersListPage,
+  TransferFormPage,
+  TransferDetailsPage,
+} from '@/features/transfers'
+import {
+  AdjustmentsListPage,
+  AdjustmentFormPage,
+  AdjustmentDetailsPage,
+} from '@/features/adjustments'
+import {
   DashboardPlaceholder,
-  TransfersPlaceholder,
-  AdjustmentsPlaceholder,
   HistoryPlaceholder,
   WarehousesPlaceholder,
   ProfilePlaceholder,
@@ -132,11 +140,37 @@ export const router = createBrowserRouter([
           },
           {
             path: 'transfers',
-            element: <TransfersPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <TransfersListPage />,
+              },
+              {
+                path: 'new',
+                element: <TransferFormPage />,
+              },
+              {
+                path: ':id',
+                element: <TransferDetailsPage />,
+              },
+            ],
           },
           {
             path: 'adjustments',
-            element: <AdjustmentsPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <AdjustmentsListPage />,
+              },
+              {
+                path: 'new',
+                element: <AdjustmentFormPage />,
+              },
+              {
+                path: ':id',
+                element: <AdjustmentDetailsPage />,
+              },
+            ],
           },
           {
             path: 'history',
