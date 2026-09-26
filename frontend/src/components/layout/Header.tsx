@@ -119,7 +119,15 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
         crumbs.push({ label: 'Warehouses' })
       }
     } else if (segments[0] === 'products') {
-      crumbs.push({ label: 'Products' })
+      crumbs.push({ label: 'Products', href: segments.length > 1 ? '/products' : undefined })
+      if (segments[1] === 'new') {
+        crumbs.push({ label: 'New Product' })
+      } else if (segments[1] && segments[2] === 'edit') {
+        crumbs.push({ label: 'Product Details', href: `/products/${segments[1]}` })
+        crumbs.push({ label: 'Edit' })
+      } else if (segments[1]) {
+        crumbs.push({ label: 'Product Details' })
+      }
     } else if (segments[0] === 'profile') {
       crumbs.push({ label: 'User Profile' })
     }

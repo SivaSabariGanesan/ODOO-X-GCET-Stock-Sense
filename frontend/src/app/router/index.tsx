@@ -9,8 +9,12 @@ import {
 } from '@/features/auth'
 import { DashboardPage } from '@/features/dashboard'
 import {
+  ProductsListPage,
+  ProductFormPage,
+  ProductDetailsPage,
+} from '@/features/products'
+import {
   DashboardPlaceholder,
-  ProductsPlaceholder,
   ReceiptsPlaceholder,
   DeliveriesPlaceholder,
   TransfersPlaceholder,
@@ -58,7 +62,24 @@ export const router = createBrowserRouter([
       },
       {
         path: 'products',
-        element: <ProductsPlaceholder />,
+        children: [
+          {
+            index: true,
+            element: <ProductsListPage />,
+          },
+          {
+            path: 'new',
+            element: <ProductFormPage />,
+          },
+          {
+            path: ':id',
+            element: <ProductDetailsPage />,
+          },
+          {
+            path: ':id/edit',
+            element: <ProductFormPage isEdit />,
+          },
+        ],
       },
       {
         path: 'operations',
