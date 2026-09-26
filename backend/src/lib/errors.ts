@@ -154,3 +154,11 @@ export class DeliveryValidationError extends AppError {
     this.name = "DeliveryValidationError";
   }
 }
+
+export class InsufficientStockError extends AppError {
+  constructor(message = "Insufficient stock available for delivery") {
+    super(message, 400);
+    this.name = "InsufficientStockError";
+  }
+}
+

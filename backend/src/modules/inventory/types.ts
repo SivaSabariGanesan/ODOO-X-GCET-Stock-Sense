@@ -21,6 +21,23 @@ export interface ReceiveStockInput {
   createdBy?: string | null;
 }
 
+export interface DeliverStockItemInput {
+  productId: string;
+  sourceLocationId: string;
+  quantity: string | number;
+  destinationLocationId?: string | null;
+  unitPrice?: string | number | null;
+  notes?: string | null;
+}
+
+export interface DeliverStockInput {
+  items: DeliverStockItemInput[];
+  referenceType: ReferenceType; // e.g. "DELIVERY"
+  referenceId: string;          // e.g. deliveryId
+  movementType?: MovementType;  // Default: "DELIVERY"
+  createdBy?: string | null;
+}
+
 export interface StockBalanceDTO {
   id: string;
   productId: string;
@@ -29,3 +46,4 @@ export interface StockBalanceDTO {
   reservedQuantity: string;
   lastMovedAt: Date;
 }
+

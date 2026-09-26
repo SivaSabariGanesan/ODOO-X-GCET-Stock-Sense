@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../../app/middleware/auth.js";
 import { DeliveryCoreService } from "./service.js";
+import { DeliveryProcessingService } from "./processing.service.js";
 import {
   createDeliverySchema,
   updateDeliverySchema,
@@ -9,6 +10,7 @@ import {
   updateDeliveryItemSchema,
 } from "./schema.js";
 import { AppError } from "../../lib/errors.js";
+
 
 const deliveriesRouter = new Hono();
 
@@ -109,12 +111,27 @@ deliveriesRouter.post("/:id/pack", async (c) => {
 
 // ---------------------------------------------------------------------------
 // POST /api/deliveries/:id/validate - Validate Delivery Document
+
 // ---------------------------------------------------------------------------
 deliveriesRouter.post("/:id/validate", async (c) => {
   const id = c.req.param("id");
   const validationResult = await DeliveryCoreService.validateDelivery(id);
   return c.json({ data: validationResult }, 200);
 });
+
+// ---------------------------------------------------------------------------
+// POST /api/deliveries/:id/process - Process Delivery (Mutates Inventory)
+// ---------------------------------------------------------------------------
+deliveriesRouter.post("/:id/process", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+  const delivery = await DeliveryProcessingService.processDelivery(id, user.id);
+  return c.json(
+    { data: delivery, message: "Delivery processed successfully and stock decreased" },
+    200
+  );
+});
+
 
 // ---------------------------------------------------------------------------
 // POST /api/deliveries/:id/items - Add Delivery Item

@@ -607,5 +607,19 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/deliveries/{id}/process": {
+      post: {
+        summary: "Process Delivery (Stock Operation Layer - Decreases Inventory)",
+        tags: ["Delivery Processing"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Delivery processed successfully, stock decreased, and status marked DONE" },
+          400: { description: "Insufficient stock, invalid items, or locked status" },
+          409: { description: "Delivery has already been processed and is marked DONE" },
+        },
+      },
+    },
   },
 };
+

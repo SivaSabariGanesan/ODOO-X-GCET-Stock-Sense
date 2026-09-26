@@ -7,10 +7,14 @@ import { unitsOfMeasure } from "../src/db/schema/units-of-measure.js";
 import { products } from "../src/db/schema/products.js";
 import { deliveries } from "../src/db/schema/deliveries.js";
 import { deliveryItems } from "../src/db/schema/delivery-items.js";
+import { locations } from "../src/db/schema/locations.js";
 import { stockBalances } from "../src/db/schema/stock-balances.js";
 import { stockMovements } from "../src/db/schema/stock-movements.js";
-import { eq, inArray } from "drizzle-orm";
+import { eq, inArray, and } from "drizzle-orm";
+
 import { DeliveryCoreService } from "../src/modules/deliveries/service.js";
+import { InventoryService } from "../src/modules/inventory/service.js";
+
 
 const TEST_PREFIX = `test_${Date.now()}`;
 const TEST_EMAIL = `${TEST_PREFIX}_deliv_user@example.com`;
@@ -109,20 +113,33 @@ describe("StockSense Delivery Core Module", () => {
         .where(inArray(deliveries.id, createdDeliveryIds));
     }
 
-    const testProdIds = [productId1, productId2].filter(Boolean);
-    if (testProdIds.length > 0) {
-      await db
-        .delete(stockBalances)
-        .where(inArray(stockBalances.productId, testProdIds));
+    // Clean up stock balances & stock movements for test products
+    if (uomId) {
+      const testProducts = await db
+        .select({ id: products.id })
+        .from(products)
+        .where(eq(products.uomId, uomId));
+      const testProdIds = testProducts.map((p) => p.id);
+
+      if (testProdIds.length > 0) {
+        await db
+          .delete(stockMovements)
+          .where(inArray(stockMovements.productId, testProdIds));
+        await db
+          .delete(stockBalances)
+          .where(inArray(stockBalances.productId, testProdIds));
+        await db.delete(products).where(inArray(products.id, testProdIds));
+      }
+      await db.delete(unitsOfMeasure).where(eq(unitsOfMeasure.id, uomId));
     }
 
-    // Clean up test fixtures
-    if (productId1) await db.delete(products).where(eq(products.id, productId1));
-    if (productId2) await db.delete(products).where(eq(products.id, productId2));
-    if (uomId) await db.delete(unitsOfMeasure).where(eq(unitsOfMeasure.id, uomId));
-    if (warehouseId) await db.delete(warehouses).where(eq(warehouses.id, warehouseId));
+    if (warehouseId) {
+      await db.delete(locations).where(eq(locations.warehouseId, warehouseId));
+      await db.delete(warehouses).where(eq(warehouses.id, warehouseId));
+    }
     if (userId) await db.delete(users).where(eq(users.id, userId));
   });
+
 
   // -------------------------------------------------------------------------
   // 1. Delivery CRUD
@@ -554,5 +571,428 @@ describe("StockSense Delivery Core Module", () => {
       expect(movements.length).toBe(0);
     });
   });
+
+  // -------------------------------------------------------------------------
+  // 7. Delivery Module 2 — Delivery Processing (Stock Operation Layer)
+  // -------------------------------------------------------------------------
+  describe("Delivery Processing (Stock Mutation Layer)", () => {
+    let procDeliveryId: string;
+    let procProdId: string;
+    let procLocId: string;
+
+    beforeAll(async () => {
+      // 1. Create a product for processing test
+      const [prod] = await db
+        .insert(products)
+        .values({
+          name: `Proc Product ${TEST_PREFIX}`,
+          sku: `SKU_PROC_${TEST_PREFIX}_${Date.now()}`,
+          uomId: uomId,
+          createdBy: userId,
+        })
+        .returning();
+      procProdId = prod.id;
+
+      // 2. Create a location for processing test
+      const [loc] = await db
+        .insert(locations)
+        .values({
+          warehouseId: warehouseId,
+          name: `Proc Location ${TEST_PREFIX}`,
+          fullPath: `WH/PROC_${TEST_PREFIX}_${Date.now()}`,
+          createdBy: userId,
+        })
+        .returning();
+      procLocId = loc.id;
+    });
+
+    it("should process a valid delivery, decreasing stock balance and logging ledger movement", async () => {
+      // Step A: Receive initial stock into inventory (100 KG)
+      await InventoryService.receiveStock({
+        items: [
+          {
+            productId: procProdId,
+            destinationLocationId: procLocId,
+            quantity: 100,
+          },
+        ],
+        referenceType: "RECEIPT",
+        referenceId: procProdId,
+        createdBy: userId,
+      });
+
+      // Step B: Create a delivery order for 30 KG
+      const createRes = await app.request("/api/deliveries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          deliveryNumber: `DEL/PROC/001_${Date.now()}`,
+          warehouseId: warehouseId,
+          customerName: "Proc Customer",
+          items: [
+            {
+              productId: procProdId,
+              sourceLocationId: procLocId,
+              quantity: 30,
+              unitPrice: 15,
+            },
+          ],
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const createData = await createRes.json();
+      procDeliveryId = createData.data.id;
+      createdDeliveryIds.push(procDeliveryId);
+
+      // Step C: Process delivery via API POST /api/deliveries/:id/process
+      const procRes = await app.request(`/api/deliveries/${procDeliveryId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      expect(procRes.status).toBe(200);
+      const procData = await procRes.json();
+      expect(procData.data.status).toBe("DONE");
+
+      // Step D: Verify stock balance was decreased from 100 to 70 KG
+      const [balance] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProdId),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(balance.quantity)).toBe(70);
+
+      // Step E: Verify ledger movement record logged
+      const movements = await db
+        .select()
+        .from(stockMovements)
+        .where(
+          and(
+            eq(stockMovements.referenceType, "DELIVERY"),
+            eq(stockMovements.referenceId, procDeliveryId)
+          )
+        );
+      expect(movements.length).toBe(1);
+      expect(parseFloat(movements[0].quantity)).toBe(30);
+      expect(movements[0].sourceLocationId).toBe(procLocId);
+    });
+
+    it("should enforce idempotency by rejecting a second process attempt on a DONE delivery", async () => {
+      const res = await app.request(`/api/deliveries/${procDeliveryId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      expect(res.status).toBe(409);
+
+      // Verify stock balance remained 70 KG (not decreased again)
+      const [balance] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProdId),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(balance.quantity)).toBe(70);
+    });
+
+    it("should fail processing if requested delivery quantity exceeds available stock (Insufficient Stock)", async () => {
+      // Current available stock is 70 KG. Attempt to deliver 100 KG.
+      const createRes = await app.request("/api/deliveries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          deliveryNumber: `DEL/EXCEED/001_${Date.now()}`,
+          warehouseId: warehouseId,
+          items: [
+            {
+              productId: procProdId,
+              sourceLocationId: procLocId,
+              quantity: 100,
+            },
+          ],
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const exceedDeliveryId = (await createRes.json()).data.id;
+      createdDeliveryIds.push(exceedDeliveryId);
+
+      const procRes = await app.request(`/api/deliveries/${exceedDeliveryId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      expect(procRes.status).toBe(400);
+      const procData = await procRes.json();
+      expect(procData.error).toContain("Insufficient stock");
+
+      // Verify delivery is NOT marked DONE
+      const deliv = await DeliveryCoreService.getDelivery(exceedDeliveryId);
+      expect(deliv.status).not.toBe("DONE");
+
+      // Verify stock balance remains 70 KG
+      const [balance] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProdId),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(balance.quantity)).toBe(70);
+    });
+
+    it("should roll back complete transaction on multi-item failure (no partial stock decrease)", async () => {
+      // Create a second product with 10 KG stock
+      const [prod2] = await db
+        .insert(products)
+        .values({
+          name: `Proc Product 2 ${TEST_PREFIX}`,
+          sku: `SKU_PROC2_${TEST_PREFIX}_${Date.now()}`,
+          uomId: uomId,
+          createdBy: userId,
+        })
+        .returning();
+      const procProd2Id = prod2.id;
+
+      await InventoryService.receiveStock({
+        items: [
+          {
+            productId: procProd2Id,
+            destinationLocationId: procLocId,
+            quantity: 10,
+          },
+        ],
+        referenceType: "RECEIPT",
+        referenceId: procProd2Id,
+        createdBy: userId,
+      });
+
+      // Delivery order: Item 1 = 20 KG of procProdId (valid, 70 available), Item 2 = 50 KG of procProd2Id (INSUFFICIENT, 10 available)
+      const createRes = await app.request("/api/deliveries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          deliveryNumber: `DEL/MULTI_FAIL/001_${Date.now()}`,
+          warehouseId: warehouseId,
+          items: [
+            {
+              productId: procProdId,
+              sourceLocationId: procLocId,
+              quantity: 20,
+            },
+            {
+              productId: procProd2Id,
+              sourceLocationId: procLocId,
+              quantity: 50,
+            },
+          ],
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const multiFailId = (await createRes.json()).data.id;
+      createdDeliveryIds.push(multiFailId);
+
+      const procRes = await app.request(`/api/deliveries/${multiFailId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      expect(procRes.status).toBe(400);
+
+      // Verify complete ROLLBACK: procProdId balance must STILL BE 70 KG (not 50 KG!)
+      const [bal1] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProdId),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(bal1.quantity)).toBe(70);
+
+      // procProd2Id balance must STILL BE 10 KG
+      const [bal2] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProd2Id),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(bal2.quantity)).toBe(10);
+    });
+
+    it("should process multi-item delivery successfully when all stock is available", async () => {
+      // Find procProd2Id
+      const [prod2] = await db
+        .select()
+        .from(products)
+        .where(eq(products.name, `Proc Product 2 ${TEST_PREFIX}`))
+        .limit(1);
+      const procProd2Id = prod2.id;
+
+      // ProcProd1 has 70 KG, ProcProd2 has 10 KG.
+      // Order: ProcProd1 = 20 KG, ProcProd2 = 5 KG.
+      const createRes = await app.request("/api/deliveries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          deliveryNumber: `DEL/MULTI_PASS/001_${Date.now()}`,
+          warehouseId: warehouseId,
+          items: [
+            {
+              productId: procProdId,
+              sourceLocationId: procLocId,
+              quantity: 20,
+            },
+            {
+              productId: procProd2Id,
+              sourceLocationId: procLocId,
+              quantity: 5,
+            },
+          ],
+        }),
+      });
+      expect(createRes.status).toBe(201);
+      const multiPassId = (await createRes.json()).data.id;
+      createdDeliveryIds.push(multiPassId);
+
+      const procRes = await app.request(`/api/deliveries/${multiPassId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      expect(procRes.status).toBe(200);
+
+      // Balances after: ProcProd1 = 50 KG, ProcProd2 = 5 KG
+      const [bal1] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProdId),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(bal1.quantity)).toBe(50);
+
+      const [bal2] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProd2Id),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(bal2.quantity)).toBe(5);
+    });
+
+    it("should reject processing a CANCELED delivery", async () => {
+      const createRes = await app.request("/api/deliveries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          deliveryNumber: `DEL/CANCEL/001_${Date.now()}`,
+          warehouseId: warehouseId,
+          items: [
+            {
+              productId: procProdId,
+              sourceLocationId: procLocId,
+              quantity: 10,
+            },
+          ],
+        }),
+      });
+      const cancelDelivId = (await createRes.json()).data.id;
+      createdDeliveryIds.push(cancelDelivId);
+
+      // Cancel delivery
+      await app.request(`/api/deliveries/${cancelDelivId}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      // Attempt process
+      const procRes = await app.request(`/api/deliveries/${cancelDelivId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+      expect(procRes.status).toBe(400);
+    });
+
+    it("should handle concurrent processing attempts safely without double stock decrease", async () => {
+      // ProcProd1 has 50 KG remaining.
+      // Create delivery for 10 KG.
+      const createRes = await app.request("/api/deliveries", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          deliveryNumber: `DEL/CONCUR/001_${Date.now()}`,
+          warehouseId: warehouseId,
+          items: [
+            {
+              productId: procProdId,
+              sourceLocationId: procLocId,
+              quantity: 10,
+            },
+          ],
+        }),
+      });
+      const concurId = (await createRes.json()).data.id;
+      createdDeliveryIds.push(concurId);
+
+      // Fire 2 concurrent process requests
+      const [res1, res2] = await Promise.all([
+        app.request(`/api/deliveries/${concurId}/process`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        }),
+        app.request(`/api/deliveries/${concurId}/process`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        }),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort();
+      expect(statuses).toEqual([200, 409]);
+
+      // Verify stock decreased by 10 KG ONCE (50 -> 40 KG)
+      const [balance] = await db
+        .select()
+        .from(stockBalances)
+        .where(
+          and(
+            eq(stockBalances.productId, procProdId),
+            eq(stockBalances.locationId, procLocId)
+          )
+        );
+      expect(parseFloat(balance.quantity)).toBe(40);
+    });
+  });
 });
+
 
