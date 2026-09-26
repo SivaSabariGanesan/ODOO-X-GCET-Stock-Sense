@@ -14,9 +14,17 @@ import {
   ProductDetailsPage,
 } from '@/features/products'
 import {
+  ReceiptsListPage,
+  ReceiptFormPage,
+  ReceiptDetailsPage,
+} from '@/features/receipts'
+import {
+  DeliveriesListPage,
+  DeliveryFormPage,
+  DeliveryDetailsPage,
+} from '@/features/deliveries'
+import {
   DashboardPlaceholder,
-  ReceiptsPlaceholder,
-  DeliveriesPlaceholder,
   TransfersPlaceholder,
   AdjustmentsPlaceholder,
   HistoryPlaceholder,
@@ -90,11 +98,37 @@ export const router = createBrowserRouter([
           },
           {
             path: 'receipts',
-            element: <ReceiptsPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <ReceiptsListPage />,
+              },
+              {
+                path: 'new',
+                element: <ReceiptFormPage />,
+              },
+              {
+                path: ':id',
+                element: <ReceiptDetailsPage />,
+              },
+            ],
           },
           {
             path: 'deliveries',
-            element: <DeliveriesPlaceholder />,
+            children: [
+              {
+                index: true,
+                element: <DeliveriesListPage />,
+              },
+              {
+                path: 'new',
+                element: <DeliveryFormPage />,
+              },
+              {
+                path: ':id',
+                element: <DeliveryDetailsPage />,
+              },
+            ],
           },
           {
             path: 'transfers',
