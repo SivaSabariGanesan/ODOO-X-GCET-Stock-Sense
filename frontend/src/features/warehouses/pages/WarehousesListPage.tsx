@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -6,43 +6,162 @@ import {
   ChevronRight,
   Eye,
   MapPin,
-  Package,
-  Layers,
-  Activity,
   AlertTriangle,
   X,
   RotateCcw,
+  Plus,
+  Edit2,
+  Trash2,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
-import { getMockWarehouses } from '../mockWarehouses'
-import { Warehouse } from '../types'
+import { TablePagination } from '@/components/common/TablePagination'
+import { useToast } from '@/context/ToastContext'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { useWarehouses, EnrichedWarehouse } from '../hooks/useWarehouses'
+import { warehousesApi } from '../api'
+import { CreateWarehousePayload, UpdateWarehousePayload } from '../types'
+import { ApiError } from '@/lib/apiClient'
 import { cn } from '@/lib/cn'
 
 export function WarehousesListPage() {
-  const warehouses = getMockWarehouses()
-  const [search, setSearch] = useState('')
+  const toast = useToast()
+  const { user } = useAuth()
+  const canManage = user?.role === 'admin' || user?.role === 'manager'
 
-  const filteredWarehouses = useMemo(() => {
-    const q = search.toLowerCase().trim()
-    if (!q) return warehouses
+  const {
+    warehouses,
+    isLoading,
+    error,
+    refetch,
+    search,
+    setSearch,
+    page,
+    setPage,
+    limit,
+    setLimit,
+    total,
+    totalPages,
+    totalLocationsCount,
+    totalStockUnitsCount,
+    activeFacilitiesCount,
+  } = useWarehouses()
 
-    return warehouses.filter(
-      (w) =>
-        w.name.toLowerCase().includes(q) ||
-        w.code.toLowerCase().includes(q) ||
-        w.address.toLowerCase().includes(q) ||
-        w.manager.toLowerCase().includes(q)
-    )
-  }, [warehouses, search])
+  // Modal State for Create / Edit
+  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [editingWarehouse, setEditingWarehouse] = useState<EnrichedWarehouse | null>(null)
+  const [formData, setFormData] = useState<CreateWarehousePayload>({
+    name: '',
+    shortCode: '',
+    address: '',
+    description: '',
+    isActive: true,
+  })
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // Aggregate metrics
-  const totalLocationsCount = warehouses.reduce((acc, w) => acc + w.totalLocations, 0)
-  const totalStockCount = warehouses.reduce((acc, w) => acc + w.totalStockUnits, 0)
-  const avgUtilization = Math.round(
-    warehouses.reduce((acc, w) => acc + w.capacityUtilization, 0) / warehouses.length
-  )
+  // Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState<EnrichedWarehouse | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const openCreateModal = () => {
+    setEditingWarehouse(null)
+    setFormData({
+      name: '',
+      shortCode: '',
+      address: '',
+      description: '',
+      isActive: true,
+    })
+    setFormErrors({})
+    setIsModalOpen(true)
+  }
+
+  const openEditModal = (wh: EnrichedWarehouse) => {
+    setEditingWarehouse(wh)
+    setFormData({
+      name: wh.name,
+      shortCode: wh.shortCode,
+      address: wh.address || '',
+      description: wh.description || '',
+      isActive: wh.isActive,
+    })
+    setFormErrors({})
+    setIsModalOpen(true)
+  }
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const errors: Record<string, string> = {}
+
+    if (!formData.name.trim()) {
+      errors.name = 'Warehouse name is required'
+    }
+    if (!formData.shortCode.trim()) {
+      errors.shortCode = 'Short code is required'
+    } else if (formData.shortCode.trim().length > 10) {
+      errors.shortCode = 'Short code cannot exceed 10 characters'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      return
+    }
+
+    setIsSubmitting(true)
+    setFormErrors({})
+
+    try {
+      if (editingWarehouse) {
+        const updatePayload: UpdateWarehousePayload = {
+          name: formData.name.trim(),
+          shortCode: formData.shortCode.trim().toUpperCase(),
+          address: formData.address?.trim() || null,
+          description: formData.description?.trim() || null,
+          isActive: formData.isActive,
+        }
+        await warehousesApi.update(editingWarehouse.id, updatePayload)
+        toast.success('Warehouse Updated', `${formData.name} was updated successfully.`)
+      } else {
+        await warehousesApi.create({
+          name: formData.name.trim(),
+          shortCode: formData.shortCode.trim().toUpperCase(),
+          address: formData.address?.trim() || undefined,
+          description: formData.description?.trim() || undefined,
+          isActive: formData.isActive,
+        })
+        toast.success('Warehouse Created', `${formData.name} facility registered.`)
+      }
+
+      setIsModalOpen(false)
+      refetch()
+    } catch (err: any) {
+      const msg = err instanceof ApiError ? err.message : 'Operation failed'
+      setFormErrors({ submit: msg })
+      toast.error('Operation Failed', msg)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    try {
+      const res = await warehousesApi.delete(deleteTarget.id)
+      toast.success('Warehouse Removed', res.message || `${deleteTarget.name} has been processed.`)
+      setDeleteTarget(null)
+      refetch()
+    } catch (err: any) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to delete warehouse'
+      toast.error('Deletion Failed', msg)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   return (
     <div className="w-full max-w-[1600px] mx-auto space-y-5 pb-16">
@@ -57,10 +176,23 @@ export function WarehousesListPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200/80 px-3 py-1.5 rounded-lg shadow-2xs">
-          <WarehouseIcon className="w-4 h-4 text-brand" />
-          <span>Active Nodes: </span>
-          <strong className="text-slate-800">{warehouses.length} Facilities Online</strong>
+        <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 text-xs font-mono text-slate-500 bg-white border border-slate-200/80 px-3 py-1.5 rounded-lg shadow-2xs">
+            <WarehouseIcon className="w-4 h-4 text-brand" />
+            <span>Active Nodes: </span>
+            <strong className="text-slate-800">{activeFacilitiesCount} Facilities Online</strong>
+          </div>
+
+          {canManage && (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={openCreateModal}
+            >
+              New Warehouse
+            </Button>
+          )}
         </div>
       </div>
 
@@ -69,9 +201,11 @@ export function WarehousesListPage() {
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Total Facilities</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {warehouses.length} Nodes
+            {total} Nodes
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">100% Operational status</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">
+            {activeFacilitiesCount} active &middot; {total - activeFacilitiesCount} inactive
+          </span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
@@ -85,19 +219,32 @@ export function WarehousesListPage() {
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Total On-Hand Inventory</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {totalStockCount.toLocaleString()} Units
+            {totalStockUnitsCount.toLocaleString()} Units
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Physical units tracked</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Physical ledger units</span>
         </div>
 
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
-          <span className="text-[11px] font-medium text-slate-500 block">Avg Capacity Utilization</span>
+          <span className="text-[11px] font-medium text-slate-500 block">Network Availability</span>
           <span className="text-lg font-bold font-mono text-emerald-600 mt-0.5 block">
-            {avgUtilization}%
+            100% Operational
           </span>
-          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Optimal distribution load</span>
+          <span className="text-[10.5px] text-slate-400 mt-0.5 block">Real-time inventory ledger</span>
         </div>
       </div>
+
+      {/* ── Error Banner ─────────────────────────────────────────────── */}
+      {error && (
+        <div className="bg-rose-50 border border-rose-200 text-rose-800 p-4 rounded-lg flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+          <Button variant="secondary" size="xs" onClick={refetch}>
+            Retry
+          </Button>
+        </div>
+      )}
 
       {/* ── Toolbar & Filter ────────────────────────────────────────── */}
       <div className="bg-white border border-slate-200/80 rounded-lg p-3 sm:px-4 sm:py-3 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -123,7 +270,7 @@ export function WarehousesListPage() {
 
         <div className="flex items-center gap-3 text-xs text-slate-500 w-full sm:w-auto justify-between sm:justify-end">
           <span className="font-mono">
-            <strong className="text-slate-900">{filteredWarehouses.length}</strong> facilities
+            <strong className="text-slate-900">{warehouses.length}</strong> of {total} facilities
           </span>
           {search && (
             <button
@@ -146,27 +293,55 @@ export function WarehousesListPage() {
               <tr className="border-b border-slate-200/80 bg-slate-50/70 text-slate-600 font-semibold select-none">
                 <th className="py-2.5 px-4">Warehouse Name</th>
                 <th className="py-2.5 px-4">Code</th>
-                <th className="py-2.5 px-4 text-center">Number of Locations</th>
-                <th className="py-2.5 px-4">Stock Summary</th>
+                <th className="py-2.5 px-4 text-center">Locations</th>
+                <th className="py-2.5 px-4">Inventory Summary</th>
                 <th className="py-2.5 px-4 text-center">Status</th>
                 <th className="py-2.5 px-4 text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {filteredWarehouses.length === 0 ? (
+              {isLoading ? (
+                Array.from({ length: 3 }).map((_, i) => (
+                  <tr key={i} className="animate-pulse">
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-slate-200 rounded w-40 mb-1.5" />
+                      <div className="h-3 bg-slate-100 rounded w-28" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-5 bg-slate-100 rounded w-14" />
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="h-4 bg-slate-100 rounded w-16 mx-auto" />
+                    </td>
+                    <td className="py-3 px-4">
+                      <div className="h-4 bg-slate-100 rounded w-32" />
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <div className="h-5 bg-slate-100 rounded w-16 mx-auto" />
+                    </td>
+                    <td className="py-3 px-4 text-right">
+                      <div className="h-6 bg-slate-100 rounded w-20 ml-auto" />
+                    </td>
+                  </tr>
+                ))
+              ) : warehouses.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-0">
                     <EmptyState
                       icon={WarehouseIcon}
-                      title="No warehouse matches search"
-                      description="Try searching with a different warehouse name or location code."
-                      actionLabel={search ? 'Reset Search' : undefined}
-                      onAction={search ? () => setSearch('') : undefined}
+                      title={search ? 'No warehouse matches search' : 'No warehouses configured'}
+                      description={
+                        search
+                          ? 'Try searching with a different warehouse name or location code.'
+                          : 'Configure your first warehouse facility to start tracking inventory nodes.'
+                      }
+                      actionLabel={search ? 'Reset Search' : canManage ? 'Create Warehouse' : undefined}
+                      onAction={search ? () => setSearch('') : canManage ? openCreateModal : undefined}
                     />
                   </td>
                 </tr>
               ) : (
-                filteredWarehouses.map((wh) => (
+                warehouses.map((wh) => (
                   <tr
                     key={wh.id}
                     className="hover:bg-slate-50/80 transition-colors group cursor-pointer"
@@ -174,7 +349,7 @@ export function WarehousesListPage() {
                     {/* Warehouse Name */}
                     <td className="py-3 px-4">
                       <Link
-                        to={`/settings/warehouses/${wh.code}`}
+                        to={`/settings/warehouses/${wh.id}`}
                         className="hover:text-brand transition-colors block"
                       >
                         <span className="font-bold text-slate-900 text-sm block font-heading">
@@ -182,7 +357,9 @@ export function WarehousesListPage() {
                         </span>
                         <span className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
                           <MapPin className="w-3 h-3 shrink-0" />
-                          <span className="truncate max-w-[280px]">{wh.address}</span>
+                          <span className="truncate max-w-[280px]">
+                            {wh.address || 'Standard Logistics Node'}
+                          </span>
                         </span>
                       </Link>
                     </td>
@@ -190,7 +367,7 @@ export function WarehousesListPage() {
                     {/* Code */}
                     <td className="py-3 px-4 font-mono font-bold text-slate-800">
                       <span className="px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
-                        {wh.code}
+                        {wh.shortCode}
                       </span>
                     </td>
 
@@ -212,48 +389,66 @@ export function WarehousesListPage() {
                         <span className="text-slate-500 font-medium">
                           {wh.productCount} SKUs
                         </span>
-                        <span className="text-slate-300">&middot;</span>
-                        <span className="text-brand font-mono text-[11px]">
-                          {wh.capacityUtilization}% Capacity
-                        </span>
                       </div>
-                      {(wh.lowStockCount > 0 || wh.outOfStockCount > 0) && (
-                        <div className="flex items-center gap-2 text-[10.5px] mt-1">
-                          {wh.lowStockCount > 0 && (
-                            <span className="text-amber-700 flex items-center gap-1 font-medium">
-                              <AlertTriangle className="w-2.5 h-2.5" />
-                              {wh.lowStockCount} low stock
-                            </span>
-                          )}
-                          {wh.outOfStockCount > 0 && (
-                            <span className="text-rose-600 font-medium">
-                              {wh.outOfStockCount} out of stock
-                            </span>
-                          )}
-                        </div>
+                      {wh.description && (
+                        <p className="text-[10.5px] text-slate-400 truncate max-w-xs mt-0.5">
+                          {wh.description}
+                        </p>
                       )}
                     </td>
 
                     {/* Status */}
                     <td className="py-3 px-4 text-center">
-                      <Badge variant="done" dot>
-                        ACTIVE
+                      <Badge variant={wh.isActive ? 'done' : 'neutral'} dot>
+                        {wh.isActive ? 'ACTIVE' : 'INACTIVE'}
                       </Badge>
                     </td>
 
                     {/* Actions */}
                     <td className="py-3 px-4 text-right">
-                      <Link to={`/settings/warehouses/${wh.code}`}>
-                        <Button
-                          variant="ghost"
-                          size="xs"
-                          className="h-7 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-                        >
-                          <Eye className="w-3.5 h-3.5 mr-1" />
-                          <span>View Tree</span>
-                          <ChevronRight className="w-3 h-3 ml-0.5 text-slate-400" />
-                        </Button>
-                      </Link>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Link to={`/settings/warehouses/${wh.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            className="h-7 px-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+                          >
+                            <Eye className="w-3.5 h-3.5 mr-1" />
+                            <span>View Tree</span>
+                            <ChevronRight className="w-3 h-3 ml-0.5 text-slate-400" />
+                          </Button>
+                        </Link>
+
+                        {canManage && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-slate-700"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                openEditModal(wh)
+                              }}
+                              title="Edit facility"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </Button>
+
+                            <Button
+                              variant="ghost"
+                              size="xs"
+                              className="h-7 w-7 p-0 text-slate-400 hover:text-rose-600"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setDeleteTarget(wh)
+                              }}
+                              title="Delete facility"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </Button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))
@@ -262,14 +457,208 @@ export function WarehousesListPage() {
           </table>
         </div>
 
-        {/* ── Table Footer ──────────────────────────────────────────── */}
-        <div className="px-4 py-2.5 border-t border-slate-200/80 bg-slate-50/50 flex items-center justify-between text-xs text-slate-500">
-          <span>{filteredWarehouses.length} active warehouse distribution nodes configured</span>
-          <span className="text-[11px] text-slate-400">
-            StockSense Multi-Facility Architecture
-          </span>
+        {/* ── Table Footer & Pagination ─────────────────────────────────── */}
+        <div className="px-4 py-2.5 border-t border-slate-200/80 bg-slate-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500">
+          <span>{total} configured warehouse facilities in multi-node network</span>
+          {total > limit && (
+            <TablePagination
+              currentPage={page}
+              totalPages={totalPages}
+              totalItems={total}
+              pageSize={limit}
+              onPageChange={setPage}
+            />
+          )}
         </div>
       </div>
+
+      {/* ── Create / Edit Modal Dialog ───────────────────────────────── */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-[fadeIn_150ms_ease-out]">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-[scaleIn_150ms_ease-out]">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <WarehouseIcon className="w-4 h-4 text-brand" />
+                <h3 className="font-heading font-semibold text-slate-900 text-sm">
+                  {editingWarehouse ? 'Edit Warehouse Facility' : 'Create Warehouse Facility'}
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleFormSubmit} className="p-5 space-y-4">
+              {formErrors.submit && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-md flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{formErrors.submit}</span>
+                </div>
+              )}
+
+              {/* Warehouse Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Warehouse Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="e.g. Central Fulfillment Hub"
+                  className={cn(
+                    'w-full px-3 py-1.5 text-xs border rounded-md focus:outline-none focus:ring-1',
+                    formErrors.name
+                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200'
+                      : 'border-slate-200 focus:border-brand focus:ring-brand/20'
+                  )}
+                />
+                {formErrors.name && (
+                  <span className="text-[11px] text-rose-600 mt-0.5 block">{formErrors.name}</span>
+                )}
+              </div>
+
+              {/* Short Code */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Facility Code (Short Code) <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={10}
+                  value={formData.shortCode}
+                  onChange={(e) => setFormData({ ...formData, shortCode: e.target.value })}
+                  placeholder="e.g. WH01"
+                  className={cn(
+                    'w-full px-3 py-1.5 text-xs border rounded-md font-mono uppercase focus:outline-none focus:ring-1',
+                    formErrors.shortCode
+                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200'
+                      : 'border-slate-200 focus:border-brand focus:ring-brand/20'
+                  )}
+                />
+                {formErrors.shortCode && (
+                  <span className="text-[11px] text-rose-600 mt-0.5 block">{formErrors.shortCode}</span>
+                )}
+              </div>
+
+              {/* Address */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Physical Address
+                </label>
+                <input
+                  type="text"
+                  value={formData.address || ''}
+                  onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                  placeholder="e.g. 742 Evergreen Terrace, Sector 4"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20"
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Description / Facility Notes
+                </label>
+                <textarea
+                  rows={2}
+                  value={formData.description || ''}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Optional operational details or access specifications"
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 resize-none"
+                />
+              </div>
+
+              {/* Status */}
+              <div className="flex items-center gap-2 pt-1">
+                <input
+                  type="checkbox"
+                  id="wh-is-active"
+                  checked={formData.isActive}
+                  onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
+                  className="rounded border-slate-300 text-brand focus:ring-brand/20 h-4 w-4 cursor-pointer"
+                />
+                <label htmlFor="wh-is-active" className="text-xs text-slate-700 font-medium cursor-pointer">
+                  Facility Active for Inventory Movements
+                </label>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsModalOpen(false)}
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={isSubmitting}
+                  leftIcon={isSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+                >
+                  {isSubmitting ? 'Saving...' : editingWarehouse ? 'Update Facility' : 'Create Facility'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Confirmation Modal ─────────────────────────────────── */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-[fadeIn_150ms_ease-out]">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200/80 w-full max-w-sm overflow-hidden p-5 space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-heading font-semibold text-slate-900 text-sm">
+                  Delete Warehouse Facility
+                </h3>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Are you sure you want to remove <strong className="text-slate-800">{deleteTarget.name}</strong>?
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 bg-slate-50 p-2.5 rounded border border-slate-100">
+              If this facility contains existing locations or stock history, it will be safely deactivated to preserve audit trails.
+            </p>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDelete}
+                disabled={isDeleting}
+                leftIcon={isDeleting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+              >
+                {isDeleting ? 'Deleting...' : 'Confirm Delete'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

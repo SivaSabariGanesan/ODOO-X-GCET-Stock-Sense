@@ -5,59 +5,155 @@ import {
   Warehouse as WarehouseIcon,
   MapPin,
   Package,
-  Layers,
-  AlertTriangle,
   FolderTree,
-  ChevronRight,
   ExternalLink,
   Boxes,
-  Activity,
-  CheckCircle2,
+  AlertTriangle,
   TrendingDown,
   Info,
+  Plus,
+  Loader2,
+  X,
+  AlertCircle,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
-import { getMockWarehouseById } from '../mockWarehouses'
-import { Warehouse, WarehouseLocationNode } from '../types'
+import { useToast } from '@/context/ToastContext'
+import { useAuth } from '@/features/auth/hooks/useAuth'
+import { useWarehouseDetail } from '../hooks/useWarehouseDetail'
+import { locationsApi } from '../api'
+import { CreateLocationPayload, LocationType } from '../types'
+import { ApiError } from '@/lib/apiClient'
 import { cn } from '@/lib/cn'
 
 export function WarehouseDetailsPage() {
   const { id } = useParams<{ id: string }>()
-  const warehouse = id ? getMockWarehouseById(id) : undefined
+  const navigate = useNavigate()
+  const toast = useToast()
+  const { user } = useAuth()
+  const canManage = user?.role === 'admin' || user?.role === 'manager'
+
+  const {
+    warehouse,
+    locations,
+    locationNodes,
+    totalStockUnits,
+    totalLocations,
+    productCount,
+    lowStockCount,
+    outOfStockCount,
+    isLoading,
+    error,
+    refetch,
+  } = useWarehouseDetail(id)
 
   // Active selected location node in the tree ('all' or location id)
   const [selectedLocationId, setSelectedLocationId] = useState<string>('all')
 
+  // Modal State for Create Location
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false)
+  const [locationFormData, setLocationFormData] = useState<{
+    name: string
+    locationType: LocationType
+    parentId: string
+  }>({
+    name: '',
+    locationType: 'internal',
+    parentId: '',
+  })
+  const [locationFormErrors, setLocationFormErrors] = useState<Record<string, string>>({})
+  const [isSubmittingLocation, setIsSubmittingLocation] = useState(false)
+
   const activeNode = useMemo(() => {
     if (!warehouse || selectedLocationId === 'all') return null
-    return warehouse.locations.find((l) => l.id === selectedLocationId) || null
-  }, [warehouse, selectedLocationId])
+    return locationNodes.find((l) => l.id === selectedLocationId) || null
+  }, [warehouse, locationNodes, selectedLocationId])
 
   // Products displayed based on selected tree node
   const displayedProducts = useMemo(() => {
     if (!warehouse) return []
     if (activeNode) {
-      return activeNode.products.map((p) => ({ ...p, locationName: activeNode.name, locationPath: activeNode.fullPath }))
+      return activeNode.products.map((p) => ({
+        ...p,
+        locationName: activeNode.name,
+        locationPath: activeNode.fullPath,
+      }))
     }
 
     // All locations
     const all: any[] = []
-    warehouse.locations.forEach((loc) => {
+    locationNodes.forEach((loc) => {
       loc.products.forEach((p) => {
         all.push({ ...p, locationName: loc.name, locationPath: loc.fullPath })
       })
     })
     return all
-  }, [warehouse, activeNode])
+  }, [warehouse, activeNode, locationNodes])
 
-  if (!warehouse) {
+  const openCreateLocationModal = () => {
+    setLocationFormData({
+      name: '',
+      locationType: 'internal',
+      parentId: selectedLocationId !== 'all' ? selectedLocationId : '',
+    })
+    setLocationFormErrors({})
+    setIsLocationModalOpen(true)
+  }
+
+  const handleCreateLocation = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!warehouse) return
+
+    const errors: Record<string, string> = {}
+    if (!locationFormData.name.trim()) {
+      errors.name = 'Location name is required'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setLocationFormErrors(errors)
+      return
+    }
+
+    setIsSubmittingLocation(true)
+    setLocationFormErrors({})
+
+    try {
+      const payload: CreateLocationPayload = {
+        warehouseId: warehouse.id,
+        name: locationFormData.name.trim(),
+        locationType: locationFormData.locationType,
+        parentId: locationFormData.parentId || null,
+      }
+
+      await locationsApi.create(payload)
+      toast.success('Location Created', `${locationFormData.name} added to ${warehouse.name}.`)
+      setIsLocationModalOpen(false)
+      refetch()
+    } catch (err: any) {
+      const msg = err instanceof ApiError ? err.message : 'Failed to create location'
+      setLocationFormErrors({ submit: msg })
+      toast.error('Creation Failed', msg)
+    } finally {
+      setIsSubmittingLocation(false)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-6xl mx-auto py-16 flex flex-col items-center justify-center space-y-3">
+        <div className="w-8 h-8 rounded-full border-2 border-brand border-t-transparent animate-spin" />
+        <span className="text-xs text-slate-500 font-medium">Loading warehouse facility & location hierarchy...</span>
+      </div>
+    )
+  }
+
+  if (error || !warehouse) {
     return (
       <EmptyState
         icon={WarehouseIcon}
         title="Warehouse Not Found"
-        description={`The facility code #${id} could not be located in the directory.`}
+        description={error || `The facility identifier #${id} could not be located in the active directory.`}
         actionLabel="Back to Warehouses"
         onAction={() => navigate('/settings/warehouses')}
       />
@@ -80,13 +176,13 @@ export function WarehouseDetailsPage() {
           <div className="min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="font-mono text-sm font-bold text-slate-900 px-2 py-0.5 bg-slate-100 rounded border border-slate-200">
-                {warehouse.code}
+                {warehouse.shortCode}
               </span>
-              <Badge variant="done" dot>
-                ACTIVE FACILITY
+              <Badge variant={warehouse.isActive ? 'done' : 'neutral'} dot>
+                {warehouse.isActive ? 'ACTIVE FACILITY' : 'INACTIVE'}
               </Badge>
               <span className="text-[11px] text-slate-400 font-mono">
-                Capacity: {warehouse.capacityUtilization}%
+                {totalLocations} Registered Bins
               </span>
             </div>
 
@@ -95,19 +191,34 @@ export function WarehouseDetailsPage() {
             </h1>
             <p className="text-xs text-slate-500 mt-0.5 flex items-center gap-1.5">
               <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>{warehouse.address}</span>
-              <span className="text-slate-300">&middot;</span>
-              <span>Managed by: <strong className="text-slate-700 font-medium">{warehouse.manager}</strong></span>
+              <span>{warehouse.address || 'Standard Multi-Facility Distribution Node'}</span>
+              {warehouse.description && (
+                <>
+                  <span className="text-slate-300">&middot;</span>
+                  <span>{warehouse.description}</span>
+                </>
+              )}
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2.5 shrink-0">
           <Link to="/settings/warehouses">
             <Button variant="secondary" size="sm">
               All Facilities
             </Button>
           </Link>
+
+          {canManage && (
+            <Button
+              variant="primary"
+              size="sm"
+              leftIcon={<Plus className="w-4 h-4" />}
+              onClick={openCreateLocationModal}
+            >
+              Add Location
+            </Button>
+          )}
         </div>
       </div>
 
@@ -117,10 +228,10 @@ export function WarehouseDetailsPage() {
         <div className="bg-white border border-slate-200/80 rounded-lg p-3.5 shadow-2xs">
           <span className="text-[11px] font-medium text-slate-500 block">Location Inventory Summary</span>
           <span className="text-lg font-bold font-mono text-slate-900 mt-0.5 block">
-            {warehouse.totalStockUnits.toLocaleString()} Units
+            {totalStockUnits.toLocaleString()} Units
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            Across {warehouse.totalLocations} storage locations ({warehouse.capacityUtilization}% Cap)
+            Across {totalLocations} storage locations
           </span>
         </div>
 
@@ -129,7 +240,7 @@ export function WarehouseDetailsPage() {
           <span className="text-[11px] font-medium text-slate-500 block">Product Count</span>
           <span className="text-lg font-bold font-mono text-brand-dark mt-0.5 block flex items-center gap-1">
             <Package className="w-4 h-4 text-brand" />
-            {warehouse.productCount} SKUs
+            {productCount} SKUs
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
             Distinct catalog items stored
@@ -142,14 +253,14 @@ export function WarehouseDetailsPage() {
           <span
             className={cn(
               'text-lg font-bold font-mono mt-0.5 block flex items-center gap-1',
-              warehouse.lowStockCount > 0 ? 'text-amber-600' : 'text-slate-700'
+              lowStockCount > 0 ? 'text-amber-600' : 'text-slate-700'
             )}
           >
-            {warehouse.lowStockCount > 0 && <AlertTriangle className="w-4 h-4 text-amber-500" />}
-            {warehouse.lowStockCount} SKU{warehouse.lowStockCount === 1 ? '' : 's'}
+            {lowStockCount > 0 && <AlertTriangle className="w-4 h-4 text-amber-500" />}
+            {lowStockCount} SKU{lowStockCount === 1 ? '' : 's'}
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            {warehouse.lowStockCount > 0 ? 'Below minimum safety threshold' : 'All items above safety line'}
+            {lowStockCount > 0 ? 'Below safety replenishment threshold' : 'All items above safety line'}
           </span>
         </div>
 
@@ -159,14 +270,14 @@ export function WarehouseDetailsPage() {
           <span
             className={cn(
               'text-lg font-bold font-mono mt-0.5 block flex items-center gap-1',
-              warehouse.outOfStockCount > 0 ? 'text-rose-600' : 'text-slate-700'
+              outOfStockCount > 0 ? 'text-rose-600' : 'text-slate-700'
             )}
           >
-            {warehouse.outOfStockCount > 0 && <TrendingDown className="w-4 h-4 text-rose-500" />}
-            {warehouse.outOfStockCount} SKU{warehouse.outOfStockCount === 1 ? '' : 's'}
+            {outOfStockCount > 0 && <TrendingDown className="w-4 h-4 text-rose-500" />}
+            {outOfStockCount} SKU{outOfStockCount === 1 ? '' : 's'}
           </span>
           <span className="text-[10.5px] text-slate-400 mt-0.5 block">
-            {warehouse.outOfStockCount > 0 ? 'Zero on-hand inventory balance' : 'Zero depleted items'}
+            {outOfStockCount > 0 ? 'Zero on-hand inventory balance' : 'Zero depleted items'}
           </span>
         </div>
       </div>
@@ -182,18 +293,20 @@ export function WarehouseDetailsPage() {
                 Location Hierarchy Tree
               </h2>
             </div>
-            <button
-              type="button"
-              onClick={() => setSelectedLocationId('all')}
-              className={cn(
-                'text-[11px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer',
-                selectedLocationId === 'all'
-                  ? 'bg-brand text-white shadow-2xs'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
-              )}
-            >
-              View All
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setSelectedLocationId('all')}
+                className={cn(
+                  'text-[11px] font-medium px-2 py-0.5 rounded transition-colors cursor-pointer',
+                  selectedLocationId === 'all'
+                    ? 'bg-brand text-white shadow-2xs'
+                    : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'
+                )}
+              >
+                View All
+              </button>
+            </div>
           </div>
 
           {/* Clean ASCII Tree Representation */}
@@ -210,58 +323,64 @@ export function WarehouseDetailsPage() {
             >
               <div className="flex items-center gap-1.5 font-bold font-heading">
                 <WarehouseIcon className="w-3.5 h-3.5 text-brand" />
-                <span>{warehouse.name} ({warehouse.code})</span>
+                <span>{warehouse.name} ({warehouse.shortCode})</span>
               </div>
               <span className="font-mono text-[10.5px] text-slate-500">
-                {warehouse.totalStockUnits} units
+                {totalStockUnits.toLocaleString()} units
               </span>
             </div>
 
             {/* Tree Branch Items */}
             <div className="pl-2 pt-0.5 space-y-0.5">
-              {warehouse.locations.map((loc, idx) => {
-                const isLast = idx === warehouse.locations.length - 1
-                const branchPrefix = isLast ? '└── ' : '├── '
-                const isSelected = selectedLocationId === loc.id
+              {locationNodes.length === 0 ? (
+                <div className="py-4 text-center text-slate-400 font-sans text-xs">
+                  No storage locations registered in this facility.
+                </div>
+              ) : (
+                locationNodes.map((loc, idx) => {
+                  const isLast = idx === locationNodes.length - 1
+                  const branchPrefix = isLast ? '└── ' : '├── '
+                  const isSelected = selectedLocationId === loc.id
 
-                return (
-                  <div
-                    key={loc.id}
-                    onClick={() => setSelectedLocationId(loc.id)}
-                    className={cn(
-                      'flex items-center justify-between px-2 py-1.5 rounded transition-colors cursor-pointer select-none font-sans',
-                      isSelected
-                        ? 'bg-brand text-white font-semibold shadow-2xs'
-                        : 'hover:bg-slate-200/60 text-slate-700'
-                    )}
-                  >
-                    <div className="flex items-center min-w-0">
-                      <span className={cn('font-mono text-xs shrink-0 select-none mr-1', isSelected ? 'text-white/80' : 'text-slate-400')}>
-                        {branchPrefix}
-                      </span>
-                      <span className="truncate font-medium text-xs">
-                        {loc.name}
-                      </span>
-                      <span
-                        className={cn(
-                          'ml-2 text-[10px] px-1.5 py-0.2 rounded uppercase font-mono tracking-wider',
-                          isSelected
-                            ? 'bg-white/20 text-white'
-                            : 'bg-slate-200/80 text-slate-600'
-                        )}
-                      >
-                        {loc.type}
-                      </span>
-                    </div>
+                  return (
+                    <div
+                      key={loc.id}
+                      onClick={() => setSelectedLocationId(loc.id)}
+                      className={cn(
+                        'flex items-center justify-between px-2 py-1.5 rounded transition-colors cursor-pointer select-none font-sans',
+                        isSelected
+                          ? 'bg-brand text-white font-semibold shadow-2xs'
+                          : 'hover:bg-slate-200/60 text-slate-700'
+                      )}
+                    >
+                      <div className="flex items-center min-w-0">
+                        <span className={cn('font-mono text-xs shrink-0 select-none mr-1', isSelected ? 'text-white/80' : 'text-slate-400')}>
+                          {branchPrefix}
+                        </span>
+                        <span className="truncate font-medium text-xs">
+                          {loc.name}
+                        </span>
+                        <span
+                          className={cn(
+                            'ml-2 text-[10px] px-1.5 py-0.2 rounded uppercase font-mono tracking-wider',
+                            isSelected
+                              ? 'bg-white/20 text-white'
+                              : 'bg-slate-200/80 text-slate-600'
+                          )}
+                        >
+                          {loc.type}
+                        </span>
+                      </div>
 
-                    <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
-                      <span className={cn(isSelected ? 'text-white' : 'text-slate-600')}>
-                        {loc.totalUnits.toLocaleString()} units
-                      </span>
+                      <div className="flex items-center gap-2 shrink-0 font-mono text-[11px]">
+                        <span className={cn(isSelected ? 'text-white' : 'text-slate-600')}>
+                          {loc.totalUnits.toLocaleString()} units
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })
+              )}
             </div>
           </div>
 
@@ -281,16 +400,16 @@ export function WarehouseDetailsPage() {
               <Boxes className="w-4 h-4 text-brand" />
               <div>
                 <h3 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
-                  {activeNode ? `Bin Stock: ${activeNode.name}` : `All Bin Inventory: ${warehouse.code}`}
+                  {activeNode ? `Bin Stock: ${activeNode.name}` : `All Bin Inventory: ${warehouse.shortCode}`}
                 </h3>
                 <span className="text-[10.5px] text-slate-400">
-                  {activeNode ? activeNode.fullPath : `${warehouse.locations.length} total facility bins`}
+                  {activeNode ? activeNode.fullPath : `${locations.length} total facility bins`}
                 </span>
               </div>
             </div>
 
             <div className="flex items-center gap-2.5">
-              <Link to="/inventory">
+              <Link to={`/inventory?warehouseId=${warehouse.id}`}>
                 <Button variant="secondary" size="xs" leftIcon={<Boxes className="w-3 h-3" />}>
                   Live Stock Ledger
                 </Button>
@@ -400,6 +519,125 @@ export function WarehouseDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Create Location Modal Dialog ───────────────────────────────── */}
+      {isLocationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-[fadeIn_150ms_ease-out]">
+          <div className="bg-white rounded-lg shadow-xl border border-slate-200/80 w-full max-w-md overflow-hidden animate-[scaleIn_150ms_ease-out]">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FolderTree className="w-4 h-4 text-brand" />
+                <h3 className="font-heading font-semibold text-slate-900 text-sm">
+                  Add Storage Location
+                </h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsLocationModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateLocation} className="p-5 space-y-4">
+              {locationFormErrors.submit && (
+                <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs p-3 rounded-md flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{locationFormErrors.submit}</span>
+                </div>
+              )}
+
+              {/* Location Name */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Location Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={locationFormData.name}
+                  onChange={(e) => setLocationFormData({ ...locationFormData, name: e.target.value })}
+                  placeholder="e.g. Rack A / Shelf 1"
+                  className={cn(
+                    'w-full px-3 py-1.5 text-xs border rounded-md focus:outline-none focus:ring-1',
+                    locationFormErrors.name
+                      ? 'border-rose-300 focus:border-rose-500 focus:ring-rose-200'
+                      : 'border-slate-200 focus:border-brand focus:ring-brand/20'
+                  )}
+                />
+                {locationFormErrors.name && (
+                  <span className="text-[11px] text-rose-600 mt-0.5 block">{locationFormErrors.name}</span>
+                )}
+              </div>
+
+              {/* Location Type */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Location Type
+                </label>
+                <select
+                  value={locationFormData.locationType}
+                  onChange={(e) =>
+                    setLocationFormData({
+                      ...locationFormData,
+                      locationType: e.target.value as LocationType,
+                    })
+                  }
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 bg-white"
+                >
+                  <option value="internal">Internal Storage (Default)</option>
+                  <option value="input">Inbound Dock / Intake</option>
+                  <option value="output">Outbound Staging / Dispatch</option>
+                  <option value="quality_control">Quality Control / Inspection</option>
+                  <option value="virtual">Virtual / Cross-docking</option>
+                </select>
+              </div>
+
+              {/* Parent Location */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Parent Location (Optional Hierarchy)
+                </label>
+                <select
+                  value={locationFormData.parentId}
+                  onChange={(e) => setLocationFormData({ ...locationFormData, parentId: e.target.value })}
+                  className="w-full px-3 py-1.5 text-xs border border-slate-200 rounded-md focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 bg-white"
+                >
+                  <option value="">No Parent (Root Facility Tier)</option>
+                  {locations.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.fullPath || loc.name} ({loc.locationType})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setIsLocationModalOpen(false)}
+                  disabled={isSubmittingLocation}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={isSubmittingLocation}
+                  leftIcon={isSubmittingLocation ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : undefined}
+                >
+                  {isSubmittingLocation ? 'Creating...' : 'Create Location'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

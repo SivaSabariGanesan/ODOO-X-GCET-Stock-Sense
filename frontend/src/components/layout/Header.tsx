@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '@/features/auth/hooks/useAuth'
 import { useToast } from '@/context/ToastContext'
+import { warehousesApi } from '@/features/warehouses/api'
 import { Badge } from '@/components/ui/Badge'
 import { CommandPalette } from './CommandPalette'
 import { NotificationsDropdown } from './NotificationsDropdown'
@@ -33,7 +34,49 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
   const [isWarehouseOpen, setIsWarehouseOpen] = useState(false)
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
-  const [activeWarehouse, setActiveWarehouse] = useState('WH01 — Main Central Warehouse')
+
+  const [warehousesList, setWarehousesList] = useState<Array<{ id: string; name: string; location: string }>>([])
+  const [activeWarehouse, setActiveWarehouse] = useState<string>(() => {
+    try {
+      return localStorage.getItem('stocksense_active_warehouse') || 'WH01 — Main Central Warehouse'
+    } catch {
+      return 'WH01 — Main Central Warehouse'
+    }
+  })
+
+  // Load real warehouses for global selector
+  useEffect(() => {
+    let isCancelled = false
+    warehousesApi
+      .list({ isActive: true, limit: 100 })
+      .then((res) => {
+        if (isCancelled || !res.data) return
+        const mapped = res.data.map((w) => ({
+          id: w.id,
+          name: `${w.shortCode} — ${w.name}`,
+          location: w.address || 'Standard Hub Node',
+        }))
+        if (mapped.length > 0) {
+          setWarehousesList(mapped)
+          setActiveWarehouse((prev) => {
+            const exists = mapped.find((m) => m.name === prev)
+            if (exists) return prev
+            const defaultWh = mapped[0].name
+            try {
+              localStorage.setItem('stocksense_active_warehouse', defaultWh)
+            } catch {}
+            return defaultWh
+          })
+        }
+      })
+      .catch(() => {
+        // Fallback gracefully to default
+      })
+
+    return () => {
+      isCancelled = true
+    }
+  }, [])
 
   const profileRef = useRef<HTMLDivElement>(null)
   const warehouseRef = useRef<HTMLDivElement>(null)
@@ -87,6 +130,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
   const handleWarehouseSelect = (whName: string) => {
     setActiveWarehouse(whName)
+    try {
+      localStorage.setItem('stocksense_active_warehouse', whName)
+    } catch {
+      // ignore
+    }
     setIsWarehouseOpen(false)
     toast.success('Active Warehouse Changed', `Switched routing context to ${whName}`)
   }
@@ -167,11 +215,11 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
   const breadcrumbs = getBreadcrumbs()
   const currentPageTitle = breadcrumbs[breadcrumbs.length - 1]?.label || 'Dashboard'
 
-  const warehouses = [
-    { id: 'WH01', name: 'WH01 — Main Central Warehouse', location: 'Section A-D', utilization: '74% Capacity' },
-    { id: 'WH02', name: 'WH02 — North Distribution Hub', location: 'Bulk Staging', utilization: '52% Capacity' },
-    { id: 'WH03', name: 'WH03 — Cold Storage Facility', location: 'Zone C', utilization: '88% Capacity' },
-  ]
+  const availableWarehouses = warehousesList.length > 0
+    ? warehousesList
+    : [
+        { id: 'WH01', name: 'WH01 — Main Central Warehouse', location: 'Section A-D' },
+      ]
 
   return (
     <>
@@ -278,9 +326,9 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
               <div className="dropdown-menu absolute right-0 mt-1.5 w-80 max-w-[calc(100vw-1.5rem)] bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
                 <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 flex items-center justify-between">
                   <span>Warehouse Facility</span>
-                  <span className="text-[10px] text-brand">3 Online</span>
+                  <span className="text-[10px] text-brand">{availableWarehouses.length} Online</span>
                 </div>
-                {warehouses.map((wh) => (
+                {availableWarehouses.map((wh) => (
                   <button
                     key={wh.id}
                     type="button"
@@ -290,9 +338,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                     <div>
                       <div className="font-medium text-gray-800">{wh.name}</div>
                       <div className="text-[11px] text-gray-500 flex items-center gap-2">
-                        <span>{wh.location}</span>
-                        <span>&middot;</span>
-                        <span className="text-brand font-mono">{wh.utilization}</span>
+                        <span className="truncate max-w-[200px]">{wh.location}</span>
                       </div>
                     </div>
                     {activeWarehouse === wh.name && (
