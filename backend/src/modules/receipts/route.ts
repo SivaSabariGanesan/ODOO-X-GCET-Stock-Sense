@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { authMiddleware } from "../../app/middleware/auth";
 import { ReceiptCoreService } from "./service";
+import { ReceiptProcessingService } from "./processing.service";
 import {
   createReceiptSchema,
   updateReceiptSchema,
@@ -90,6 +91,17 @@ receiptsRouter.post("/:id/validate", async (c) => {
   const id = c.req.param("id");
   const validationResult = await ReceiptCoreService.validateReceipt(id);
   return c.json({ data: validationResult }, 200);
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/receipts/:id/process - Process Receipt (Stock Operation)
+// ---------------------------------------------------------------------------
+receiptsRouter.post("/:id/process", async (c) => {
+  const user = c.get("user");
+  const id = c.req.param("id");
+
+  const receipt = await ReceiptProcessingService.processReceipt(id, user.id);
+  return c.json({ data: receipt, message: "Receipt processed successfully" }, 200);
 });
 
 // ---------------------------------------------------------------------------

@@ -461,5 +461,18 @@ export const openApiSpec = {
         },
       },
     },
+    "/api/receipts/{id}/process": {
+      post: {
+        summary: "Process Receipt Document (Mutates Stock & Ledger)",
+        tags: ["Receipt Processing"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Receipt processed successfully, stock balances updated, ledger movement recorded, status set to DONE" },
+          400: { description: "Validation error or invalid receipt status" },
+          409: { description: "Receipt already processed and marked DONE" },
+        },
+      },
+    },
   },
 };

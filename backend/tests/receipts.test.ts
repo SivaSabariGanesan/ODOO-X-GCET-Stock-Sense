@@ -99,14 +99,22 @@ describe("StockSense Receipt Core Module", () => {
   });
 
   afterAll(async () => {
-    // Clean up created receipts & items
+    // Clean up created receipts, items, stock movements & stock balances
     if (createdReceiptIds.length > 0) {
+      await db
+        .delete(stockMovements)
+        .where(inArray(stockMovements.referenceId, createdReceiptIds));
       await db
         .delete(receiptItems)
         .where(inArray(receiptItems.receiptId, createdReceiptIds));
       await db
         .delete(receipts)
         .where(inArray(receipts.id, createdReceiptIds));
+    }
+
+    const testProdIds = [productId1, productId2].filter(Boolean);
+    if (testProdIds.length > 0) {
+      await db.delete(stockBalances).where(inArray(stockBalances.productId, testProdIds));
     }
 
     // Clean up test fixtures
@@ -494,12 +502,198 @@ describe("StockSense Receipt Core Module", () => {
   // -------------------------------------------------------------------------
   describe("Stock Isolation Guarantee", () => {
     it("should confirm Receipt Core operations leave stock tables completely untouched", async () => {
-      const balances = await db.select().from(stockBalances);
-      const movements = await db.select().from(stockMovements);
+      const testProdIds = [productId1, productId2].filter(Boolean);
+      const balances = testProdIds.length > 0
+        ? await db.select().from(stockBalances).where(inArray(stockBalances.productId, testProdIds))
+        : [];
+
+      const movements = testProdIds.length > 0
+        ? await db.select().from(stockMovements).where(inArray(stockMovements.productId, testProdIds))
+        : [];
 
       // Verify no rows were created or mutated in stock balances/movements by Receipt Core
       expect(balances.length).toBe(0);
       expect(movements.length).toBe(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // 6. Receipt Module 2 — Receipt Processing Tests
+  // -------------------------------------------------------------------------
+  describe("Receipt Module 2 — Receipt Processing Layer", () => {
+    let processReceiptId = "";
+
+    beforeAll(async () => {
+      // Create a fresh receipt with 2 line items for processing test
+      const res = await app.request("/api/receipts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          supplierId: "00000000-0000-0000-0000-000000000001",
+          warehouseId: warehouseId,
+          items: [
+            { productId: productId1, quantity: 100, unitPrice: 25.0 },
+            { productId: productId2, quantity: 50, unitPrice: 10.0 },
+          ],
+        }),
+      });
+
+      const { data } = await res.json();
+      processReceiptId = data.id;
+      createdReceiptIds.push(processReceiptId);
+    });
+
+    it("should process a valid receipt, updating stock balances and logging stock movements atomically", async () => {
+      const res = await app.request(`/api/receipts/${processReceiptId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      expect(res.status).toBe(200);
+      const { data, message } = await res.json();
+      expect(message).toContain("processed successfully");
+      expect(data.status).toBe("DONE");
+
+      // Verify stock_balances table was updated by InventoryService
+      const balances = await db.select().from(stockBalances);
+      expect(balances.length).toBeGreaterThanOrEqual(2);
+
+      const p1Balance = balances.find((b) => b.productId === productId1);
+      const p2Balance = balances.find((b) => b.productId === productId2);
+
+      expect(p1Balance).toBeDefined();
+      expect(Number(p1Balance?.quantity)).toBe(100);
+
+      expect(p2Balance).toBeDefined();
+      expect(Number(p2Balance?.quantity)).toBe(50);
+
+      // Verify stock_movements ledger table was populated by InventoryService
+      const movements = await db
+        .select()
+        .from(stockMovements)
+        .where(eq(stockMovements.referenceId, processReceiptId));
+
+      expect(movements.length).toBe(2);
+      expect(movements[0].movementType).toBe("RECEIPT");
+      expect(movements[0].referenceType).toBe("RECEIPT");
+      expect(movements[0].referenceId).toBe(processReceiptId);
+    });
+
+    it("should enforce idempotency by rejecting a second process attempt on a DONE receipt", async () => {
+      const res = await app.request(`/api/receipts/${processReceiptId}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      expect(res.status).toBe(409);
+      const data = await res.json();
+      expect(data.error).toContain("already been processed");
+
+      // Verify stock balances were NOT double-counted
+      const balances = await db.select().from(stockBalances);
+      const p1Balance = balances.find((b) => b.productId === productId1);
+      expect(Number(p1Balance?.quantity)).toBe(100); // Still 100, not 200!
+    });
+
+    it("should reject processing an empty receipt (no items)", async () => {
+      const emptyRes = await app.request("/api/receipts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          supplierId: "00000000-0000-0000-0000-000000000001",
+          warehouseId: warehouseId,
+        }),
+      });
+
+      const { data: emptyRec } = await emptyRes.json();
+      createdReceiptIds.push(emptyRec.id);
+
+      const processRes = await app.request(`/api/receipts/${emptyRec.id}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      expect(processRes.status).toBe(400);
+      const errData = await processRes.json();
+      expect(errData.error).toContain("must contain at least one line item");
+    });
+
+    it("should reject processing a CANCELED receipt", async () => {
+      const cancelRecRes = await app.request("/api/receipts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          supplierId: "00000000-0000-0000-0000-000000000001",
+          warehouseId: warehouseId,
+          items: [{ productId: productId1, quantity: 10 }],
+        }),
+      });
+      const { data: cancelRec } = await cancelRecRes.json();
+      createdReceiptIds.push(cancelRec.id);
+
+      // Cancel it
+      await app.request(`/api/receipts/${cancelRec.id}/cancel`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      // Attempt process
+      const processRes = await app.request(`/api/receipts/${cancelRec.id}/process`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${authToken}` },
+      });
+
+      expect(processRes.status).toBe(400);
+      const errData = await processRes.json();
+      expect(errData.error).toContain("locked");
+    });
+
+    it("should safely handle concurrent processing attempts without double incrementing stock", async () => {
+      const concRecRes = await app.request("/api/receipts", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({
+          supplierId: "00000000-0000-0000-0000-000000000001",
+          warehouseId: warehouseId,
+          items: [{ productId: productId2, quantity: 30 }],
+        }),
+      });
+      const { data: concRec } = await concRecRes.json();
+      createdReceiptIds.push(concRec.id);
+
+      // Execute 2 concurrent requests
+      const [res1, res2] = await Promise.all([
+        app.request(`/api/receipts/${concRec.id}/process`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        }),
+        app.request(`/api/receipts/${concRec.id}/process`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${authToken}` },
+        }),
+      ]);
+
+      const statuses = [res1.status, res2.status].sort();
+      // Exactly one request must succeed (200) and one must be rejected (409 conflict or 400 error)
+      expect(statuses[0]).toBe(200);
+      expect(statuses[1]).toBeGreaterThanOrEqual(400);
+
+      // Verify stock was incremented by 30 once (initial 50 + 30 = 80 for product 2)
+      const balances = await db.select().from(stockBalances);
+      const p2Balance = balances.find((b) => b.productId === productId2);
+      expect(Number(p2Balance?.quantity)).toBe(80);
     });
   });
 });
