@@ -214,6 +214,19 @@ export const openApiSpec = {
           uom: { type: "object", nullable: true },
         },
       },
+      Category: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string", example: "Raw Materials" },
+          description: { type: "string", nullable: true, example: "Primary manufacturing inputs" },
+          color: { type: "string", nullable: true, example: "#3B82F6" },
+          isActive: { type: "boolean", example: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -1091,6 +1104,135 @@ export const openApiSpec = {
             },
           },
           404: { description: "Product not found" },
+        },
+      },
+    },
+    "/api/categories": {
+      get: {
+        summary: "List Categories",
+        tags: ["Category CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "isActive", in: "query", schema: { type: "boolean" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of categories",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/Category" } },
+                    meta: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: "Unauthorized" },
+        },
+      },
+      post: {
+        summary: "Create Category Master Record",
+        tags: ["Category CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name"],
+                properties: {
+                  name: { type: "string", example: "Raw Materials" },
+                  description: { type: "string", example: "Primary manufacturing inputs" },
+                  color: { type: "string", example: "#3B82F6" },
+                  isActive: { type: "boolean", default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Category created successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Category" } } } } } },
+          400: { description: "Validation error" },
+          409: { description: "Duplicate Category Name error" },
+        },
+      },
+    },
+    "/api/categories/{id}": {
+      get: {
+        summary: "Get Category by ID",
+        tags: ["Category CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Category details", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Category" } } } } } },
+          404: { description: "Category not found" },
+        },
+      },
+      patch: {
+        summary: "Update Category Master Record",
+        tags: ["Category CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  description: { type: "string", nullable: true },
+                  color: { type: "string", nullable: true },
+                  isActive: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Category updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Category" } } } } } },
+          400: { description: "Validation error" },
+          404: { description: "Category not found" },
+          409: { description: "Duplicate Category Name error" },
+        },
+      },
+      delete: {
+        summary: "Delete or Deactivate Category",
+        tags: ["Category CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "Category deleted if unreferenced, or deactivated if referenced by products",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    message: { type: "string" },
+                    mode: { type: "string", enum: ["deleted", "deactivated"] },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: "Category not found" },
         },
       },
     },

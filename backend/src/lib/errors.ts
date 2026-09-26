@@ -269,6 +269,20 @@ export class ProductReferencedError extends AppError {
   }
 }
 
+export class DuplicateCategoryNameError extends AppError {
+  constructor(name: string) {
+    super(`A category with name '${name}' already exists`, 409);
+    this.name = "DuplicateCategoryNameError";
+  }
+}
+
+export class CategoryReferencedError extends AppError {
+  constructor(id: string, message = `Category '${id}' is referenced by existing products and cannot be hard deleted. Deactivate it instead.`) {
+    super(message, 400);
+    this.name = "CategoryReferencedError";
+  }
+}
+
 
 
 
