@@ -13,8 +13,11 @@ interface AuthContextType extends AuthState {
   updateUser: (data: Partial<User>) => void
   pendingOtpEmail: string | null
   setPendingOtpEmail: (email: string | null) => void
+  forgotPassword: (email: string) => Promise<{ success: boolean; message?: string; debugOtp?: string; error?: string }>
   verifyOtp: (code: string) => Promise<{ success: boolean; error?: string }>
-  resetPassword: (password: string) => Promise<boolean>
+  resetPassword: (newPassword: string, otpOverride?: string) => Promise<boolean>
+  verifiedOtp: string | null
+  debugOtp: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -50,6 +53,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const [pendingOtpEmail, setPendingOtpEmail] = useState<string | null>(() => {
     return sessionStorage.getItem('stocksense_pending_email') || null
+  })
+
+  const [verifiedOtp, setVerifiedOtp] = useState<string | null>(() => {
+    return sessionStorage.getItem('stocksense_verified_otp') || null
+  })
+
+  const [debugOtp, setDebugOtp] = useState<string | null>(() => {
+    return sessionStorage.getItem('stocksense_debug_otp') || null
   })
 
   // On mount: if we have a stored user but no token, clear the stale user
@@ -165,6 +176,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // ---------------------------------------------------------------------------
+  // Request password reset OTP — calls real backend
+  // ---------------------------------------------------------------------------
+  const forgotPassword = async (
+    email: string
+  ): Promise<{ success: boolean; message?: string; debugOtp?: string; error?: string }> => {
+    setIsLoading(true)
+    try {
+      const res = await apiClient.postPublic<{ message: string; debugOtp?: string }>(
+        '/api/auth/forgot-password',
+        { email }
+      )
+      setPendingOtpEmail(email)
+      if (res.debugOtp) {
+        setDebugOtp(res.debugOtp)
+        sessionStorage.setItem('stocksense_debug_otp', res.debugOtp)
+      }
+      return { success: true, message: res.message, debugOtp: res.debugOtp }
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to dispatch recovery code.'
+      return { success: false, error: msg }
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // ---------------------------------------------------------------------------
   // OTP verification — calls real backend
   // ---------------------------------------------------------------------------
   const verifyOtp = async (code: string): Promise<{ success: boolean; error?: string }> => {
@@ -174,6 +211,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         email: pendingOtpEmail,
         otp: code,
       })
+      setVerifiedOtp(code)
+      sessionStorage.setItem('stocksense_verified_otp', code)
       return { success: true }
     } catch (err: any) {
       const message = err?.message || 'The code entered has expired or is invalid.'
@@ -184,18 +223,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   // ---------------------------------------------------------------------------
-  // Reset password — calls real backend
+  // Reset password — calls real backend with email, otp, newPassword
   // ---------------------------------------------------------------------------
-  const resetPassword = async (password: string): Promise<boolean> => {
+  const resetPassword = async (newPassword: string, otpOverride?: string): Promise<boolean> => {
     setIsLoading(true)
     try {
+      const otpToUse = otpOverride || verifiedOtp || ''
       await apiClient.postPublic('/api/auth/reset-password', {
         email: pendingOtpEmail,
-        password,
+        otp: otpToUse,
+        newPassword,
       })
+      setVerifiedOtp(null)
+      setDebugOtp(null)
+      sessionStorage.removeItem('stocksense_verified_otp')
+      sessionStorage.removeItem('stocksense_debug_otp')
       return true
-    } catch {
-      return false
+    } catch (err) {
+      throw err
     } finally {
       setIsLoading(false)
     }
@@ -213,8 +258,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         updateUser,
         pendingOtpEmail,
         setPendingOtpEmail,
+        forgotPassword,
         verifyOtp,
         resetPassword,
+        verifiedOtp,
+        debugOtp,
       }}
     >
       {children}

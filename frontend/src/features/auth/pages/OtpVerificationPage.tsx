@@ -12,7 +12,7 @@ const INITIAL_EXPIRATION_SECONDS = 120 // 2 minutes
 export function OtpVerificationPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { pendingOtpEmail, verifyOtp } = useAuth()
+  const { pendingOtpEmail, verifyOtp, forgotPassword, debugOtp } = useAuth()
 
   // Target email from query param or auth context or fallback
   const email = searchParams.get('email') || pendingOtpEmail || 'operator@company.com'
@@ -145,7 +145,7 @@ export function OtpVerificationPage() {
     setIsVerifying(false)
 
     if (result.success) {
-      navigate(`/reset-password?email=${encodeURIComponent(email)}`)
+      navigate(`/reset-password?email=${encodeURIComponent(email)}&otp=${encodeURIComponent(fullCode)}`)
     } else {
       setErrorMessage(result.error || 'Invalid verification code. Please check and try again.')
     }
@@ -156,18 +156,26 @@ export function OtpVerificationPage() {
     setErrorMessage(null)
     setResendSuccess(false)
 
-    await new Promise((resolve) => setTimeout(resolve, 800))
-
+    const res = await forgotPassword(email)
     setIsResending(false)
-    setTimeLeft(INITIAL_EXPIRATION_SECONDS)
-    setIsExpired(false)
-    setOtpDigits(['', '', '', '', '', ''])
-    setResendSuccess(true)
-    inputRefs.current[0]?.focus()
+
+    if (res.success) {
+      setTimeLeft(INITIAL_EXPIRATION_SECONDS)
+      setIsExpired(false)
+      setOtpDigits(['', '', '', '', '', ''])
+      setResendSuccess(true)
+      inputRefs.current[0]?.focus()
+    } else {
+      setErrorMessage(res.error || 'Failed to dispatch fresh verification code.')
+    }
   }
 
   const fillValidCode = () => {
-    setOtpDigits(['1', '2', '3', '4', '5', '6'])
+    if (debugOtp && debugOtp.length === 6) {
+      setOtpDigits(debugOtp.split(''))
+    } else {
+      setOtpDigits(['1', '2', '3', '4', '5', '6'])
+    }
     setErrorMessage(null)
     setTimeLeft(INITIAL_EXPIRATION_SECONDS)
     setIsExpired(false)

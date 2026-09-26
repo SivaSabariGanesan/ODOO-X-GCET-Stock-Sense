@@ -13,7 +13,7 @@ import { RecoveryStepper } from '../components/RecoveryStepper'
 
 export function ForgotPasswordPage() {
   const navigate = useNavigate()
-  const { setPendingOtpEmail, user } = useAuth()
+  const { setPendingOtpEmail, forgotPassword, user } = useAuth()
   const toast = useToast()
   const [formError, setFormError] = useState<string | null>(null)
 
@@ -32,10 +32,15 @@ export function ForgotPasswordPage() {
   const onSubmit = async (data: ForgotPasswordFormData) => {
     try {
       setFormError(null)
-      await new Promise((resolve) => setTimeout(resolve, 600))
-      setPendingOtpEmail(data.email)
-      toast.success('Code Dispatched', `A 6-digit recovery OTP has been sent to ${data.email}`)
-      navigate(`/verify-otp?email=${encodeURIComponent(data.email)}`)
+      const res = await forgotPassword(data.email)
+      if (res.success) {
+        setPendingOtpEmail(data.email)
+        toast.success('Code Dispatched', `A 6-digit recovery OTP has been sent to ${data.email}`)
+        navigate(`/verify-otp?email=${encodeURIComponent(data.email)}`)
+      } else {
+        setFormError(res.error || 'Failed to dispatch recovery code. Please check the email address.')
+        toast.error('Dispatch Failed', res.error || 'Unable to send verification code.')
+      }
     } catch {
       setFormError('Failed to dispatch recovery code. Please check the email address.')
       toast.error('Dispatch Failed', 'Unable to send verification code.')

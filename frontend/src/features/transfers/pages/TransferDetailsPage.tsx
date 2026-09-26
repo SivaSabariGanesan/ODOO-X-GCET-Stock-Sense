@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -13,13 +13,16 @@ import {
   Info,
   Check,
   Layers,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
-import { getMockTransferById, updateTransferStatus } from '../mockTransfers'
-import { Transfer, TransferStatus } from '../types'
+import { useTransferDetail } from '../hooks/useTransferDetail'
+import { warehousesApi } from '@/features/warehouses/api'
 import { cn } from '@/lib/cn'
 
 export function TransferDetailsPage() {
@@ -27,9 +30,38 @@ export function TransferDetailsPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [transfer, setTransfer] = useState<Transfer | undefined>(
-    id ? getMockTransferById(id) : undefined
-  )
+  const {
+    transfer,
+    isLoading,
+    isProcessing,
+    isCancelling,
+    isValidating,
+    error,
+    isNotFound,
+    refetch,
+    processTransfer,
+    validateTransfer,
+    cancelTransfer,
+  } = useTransferDetail(id)
+
+  const [warehouseMap, setWarehouseMap] = useState<Record<string, string>>({})
+
+  useEffect(() => {
+    let isMounted = true
+    warehousesApi.list({ limit: 100 }).then((res) => {
+      if (!isMounted) return
+      const map: Record<string, string> = {}
+      res.data.forEach((w) => {
+        map[w.id] = w.name
+      })
+      setWarehouseMap(map)
+    }).catch(() => {
+      // Ignore warehouse list failure on details
+    })
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const copyText = (txt: string, label: string) => {
     navigator.clipboard.writeText(txt)
@@ -43,27 +75,50 @@ export function TransferDetailsPage() {
     )
   }
 
-  const handleStatusChange = (newStatus: TransferStatus) => {
-    if (!transfer) return
-    const updated = updateTransferStatus(transfer.id, newStatus)
-    if (updated) {
-      setTransfer({ ...updated })
-      if (newStatus === 'done') {
-        toast.success(
-          'Transfer Validated',
-          `${transfer.transferNumber} stock relocated to destination. Company total inventory remains unchanged.`
-        )
-      } else if (newStatus === 'ready') {
-        toast.info('Marked as Ready', 'Stock verified at origin rack and staging transport assigned.')
-      } else if (newStatus === 'draft') {
-        toast.info('Reverted to Draft', 'Movement order reopened for editing.')
-      } else if (newStatus === 'cancelled') {
-        toast.warning('Transfer Canceled', `${transfer.transferNumber} marked as canceled.`)
+  const handleValidate = async () => {
+    try {
+      await validateTransfer()
+      toast.info('Marked as Ready', 'Stock verified at origin rack and staging transport assigned.')
+    } catch (err: unknown) {
+      toast.error('Validation Failed', err instanceof Error ? err.message : 'Could not validate transfer.')
+    }
+  }
+
+  const handleProcess = async () => {
+    try {
+      await processTransfer()
+      toast.success(
+        'Transfer Validated',
+        `${transfer?.transferNumber} stock relocated to destination. Company total inventory remains unchanged.`
+      )
+    } catch (err: any) {
+      if (err?.status === 409) {
+        toast.warning('Already Processed', 'This transfer has already been completed.')
+      } else {
+        toast.error('Processing Failed', err?.message || 'Could not process internal transfer.')
       }
     }
   }
 
-  if (!transfer) {
+  const handleCancel = async () => {
+    try {
+      await cancelTransfer()
+      toast.warning('Transfer Canceled', `${transfer?.transferNumber} marked as canceled.`)
+    } catch (err: unknown) {
+      toast.error('Cancel Failed', err instanceof Error ? err.message : 'Could not cancel transfer.')
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-sm">Loading transfer details…</span>
+      </div>
+    )
+  }
+
+  if (isNotFound || !transfer) {
     return (
       <EmptyState
         icon={ArrowLeftRight}
@@ -75,18 +130,96 @@ export function TransferDetailsPage() {
     )
   }
 
-  const stages: { key: TransferStatus; label: string }[] = [
-    { key: 'draft', label: 'Draft' },
-    { key: 'ready', label: 'Ready' },
-    { key: 'done', label: 'Done' },
+  if (error && !transfer) {
+    return (
+      <div className="flex flex-col items-center justify-center py-24 gap-4 text-slate-500">
+        <AlertCircle className="w-8 h-8 text-rose-400" />
+        <p className="text-sm">{error}</p>
+        <Button variant="secondary" size="sm" leftIcon={<RefreshCw className="w-3.5 h-3.5" />} onClick={refetch}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
+
+  const stages: { key: string; label: string }[] = [
+    { key: 'DRAFT', label: 'Draft' },
+    { key: 'READY', label: 'Ready' },
+    { key: 'DONE', label: 'Done' },
   ]
 
   const currentStageIndex =
-    transfer.status === 'cancelled'
+    transfer.status === 'CANCELED'
       ? -1
       : stages.findIndex((s) => s.key === transfer.status)
 
-  const isInterWarehouse = transfer.sourceWarehouseId !== transfer.destinationWarehouseId
+  const srcWarehouseName = transfer.sourceLocation?.warehouseId
+    ? warehouseMap[transfer.sourceLocation.warehouseId] || 'Source Warehouse'
+    : 'Source Facility'
+
+  const dstWarehouseName = transfer.destinationLocation?.warehouseId
+    ? warehouseMap[transfer.destinationLocation.warehouseId] || 'Destination Warehouse'
+    : 'Destination Facility'
+
+  const isInterWarehouse =
+    Boolean(
+      transfer.sourceLocation?.warehouseId &&
+      transfer.destinationLocation?.warehouseId &&
+      transfer.sourceLocation.warehouseId !== transfer.destinationLocation.warehouseId
+    )
+
+  const sourceLocDisplay =
+    transfer.sourceLocation?.path || transfer.sourceLocation?.name || 'Origin Bin'
+  const destLocDisplay =
+    transfer.destinationLocation?.path || transfer.destinationLocation?.name || 'Destination Bin'
+
+  const totalQuantity = (transfer.items || []).reduce(
+    (sum, item) => sum + (parseFloat(item.quantity) || 0),
+    0
+  )
+
+  const createdDateStr = new Date(transfer.createdAt).toLocaleDateString()
+
+  // Dynamic audit history based on actual backend record
+  const timelineEvents = [
+    {
+      id: 'evt-created',
+      title: 'Transfer Draft Created',
+      timestamp: new Date(transfer.createdAt).toLocaleString(),
+      description: `Internal transfer ${transfer.transferNumber} initialized.`,
+      user: 'Operations Officer',
+    },
+  ]
+
+  if (transfer.status === 'READY' || transfer.status === 'DONE') {
+    timelineEvents.push({
+      id: 'evt-validated',
+      title: 'Transfer Validated & Staged',
+      timestamp: new Date(transfer.updatedAt).toLocaleString(),
+      description: `Stock verified at origin (${sourceLocDisplay}) and staged for relocation.`,
+      user: 'Warehouse Supervisor',
+    })
+  }
+
+  if (transfer.status === 'DONE') {
+    timelineEvents.push({
+      id: 'evt-done',
+      title: 'Inventory Processed & Transferred',
+      timestamp: transfer.completedAt
+        ? new Date(transfer.completedAt).toLocaleString()
+        : new Date(transfer.updatedAt).toLocaleString(),
+      description: `Stock deducted from ${sourceLocDisplay} and credited to ${destLocDisplay}. Total aggregate inventory balance preserved.`,
+      user: 'Inventory System',
+    })
+  } else if (transfer.status === 'CANCELED') {
+    timelineEvents.push({
+      id: 'evt-canceled',
+      title: 'Transfer Order Canceled',
+      timestamp: new Date(transfer.updatedAt).toLocaleString(),
+      description: 'Transfer was voided. No stock positions were adjusted.',
+      user: 'Operations Officer',
+    })
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
@@ -116,17 +249,19 @@ export function TransferDetailsPage() {
               </button>
               <Badge
                 variant={
-                  transfer.status === 'done'
+                  transfer.status === 'DONE'
                     ? 'done'
-                    : transfer.status === 'ready'
+                    : transfer.status === 'READY'
                     ? 'ready'
-                    : transfer.status === 'cancelled'
+                    : transfer.status === 'CANCELED'
                     ? 'cancelled'
+                    : transfer.status === 'WAITING'
+                    ? 'warning'
                     : 'draft'
                 }
                 dot
               >
-                {transfer.status.toUpperCase()}
+                {transfer.status}
               </Badge>
               {isInterWarehouse ? (
                 <span className="text-[10.5px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded border border-blue-200 font-medium">
@@ -140,10 +275,11 @@ export function TransferDetailsPage() {
             </div>
 
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading mt-1 truncate">
-              {transfer.sourceLocation} → {transfer.destinationLocation}
+              {sourceLocDisplay} → {destLocDisplay}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Scheduled: <span className="font-medium text-slate-700">{transfer.scheduledDate}</span> · Total Units: <span className="font-mono font-medium text-slate-700">{transfer.totalQuantity.toLocaleString()}</span>
+              Created: <span className="font-medium text-slate-700">{createdDateStr}</span> · Total Units:{' '}
+              <span className="font-mono font-medium text-slate-700">{totalQuantity.toLocaleString()}</span>
             </p>
           </div>
         </div>
@@ -159,12 +295,13 @@ export function TransferDetailsPage() {
             Print Slip
           </Button>
 
-          {transfer.status === 'draft' && (
+          {(transfer.status === 'DRAFT' || transfer.status === 'WAITING') && (
             <>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => handleStatusChange('ready')}
+                onClick={handleValidate}
+                isLoading={isValidating}
                 leftIcon={<Check className="w-3.5 h-3.5" />}
               >
                 Mark as Ready
@@ -172,7 +309,8 @@ export function TransferDetailsPage() {
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => handleStatusChange('done')}
+                onClick={handleProcess}
+                isLoading={isProcessing}
                 className="text-emerald-700 border-emerald-200 hover:bg-emerald-50"
               >
                 Validate Directly
@@ -180,7 +318,8 @@ export function TransferDetailsPage() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleStatusChange('cancelled')}
+                onClick={handleCancel}
+                isLoading={isCancelling}
                 className="text-rose-600 hover:bg-rose-50"
               >
                 Cancel
@@ -188,42 +327,27 @@ export function TransferDetailsPage() {
             </>
           )}
 
-          {transfer.status === 'ready' && (
+          {transfer.status === 'READY' && (
             <>
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => handleStatusChange('done')}
+                onClick={handleProcess}
+                isLoading={isProcessing}
                 leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
               >
                 Validate & Move Stock
               </Button>
               <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => handleStatusChange('draft')}
-              >
-                Back to Draft
-              </Button>
-              <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleStatusChange('cancelled')}
+                onClick={handleCancel}
+                isLoading={isCancelling}
                 className="text-rose-600 hover:bg-rose-50"
               >
                 Cancel
               </Button>
             </>
-          )}
-
-          {transfer.status === 'cancelled' && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => handleStatusChange('draft')}
-            >
-              Reopen Draft
-            </Button>
           )}
         </div>
       </div>
@@ -243,7 +367,7 @@ export function TransferDetailsPage() {
           {stages.map((stg, idx) => {
             const isCompleted = currentStageIndex > idx
             const isCurrent = currentStageIndex === idx
-            const isCancelled = transfer.status === 'cancelled'
+            const isCancelled = transfer.status === 'CANCELED'
 
             return (
               <div key={stg.key} className="flex items-center flex-1 last:flex-none">
@@ -289,7 +413,7 @@ export function TransferDetailsPage() {
           })}
         </div>
 
-        {transfer.status === 'cancelled' && (
+        {transfer.status === 'CANCELED' && (
           <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-xs text-rose-600 font-medium">
             <XCircle className="w-3.5 h-3.5" />
             <span>This transfer order has been canceled and voided.</span>
@@ -308,20 +432,20 @@ export function TransferDetailsPage() {
           <div>
             <span className="text-slate-400 block text-[11px]">Source Warehouse</span>
             <span className="font-semibold text-slate-900 mt-0.5 block">
-              {transfer.sourceWarehouseName}
+              {srcWarehouseName}
             </span>
             <span className="font-mono text-slate-600 text-[11px]">
-              {transfer.sourceLocation}
+              {sourceLocDisplay}
             </span>
           </div>
 
           <div>
             <span className="text-slate-400 block text-[11px]">Destination Warehouse</span>
             <span className="font-semibold text-slate-900 mt-0.5 block">
-              {transfer.destinationWarehouseName}
+              {dstWarehouseName}
             </span>
             <span className="font-mono text-slate-600 text-[11px]">
-              {transfer.destinationLocation}
+              {destLocDisplay}
             </span>
           </div>
 
@@ -331,19 +455,21 @@ export function TransferDetailsPage() {
               {isInterWarehouse ? 'Facility to Facility' : 'Internal Rack Replenishment'}
             </span>
             <span className="text-slate-400 text-[11px]">
-              {transfer.itemCount} distinct SKU{transfer.itemCount > 1 ? 's' : ''}
+              {(transfer.items || []).length} distinct SKU{(transfer.items || []).length !== 1 ? 's' : ''}
             </span>
           </div>
 
           <div>
-            <span className="text-slate-400 block text-[11px]">Scheduled Timeline</span>
+            <span className="text-slate-400 block text-[11px]">Created Timeline</span>
             <span className="font-medium text-slate-900 mt-0.5 block flex items-center gap-1">
               <Clock className="w-3 h-3 text-slate-400" />
-              {transfer.scheduledDate}
+              {createdDateStr}
             </span>
-            <span className="text-slate-400 text-[11px]">
-              Created: {transfer.createdDate}
-            </span>
+            {transfer.completedAt && (
+              <span className="text-slate-400 text-[11px]">
+                Completed: {new Date(transfer.completedAt).toLocaleDateString()}
+              </span>
+            )}
           </div>
         </div>
 
@@ -361,12 +487,12 @@ export function TransferDetailsPage() {
           <div className="flex items-center gap-2">
             <Layers className="w-4 h-4 text-brand" />
             <h2 className="text-xs font-semibold text-slate-900 uppercase tracking-wider">
-              Product Movement Lines ({transfer.lines.length})
+              Product Movement Lines ({(transfer.items || []).length})
             </h2>
           </div>
           <span className="text-xs text-slate-500 font-mono">
             Total Quantity:{' '}
-            <strong className="text-slate-900 font-bold">{transfer.totalQuantity.toLocaleString()}</strong> units
+            <strong className="text-slate-900 font-bold">{totalQuantity.toLocaleString()}</strong> units
           </span>
         </div>
 
@@ -380,40 +506,47 @@ export function TransferDetailsPage() {
                 <th className="py-2.5 px-4">Source Location</th>
                 <th className="py-2.5 px-4">Destination Location</th>
                 <th className="py-2.5 px-4 text-right">Transfer Qty</th>
-                <th className="py-2.5 px-4 w-20">Unit</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-sans">
-              {transfer.lines.map((line, idx) => (
+              {(transfer.items || []).map((line, idx) => (
                 <tr key={line.id} className="hover:bg-slate-50/50 transition-colors">
                   <td className="py-2.5 px-4 text-center text-slate-400 font-mono text-[11px]">
                     {idx + 1}
                   </td>
                   <td className="py-2.5 px-4 font-mono font-medium text-slate-700">
-                    {line.productSku}
+                    {line.product?.sku || 'N/A'}
                   </td>
                   <td className="py-2.5 px-4 font-medium text-slate-900">
-                    <Link
-                      to={`/products/${line.productId}`}
-                      className="hover:text-brand transition-colors"
-                    >
-                      {line.productName}
-                    </Link>
+                    {line.productId ? (
+                      <Link
+                        to={`/products/${line.productId}`}
+                        className="hover:text-brand transition-colors"
+                      >
+                        {line.product?.name || 'Unnamed Product'}
+                      </Link>
+                    ) : (
+                      line.product?.name || 'Unnamed Product'
+                    )}
                   </td>
                   <td className="py-2.5 px-4 font-mono text-slate-600">
-                    {line.sourceLocation}
+                    {sourceLocDisplay}
                   </td>
                   <td className="py-2.5 px-4 font-mono text-brand font-medium">
-                    {line.destinationLocation}
+                    {destLocDisplay}
                   </td>
                   <td className="py-2.5 px-4 text-right font-mono font-bold text-slate-900">
-                    {line.quantity.toLocaleString()}
-                  </td>
-                  <td className="py-2.5 px-4 text-slate-500 font-mono">
-                    {line.unit}
+                    {parseFloat(line.quantity).toLocaleString()}
                   </td>
                 </tr>
               ))}
+              {(!transfer.items || transfer.items.length === 0) && (
+                <tr>
+                  <td colSpan={6} className="py-6 text-center text-slate-400">
+                    No product lines found on this transfer.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -427,9 +560,9 @@ export function TransferDetailsPage() {
         </h2>
 
         <div className="space-y-4">
-          {transfer.timeline.map((event, idx) => (
+          {timelineEvents.map((event, idx) => (
             <div key={event.id} className="flex items-start gap-3 relative">
-              {idx < transfer.timeline.length - 1 && (
+              {idx < timelineEvents.length - 1 && (
                 <div className="absolute left-2.5 top-6 bottom-0 w-px bg-slate-200" />
               )}
               <div className="w-5 h-5 rounded-full bg-[#ede9fe] text-brand-dark flex items-center justify-center shrink-0 mt-0.5">

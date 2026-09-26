@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -12,13 +12,23 @@ import {
   MapPin,
   ArrowRight,
   AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/context/ToastContext'
-import { TRANSFER_WAREHOUSES, createMockTransfer } from '../mockTransfers'
-import { getMockProducts } from '@/features/products/mockProducts'
+import { transfersApi } from '../api'
+import { warehousesApi, locationsApi } from '@/features/warehouses/api'
+import { ApiWarehouse, ApiLocation } from '@/features/warehouses/types'
+import { apiClient, ApiError } from '@/lib/apiClient'
 import { cn } from '@/lib/cn'
+
+interface ProductOption {
+  id: string
+  name: string
+  sku: string
+  unit: string
+}
 
 interface ProductLineForm {
   productId: string
@@ -31,53 +41,153 @@ interface ProductLineForm {
 export function TransferFormPage() {
   const navigate = useNavigate()
   const toast = useToast()
-  const catalog = getMockProducts()
+
+  // ── Master Data State ─────────────────────────────────────────────────────
+  const [warehouses, setWarehouses] = useState<ApiWarehouse[]>([])
+  const [locations, setLocations] = useState<ApiLocation[]>([])
+  const [products, setProducts] = useState<ProductOption[]>([])
+  const [isLoadingMasterData, setIsLoadingMasterData] = useState(true)
 
   // ── Header State ──────────────────────────────────────────────────────────
-  const [sourceWarehouseId, setSourceWarehouseId] = useState(TRANSFER_WAREHOUSES[0]!.id)
-  const [sourceLocation, setSourceLocation] = useState(TRANSFER_WAREHOUSES[0]!.locations[0]!)
+  const [sourceWarehouseId, setSourceWarehouseId] = useState('')
+  const [sourceLocationId, setSourceLocationId] = useState('')
 
-  const [destinationWarehouseId, setDestinationWarehouseId] = useState(TRANSFER_WAREHOUSES[1]!.id)
-  const [destinationLocation, setDestinationLocation] = useState(TRANSFER_WAREHOUSES[1]!.locations[0]!)
+  const [destinationWarehouseId, setDestinationWarehouseId] = useState('')
+  const [destinationLocationId, setDestinationLocationId] = useState('')
 
-  const [scheduledDate, setScheduledDate] = useState('Today, 16:00')
   const [notes, setNotes] = useState('')
 
   // ── Multiple Product Lines State ──────────────────────────────────────────
-  const [lines, setLines] = useState<ProductLineForm[]>([
-    {
-      productId: catalog[0]?.id || 'prod-001',
-      productSku: catalog[0]?.sku || 'SKU-ERG-904',
-      productName: catalog[0]?.name || 'Ergonomic Task Chair (Mesh Black)',
-      quantity: 25,
-      unit: catalog[0]?.unit || 'pcs',
-    },
-  ])
-
+  const [lines, setLines] = useState<ProductLineForm[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const activeSrcWh = (TRANSFER_WAREHOUSES.find((w) => w.id === sourceWarehouseId) || TRANSFER_WAREHOUSES[0])!
-  const activeDstWh = (TRANSFER_WAREHOUSES.find((w) => w.id === destinationWarehouseId) || TRANSFER_WAREHOUSES[1])!
+  // Load real master data on mount
+  useEffect(() => {
+    let isMounted = true
 
-  // Handle warehouse changes and update default locations
+    async function loadMasterData() {
+      setIsLoadingMasterData(true)
+      try {
+        const [whRes, locRes, prodRes] = await Promise.all([
+          warehousesApi.list({ limit: 100 }).catch(() => ({ data: [] })),
+          locationsApi.list({ limit: 200 }).catch(() => ({ data: [] })),
+          apiClient
+            .get<{ data: Array<{ id: string; name: string; sku: string; uom?: { code?: string; symbol?: string; name?: string } }> }>(
+              '/api/products?limit=100'
+            )
+            .catch(() => ({ data: [] })),
+        ])
+
+        if (!isMounted) return
+
+        const loadedWarehouses = whRes.data || []
+        const loadedLocations = locRes.data || []
+        const loadedProducts: ProductOption[] = (prodRes.data || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          sku: p.sku,
+          unit: p.uom?.code || p.uom?.symbol || 'pcs',
+        }))
+
+        setWarehouses(loadedWarehouses)
+        setLocations(loadedLocations)
+        setProducts(loadedProducts)
+
+        // Initialize Warehouses
+        const srcWh = loadedWarehouses[0]
+        const dstWh = loadedWarehouses[1] || loadedWarehouses[0]
+
+        if (srcWh) {
+          setSourceWarehouseId(srcWh.id)
+          const srcLocs = loadedLocations.filter((l) => l.warehouseId === srcWh.id)
+          if (srcLocs[0]) {
+            setSourceLocationId(srcLocs[0].id)
+          } else if (loadedLocations[0]) {
+            setSourceLocationId(loadedLocations[0].id)
+          }
+        } else if (loadedLocations[0]) {
+          setSourceLocationId(loadedLocations[0].id)
+        }
+
+        if (dstWh) {
+          setDestinationWarehouseId(dstWh.id)
+          const dstLocs = loadedLocations.filter((l) => l.warehouseId === dstWh.id)
+          // Pick a different default location if possible
+          const candidate = dstLocs.find((l) => l.warehouseId === dstWh.id && l.id !== loadedLocations[0]?.id) || dstLocs[0]
+          if (candidate) {
+            setDestinationLocationId(candidate.id)
+          } else if (loadedLocations[1]) {
+            setDestinationLocationId(loadedLocations[1].id)
+          }
+        } else if (loadedLocations[1]) {
+          setDestinationLocationId(loadedLocations[1].id)
+        }
+
+        // Initialize First Product Line
+        if (loadedProducts.length > 0) {
+          const first = loadedProducts[0]!
+          setLines([
+            {
+              productId: first.id,
+              productSku: first.sku,
+              productName: first.name,
+              quantity: 10,
+              unit: first.unit,
+            },
+          ])
+        }
+      } catch (err) {
+        console.error('Failed to load transfer master data', err)
+      } finally {
+        if (isMounted) {
+          setIsLoadingMasterData(false)
+        }
+      }
+    }
+
+    loadMasterData()
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
+
+  // Filtered Locations for Source and Destination
+  const sourceLocationsForWarehouse = useMemo(() => {
+    if (!sourceWarehouseId) return locations
+    const filtered = locations.filter((l) => l.warehouseId === sourceWarehouseId)
+    return filtered.length > 0 ? filtered : locations
+  }, [locations, sourceWarehouseId])
+
+  const destinationLocationsForWarehouse = useMemo(() => {
+    if (!destinationWarehouseId) return locations
+    const filtered = locations.filter((l) => l.warehouseId === destinationWarehouseId)
+    return filtered.length > 0 ? filtered : locations
+  }, [locations, destinationWarehouseId])
+
+  // Handle warehouse changes and cascade default locations
   const handleSourceWarehouseChange = (whId: string) => {
     setSourceWarehouseId(whId)
-    const wh = TRANSFER_WAREHOUSES.find((w) => w.id === whId)
-    if (wh && wh.locations.length > 0) {
-      setSourceLocation(wh.locations[0]!)
+    const whLocs = locations.filter((l) => l.warehouseId === whId)
+    if (whLocs.length > 0 && whLocs[0]) {
+      setSourceLocationId(whLocs[0].id)
     }
   }
 
   const handleDestinationWarehouseChange = (whId: string) => {
     setDestinationWarehouseId(whId)
-    const wh = TRANSFER_WAREHOUSES.find((w) => w.id === whId)
-    if (wh && wh.locations.length > 0) {
-      setDestinationLocation(wh.locations[0]!)
+    const whLocs = locations.filter((l) => l.warehouseId === whId)
+    if (whLocs.length > 0 && whLocs[0]) {
+      setDestinationLocationId(whLocs[0].id)
     }
   }
 
   const handleAddLine = () => {
-    const nextProd = (catalog[lines.length % catalog.length] || catalog[0])!
+    if (products.length === 0) {
+      toast.warning('No Products', 'No inventory products found to add.')
+      return
+    }
+    const nextProd = products[lines.length % products.length] || products[0]!
     setLines((prev) => [
       ...prev,
       {
@@ -99,7 +209,7 @@ export function TransferFormPage() {
   }
 
   const handleProductSelect = (index: number, productId: string) => {
-    const prod = catalog.find((p) => p.id === productId)
+    const prod = products.find((p) => p.id === productId)
     if (!prod) return
 
     setLines((prev) =>
@@ -124,12 +234,20 @@ export function TransferFormPage() {
   }
 
   // Validation
-  const isLocationsIdentical = sourceLocation === destinationLocation
-  const hasValidLines =
-    lines.length > 0 && lines.every((l) => l.productId && l.quantity > 0)
-  const isValid = !isLocationsIdentical && hasValidLines
+  const isLocationsIdentical = Boolean(
+    sourceLocationId && destinationLocationId && sourceLocationId === destinationLocationId
+  )
 
-  const handleSubmit = (statusToSave: 'draft' | 'ready' | 'done') => {
+  const hasValidLines =
+    lines.length > 0 && lines.every((l) => l.productId && Number(l.quantity) > 0)
+
+  const isValid =
+    Boolean(sourceLocationId) &&
+    Boolean(destinationLocationId) &&
+    !isLocationsIdentical &&
+    hasValidLines
+
+  const handleSubmit = async (action: 'draft' | 'ready' | 'done') => {
     if (isLocationsIdentical) {
       toast.error('Invalid Routing', 'Source and destination locations cannot be identical.')
       return
@@ -140,38 +258,88 @@ export function TransferFormPage() {
       return
     }
 
+    if (!sourceLocationId || !destinationLocationId) {
+      toast.error('Validation Error', 'Source and destination locations must be selected.')
+      return
+    }
+
     setIsSubmitting(true)
 
-    setTimeout(() => {
-      setIsSubmitting(false)
-      const created = createMockTransfer({
-        sourceWarehouseId,
-        sourceLocation,
-        destinationWarehouseId,
-        destinationLocation,
-        scheduledDate,
+    try {
+      // 1. Create Internal Transfer record
+      const createdRes = await transfersApi.create({
+        sourceLocationId,
+        destinationLocationId,
         notes: notes.trim() || undefined,
-        status: statusToSave,
-        lines: lines.map((l) => ({
+        items: lines.map((l) => ({
           productId: l.productId,
-          productSku: l.productSku,
-          productName: l.productName,
-          sourceLocation,
-          destinationLocation,
-          quantity: l.quantity,
-          unit: l.unit,
+          quantity: Number(l.quantity),
         })),
       })
 
-      toast.success(
-        statusToSave === 'done' ? 'Transfer Validated' : 'Transfer Created',
-        `${created.transferNumber} recorded successfully. Total inventory unchanged.`
-      )
+      const created = createdRes.data
+
+      // 2. Action based on button:
+      if (action === 'ready') {
+        try {
+          await transfersApi.validate(created.id)
+          toast.info('Marked as Ready', `${created.transferNumber} validated and marked ready for movement.`)
+        } catch (valErr: any) {
+          toast.warning('Draft Created', `Created ${created.transferNumber}, but validation had remarks: ${valErr?.message}`)
+        }
+      } else if (action === 'done') {
+        try {
+          await transfersApi.process(created.id)
+          toast.success(
+            'Transfer Validated',
+            `${created.transferNumber} processed and inventory relocated. Total inventory balance preserved.`
+          )
+        } catch (procErr: any) {
+          if (procErr instanceof ApiError && procErr.status === 409) {
+            toast.warning('Already Processed', 'Transfer was already processed.')
+          } else {
+            toast.error(
+              'Processing Failed',
+              procErr?.message || 'Transfer created in DRAFT state, but processing failed.'
+            )
+          }
+        }
+      } else {
+        toast.success('Transfer Created', `${created.transferNumber} drafted successfully. Total inventory unchanged.`)
+      }
+
       navigate(`/operations/transfers/${created.id}`)
-    }, 250)
+    } catch (err: any) {
+      const errorMsg =
+        err instanceof ApiError
+          ? err.message
+          : err?.message || 'Failed to create internal transfer.'
+      toast.error('Creation Failed', errorMsg)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const totalTransferUnits = lines.reduce((acc, l) => acc + (Number(l.quantity) || 0), 0)
+
+  const sourceLocName =
+    locations.find((l) => l.id === sourceLocationId)?.path ||
+    locations.find((l) => l.id === sourceLocationId)?.name ||
+    'Source Location'
+
+  const destLocName =
+    locations.find((l) => l.id === destinationLocationId)?.path ||
+    locations.find((l) => l.id === destinationLocationId)?.name ||
+    'Destination Location'
+
+  if (isLoadingMasterData) {
+    return (
+      <div className="flex items-center justify-center py-24 gap-3 text-slate-400">
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-sm">Loading routing & master data…</span>
+      </div>
+    )
+  }
 
   return (
     <div className="w-full max-w-4xl mx-auto space-y-6 pb-16">
@@ -224,8 +392,8 @@ export function TransferFormPage() {
         <div className="leading-relaxed">
           <strong className="text-brand-dark font-semibold">Important Inventory Rule: </strong>
           Internal transfers change location, not total inventory. When validated, items will be deducted from{' '}
-          <span className="font-mono font-medium text-slate-900">{sourceLocation}</span> and credited to{' '}
-          <span className="font-mono font-medium text-slate-900">{destinationLocation}</span> with zero impact on company aggregate stock.
+          <span className="font-mono font-medium text-slate-900">{sourceLocName}</span> and credited to{' '}
+          <span className="font-mono font-medium text-slate-900">{destLocName}</span> with zero impact on company aggregate stock.
         </div>
       </div>
 
@@ -253,26 +421,30 @@ export function TransferFormPage() {
                   onChange={(e) => handleSourceWarehouseChange(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
                 >
-                  {TRANSFER_WAREHOUSES.map((w) => (
+                  {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name}
+                      {w.name} ({w.code})
                     </option>
                   ))}
+                  {warehouses.length === 0 && <option value="">Default Warehouse</option>}
                 </select>
               </div>
 
               <div>
                 <label className="text-[11px] text-slate-500 block mb-1">Specific Bin / Rack Location</label>
                 <select
-                  value={sourceLocation}
-                  onChange={(e) => setSourceLocation(e.target.value)}
+                  value={sourceLocationId}
+                  onChange={(e) => setSourceLocationId(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md font-mono text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
                 >
-                  {activeSrcWh.locations.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
+                  {sourceLocationsForWarehouse.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.path || loc.name} ({loc.code || loc.type})
                     </option>
                   ))}
+                  {sourceLocationsForWarehouse.length === 0 && (
+                    <option value="">No locations available</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -291,19 +463,20 @@ export function TransferFormPage() {
                   onChange={(e) => handleDestinationWarehouseChange(e.target.value)}
                   className="w-full px-3 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
                 >
-                  {TRANSFER_WAREHOUSES.map((w) => (
+                  {warehouses.map((w) => (
                     <option key={w.id} value={w.id}>
-                      {w.name}
+                      {w.name} ({w.code})
                     </option>
                   ))}
+                  {warehouses.length === 0 && <option value="">Default Warehouse</option>}
                 </select>
               </div>
 
               <div>
                 <label className="text-[11px] text-slate-500 block mb-1">Specific Bin / Rack Location</label>
                 <select
-                  value={destinationLocation}
-                  onChange={(e) => setDestinationLocation(e.target.value)}
+                  value={destinationLocationId}
+                  onChange={(e) => setDestinationLocationId(e.target.value)}
                   className={cn(
                     'w-full px-3 py-1.5 text-xs bg-white border rounded-md font-mono text-slate-800 focus:outline-none focus:ring-1',
                     isLocationsIdentical
@@ -311,11 +484,14 @@ export function TransferFormPage() {
                       : 'border-slate-200 focus:ring-brand/30 focus:border-brand'
                   )}
                 >
-                  {activeDstWh.locations.map((loc) => (
-                    <option key={loc} value={loc}>
-                      {loc}
+                  {destinationLocationsForWarehouse.map((loc) => (
+                    <option key={loc.id} value={loc.id}>
+                      {loc.path || loc.name} ({loc.code || loc.type})
                     </option>
                   ))}
+                  {destinationLocationsForWarehouse.length === 0 && (
+                    <option value="">No locations available</option>
+                  )}
                 </select>
               </div>
             </div>
@@ -329,25 +505,14 @@ export function TransferFormPage() {
           )}
         </div>
 
-        {/* Schedule & Notes */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">Scheduled Transfer Time</label>
-            <Input
-              value={scheduledDate}
-              onChange={(e) => setScheduledDate(e.target.value)}
-              placeholder="e.g. Today, 16:30 or 2026-09-28"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-700 block mb-1">Operational Transfer Notes</label>
-            <Input
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Replenish high-velocity staging buffer"
-            />
-          </div>
+        {/* Notes */}
+        <div>
+          <label className="text-xs font-semibold text-slate-700 block mb-1">Operational Transfer Notes</label>
+          <Input
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Replenish high-velocity staging buffer"
+          />
         </div>
 
         {/* ── Product Lines Section (Supports Multiple Lines) ──────── */}
@@ -368,6 +533,7 @@ export function TransferFormPage() {
               variant="secondary"
               size="xs"
               onClick={handleAddLine}
+              disabled={products.length === 0}
               leftIcon={<Plus className="w-3 h-3" />}
             >
               Add Product Line
@@ -400,11 +566,12 @@ export function TransferFormPage() {
                         onChange={(e) => handleProductSelect(idx, e.target.value)}
                         className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand cursor-pointer"
                       >
-                        {catalog.map((p) => (
+                        {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.sku} — {p.name} ({p.onHand} on hand)
+                            {p.sku} — {p.name}
                           </option>
                         ))}
+                        {products.length === 0 && <option value="">No products available</option>}
                       </select>
                     </td>
 
@@ -413,6 +580,7 @@ export function TransferFormPage() {
                       <input
                         type="number"
                         min="1"
+                        step="1"
                         value={line.quantity}
                         onChange={(e) => handleQuantityChange(idx, Number(e.target.value))}
                         className="w-full px-2.5 py-1.5 text-xs bg-white border border-slate-200 rounded-md font-mono text-right text-slate-900 focus:outline-none focus:ring-1 focus:ring-brand/30 focus:border-brand"
@@ -443,6 +611,13 @@ export function TransferFormPage() {
                     </td>
                   </tr>
                 ))}
+                {lines.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-6 text-center text-slate-400">
+                      No product lines added yet. Click &quot;Add Product Line&quot; above.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
 

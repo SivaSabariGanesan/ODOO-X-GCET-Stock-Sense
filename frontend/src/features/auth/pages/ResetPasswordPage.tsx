@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { Lock, CheckCircle2, ArrowRight, AlertCircle, ShieldCheck, Check } from 'lucide-react'
 import { AuthLayout } from '../layouts/AuthLayout'
@@ -14,10 +14,13 @@ import { PasswordStrengthMeter } from '../components/PasswordStrengthMeter'
 
 export function ResetPasswordPage() {
   const navigate = useNavigate()
-  const { resetPassword } = useAuth()
+  const [searchParams] = useSearchParams()
+  const { resetPassword, verifiedOtp } = useAuth()
   const toast = useToast()
   const [formError, setFormError] = useState<string | null>(null)
   const [isSuccess, setIsSuccess] = useState(false)
+
+  const otpParam = searchParams.get('otp') || verifiedOtp
 
   const {
     register,
@@ -39,12 +42,17 @@ export function ResetPasswordPage() {
   const onSubmit = async (data: ResetPasswordFormData) => {
     try {
       setFormError(null)
-      await resetPassword(data.password)
+      if (!otpParam) {
+        setFormError('Missing verification OTP. Please restart the password reset procedure.')
+        return
+      }
+      await resetPassword(data.password, otpParam)
       toast.success('Password Updated', 'Your security credentials have been updated.')
       setIsSuccess(true)
-    } catch {
-      setFormError('Failed to reset password. Please try again.')
-      toast.error('Reset Failed', 'Could not update password.')
+    } catch (err: any) {
+      const msg = err?.message || 'Failed to reset password. Please check your OTP and try again.'
+      setFormError(msg)
+      toast.error('Reset Failed', msg)
     }
   }
 
