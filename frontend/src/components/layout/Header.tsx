@@ -138,7 +138,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
   return (
     <>
-      <header className="page-topbar h-13 px-4 sm:px-6 border-b border-slate-200/80 bg-white flex items-center justify-between gap-4 sticky top-0 z-30 select-none">
+      <header className="page-topbar h-14 px-4 sm:px-6 border-b border-slate-200/80 bg-white flex items-center justify-between gap-4 sticky top-0 z-30 select-none">
         {/* Left: Mobile hamburger & Breadcrumbs */}
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
