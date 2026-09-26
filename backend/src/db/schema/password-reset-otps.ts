@@ -52,12 +52,9 @@ export const passwordResetOtps = pgTable(
   (t) => ({
     userIdIdx: index("password_reset_otps_user_id_idx").on(t.userId),
     expiresAtIdx: index("password_reset_otps_expires_at_idx").on(t.expiresAt),
-    // Partial index: only index tokens that haven't been used yet — these are
-    // the ones the auth service will actually query against.
-    activeTokensIdx: index("password_reset_otps_active_idx").on(
-      t.userId,
-      t.expiresAt
-    ),
+    // Note: the partial index (WHERE is_used = FALSE) for active tokens
+    // cannot be expressed in Drizzle's index builder — it is defined in
+    // the migration SQL as password_reset_otps_active_idx.
   })
 );
 
