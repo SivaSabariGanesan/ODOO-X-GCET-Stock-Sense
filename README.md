@@ -315,6 +315,8 @@ After running `bun --cwd backend run db:seed`, log into StockSense with the demo
 
 - 📘 [API Integration Guide](docs/API_INTEGRATION.md) — Endpoint contracts, request schemas, WebSocket events, and frontend client integration code.
 - 🗄️ [Database Schema Specification](docs/DATABASE_SCHEMA.md) — Exhaustive 18-table relational schema guide, keys, constraints, and double-entry stock architecture.
+- 🤖 [Grounded AI Assistant Platform](docs/AI_ASSISTANT.md) — AI Orchestrator architecture, zero-hallucination directives, 8 system tools, and confirmation safeguards.
+- ⚡ [Real-Time WebSocket Layer](docs/WEBSOCKETS.md) — Pub/sub channel architecture, post-commit event dispatching, and JSON payload envelope schemas.
 - 💡 [Technical Justification & Architecture Decision Record](docs/TECHNICAL_JUSTIFICATION.md) — Technical rationale for Bun + Hono, Drizzle ORM, WebSockets, Grounded AI, and Nodemailer.
 - 🎨 [Design System Specification](design-system/stocksense/MASTER.md) — UI design tokens, color palettes, and component guidelines.
 
