@@ -31,16 +31,16 @@ export function WebSocketProvider({ children }: { children: React.ReactNode }) {
 
     // Determine backend WebSocket URL
     const rawBaseUrl = (import.meta.env.VITE_API_BASE_URL as string) || ''
-    let wsHost = window.location.host
+    let wsHost = import.meta.env.DEV ? '127.0.0.1:3001' : window.location.host
     let protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
 
     if (rawBaseUrl) {
       try {
-        const parsed = new URL(rawBaseUrl)
+        const parsed = new URL(rawBaseUrl, window.location.origin)
         wsHost = parsed.host
         protocol = parsed.protocol === 'https:' ? 'wss:' : 'ws:'
       } catch {
-        // Fallback to window host
+        // Fallback
       }
     }
 
