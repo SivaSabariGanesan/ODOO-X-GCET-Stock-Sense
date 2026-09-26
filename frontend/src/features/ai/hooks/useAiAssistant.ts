@@ -9,18 +9,14 @@ const CONV_KEY = 'stocksense_ai_conv_id';
 const INITIAL_GREETING: UiChatMessage = {
   id: 'greeting_msg',
   role: 'assistant',
-  content: `Hello! I am the **StockSense AI Assistant**. 
+  content: `Hi! How can I help you with your inventory today?
 
-I am directly integrated with the live PostgreSQL database and business services. Every answer I provide is strictly grounded in real database records:
-- **Product Catalog** & current inventory levels
-- **Stock Balances** across multi-warehouse locations
-- **Stock Movements** & historical ledger audit logs
-- **Low Stock Alerts** based on safety reorder thresholds
-- **API Endpoints** & system operational documentation
-
-How can I help you with warehouse operations today?`,
+You can ask about:
+- Current product stock balances
+- Low stock items below threshold
+- Warehouse and location details
+- Recent movements in the ledger`,
   timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-  sources: ['StockSense Engine', 'Grounded Database Services'],
 };
 
 export function useAiAssistant() {

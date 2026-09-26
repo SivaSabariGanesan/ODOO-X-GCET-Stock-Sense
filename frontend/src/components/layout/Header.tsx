@@ -293,16 +293,6 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
             <Search className="w-4 h-4" />
           </button>
 
-          {/* AI Copilot Quick Shortcut */}
-          <Link
-            to="/ai"
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-brand/10 hover:bg-brand/15 border border-brand/20 text-brand-dark font-medium rounded-md transition-colors cursor-pointer shadow-2xs no-underline"
-            title="Open StockSense Grounded AI Copilot"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-brand" />
-            <span className="hidden sm:inline">AI Copilot</span>
-          </Link>
-
           {/* Warehouse Selector Dropdown */}
           <div className="relative" ref={warehouseRef}>
             {/* Desktop Button */}

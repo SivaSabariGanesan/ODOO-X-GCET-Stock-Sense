@@ -3,6 +3,7 @@ import { Outlet, Navigate, useLocation } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { Header } from './Header'
 import { useAuth } from '@/features/auth/hooks/useAuth'
+import { ChatWidget } from '@/features/ai'
 
 export function AppLayout() {
   const { isAuthenticated, isLoading } = useAuth()
@@ -36,6 +37,9 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Floating Bottom-Right Chatbot Widget */}
+      {location.pathname !== '/ai' && <ChatWidget />}
     </div>
   )
 }
