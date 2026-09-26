@@ -1,64 +1,92 @@
-# StockSense — Enterprise Inventory Management System & AI Assistant
+# StockSense — Enterprise Inventory Management System & AI Platform
 
-StockSense is a high-performance, full-stack enterprise inventory management platform designed for multi-warehouse manufacturing and logistics operations. Built on a modern **Bun + Hono + Drizzle ORM + PostgreSQL** architecture with a **React 18 + Vite** frontend, StockSense features atomic transaction processing, real-time WebSocket event streaming, grounded AI assistant integration, transactional HTML email notifications, and an immutable audit movement ledger.
-
----
-
-## Key Features
-
-- **Double-Entry Inventory Engine**: Strict stock isolation with physical stock balances managed exclusively in `stock_balances(product_id, location_id)`.
-- **Atomic Operations**: Inbound Receipts, Outbound Deliveries, Internal Transfers, and Inventory Adjustments executed within single database transactions.
-- **Immutable Movement Ledger**: Every stock change creates an unalterable audit record in `stock_movements`.
-- **Grounded AI Assistant**: Project assistant powered by Groq LLMs (`llama-3.3-70b-versatile`) and a grounded tool execution engine for querying inventory, ledger history, and performing stock actions with user confirmation.
-- **Real-Time WebSocket Layer**: Live event publishing (`ws://.../ws`) broadcast after successful DB transactions to `inventory`, `user:*`, and `role:*` channels.
-- **Transactional Email System**: Responsive HTML email templates with Nodemailer transport for account verification and 6-digit OTP password resets.
-- **50-Product Seed Dataset**: Comprehensive database seeder (`bun run db:seed`) populating 50+ diverse industrial products, categories, UOMs, warehouses, locations, reorder rules, and stock balances.
-- **Comprehensive Test Suite**: 255 end-to-end integration tests across 18 backend modules written with Bun's native test runner (`bun test`).
+StockSense is a high-performance, full-stack enterprise inventory management platform designed for multi-warehouse manufacturing and logistics operations. Built on a modern **Bun + Hono + Drizzle ORM + PostgreSQL** architecture with a **React 18 + Vite** frontend, StockSense features double-entry stock isolation, real-time WebSocket event streaming, a grounded AI assistant with tool execution, transactional HTML email notifications, and an immutable movement ledger.
 
 ---
 
-## Tech Stack
+## 🌟 Key Features & End-to-End Capabilities
+
+- **Double-Entry Inventory Engine**: Strict stock isolation where physical stock quantity lives exclusively in `stock_balances(product_id, location_id)`. Master product records store metadata, never mutable counts.
+- **Single-Transaction Atomicity**: Inbound Receipts, Outbound Deliveries, Internal Transfers, and Inventory Adjustments execute balance updates and write immutable movement ledger entries within single database transactions.
+- **Immutable Audit Movement Ledger**: Unalterable movement history logged to `stock_movements` for every physical stock change.
+- **Grounded AI Assistant Orchestrator**: Project AI Assistant powered by Groq LLMs (`llama-3.3-70b-versatile`) backed by a grounded tool execution engine (`list_products`, `get_stock_movements`, `get_low_stock_items`, `get_dashboard_summary`, `search_project_documentation`).
+- **AI Action Confirmation Safeguard**: Multi-step user confirmation required before the AI executes stock-mutating actions (receipts, deliveries, transfers, adjustments).
+- **Real-Time WebSocket Pub/Sub Layer**: Authenticated WebSocket server (`GET /ws`) broadcasting live stock events after database transaction commits to `inventory`, `user:id`, and `role:admin` channels.
+- **Transactional Email Notification System**: Responsive HTML email rendering via Nodemailer for email verification and 6-digit OTP password resets with 10-minute expiry windows.
+- **50-Product Extended Seed Dataset**: Comprehensive database seeder (`bun run db:seed`) populating 50+ diverse industrial products, categories, UOMs, warehouses, locations, reorder rules, and initial stock balances.
+- **255 End-to-End Tests**: Complete test suite across 18 backend module test files built using Bun's native test runner (`bun test`).
+
+---
+
+## 🛠️ Tech Stack
 
 | Layer | Technology | Description |
 |---|---|---|
-| **Runtime** | [Bun](https://bun.sh) v1.3+ | Fast JavaScript/TypeScript all-in-one runtime |
-| **Backend API** | [Hono](https://hono.dev) v3 | Ultra-fast, lightweight web framework |
-| **Frontend UI** | React 18 + Vite 5 | SPA with custom CSS Design System & Lucide Icons |
-| **Database** | PostgreSQL 16 | Relational database running via Docker Compose |
-| **ORM** | [Drizzle ORM](https://orm.drizzle.team) | Type-safe SQL builder and schema manager |
-| **Real-Time** | WebSockets (Hono + Bun WS) | Event-driven WebSocket pub/sub layer |
-| **AI Layer** | Groq API (`llama-3.3-70b`) | AI Orchestrator with grounded system tools |
-| **Mail Service** | Nodemailer | Transactional HTML email rendering & delivery |
-| **Validation** | Zod (Backend) + React Hook Form | Full runtime request payload validation |
-| **Testing** | `bun:test` | Native execution runner for 255 integration tests |
+| **Runtime** | [Bun](https://bun.sh) v1.3+ | Fast JavaScript/TypeScript runtime & package manager |
+| **Backend Framework** | [Hono](https://hono.dev) v3 | Ultra-fast lightweight web framework for Bun |
+| **Frontend UI** | React 18 + Vite 5 | SPA built with Custom CSS Design System & Lucide Icons |
+| **Database** | PostgreSQL 16 | Relational database containerized via Docker Compose |
+| **ORM** | [Drizzle ORM](https://orm.drizzle.team) | Type-safe SQL builder & schema manager |
+| **Real-Time Messaging** | WebSockets (Hono + Bun WS) | Event-driven WebSocket pub/sub broadcasting |
+| **AI Assistant** | Groq API (`llama-3.3-70b`) | AI Orchestrator with grounded tool execution & fallbacks |
+| **Mail Service** | Nodemailer | Transactional HTML email rendering & SMTP delivery |
+| **Validation** | Zod + React Hook Form | End-to-end request schema validation |
+| **Testing** | `bun:test` | Native test execution runner for 255 integration tests |
 
 ---
 
-## System Architecture
+## 🏗️ System Architecture
 
 ```text
-                               ┌──────────────────────────┐
-                               │   React 18 + Vite SPA    │
-                               └────────────┬─────────────┘
-                                            │ HTTP / REST & WebSockets
-                                            ▼
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│ Hono 3 REST API & WebSocket Server (Bun Runtime)                                        │
-├─────────────────┬──────────────────┬─────────────────┬─────────────────┬────────────────┤
-│ Auth & Users    │ Inventory Engine │ AI Orchestrator │ Real-Time WS    │ Mail Sender    │
-│ (JWT + OTP)     │ (Receipts/Move)  │ (Groq + Tools)  │ (EventBus)      │ (Nodemailer)   │
-└────────┬────────┴────────┬─────────┴────────┬────────┴────────┬────────┴────────┬───────┘
-         │                 │                  │                 │                 │
-         ▼                 ▼                  ▼                 ▼                 ▼
- ┌───────────────────────────────────────────────────────────────────────────────────────┐
- │ PostgreSQL 16 Database (Drizzle ORM)                                                  │
- │ 18 Tables: Users, Products, StockBalances, StockMovements, Receipts, Deliveries...   │
- └───────────────────────────────────────────────────────────────────────────────────────┘
+                               ┌──────────────────────────────────────────┐
+                               │       React 18 + Vite SPA Frontend       │
+                               │   (Vanilla CSS Design Tokens + React)   │
+                               └────────────────────┬─────────────────────┘
+                                                    │ HTTP REST API & WebSockets
+                                                    ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│ Hono 3 Web Server & WebSocket Engine (Bun Runtime)                                                      │
+├─────────────────┬──────────────────┬─────────────────┬──────────────────┬────────────────┬──────────────┤
+│ Auth & Users    │ Inventory Engine │ AI Orchestrator │ Real-Time WS     │ Mail Sender    │ Dashboard    │
+│ (JWT + OTP)     │ (Receipts/Move)  │ (Groq + Tools)  │ (EventBus)       │ (Nodemailer)   │ Aggregator   │
+└────────┬────────┴────────┬─────────┴────────┬────────┴────────┬─────────┴────────┬───────┴──────┬───────┘
+         │                 │                  │                 │                  │              │
+         ▼                 ▼                  ▼                 ▼                  ▼              ▼
+ ┌──────────────────────────────────────────────────────────────────────────────────────────────────────┐
+ │ PostgreSQL 16 Database (Drizzle ORM)                                                                 │
+ │ 18 Tables: Users, Products, Categories, UOMs, Warehouses, Locations, StockBalances, Movements...     │
+ └──────────────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## Getting Started
+## 📦 Core Subsystems Implemented
+
+### 1. Inventory Engine & Double-Entry Principles
+- **Stock Isolation**: Product quantities exist strictly in `stock_balances(product_id, location_id)`.
+- **Atomic Operations**: Operations run inside PostgreSQL transactions (`db.transaction()`). If an item is out of stock or location fails, the entire transaction rolls back cleanly.
+- **Document Lifecycles**: Documents follow state machines (`DRAFT` → `READY` → `DONE` / `CANCELED`). Direct modifications are blocked on processed or canceled documents.
+
+### 2. Grounded AI Assistant Platform (`/api/ai`)
+- **Location**: `backend/src/modules/ai/orchestrator.ts`
+- **Zero Hallucinations**: Grounded in project tool handlers (`list_products`, `get_product_details`, `get_low_stock_items`, `get_stock_movements`, `list_warehouses`, `get_dashboard_summary`, `search_project_documentation`).
+- **Confirmation Safeguard**: Inventory actions require explicit user confirmation before execution.
+- **Fallback Execution**: Auto-falls back to local grounded query logic if Groq API keys are missing.
+
+### 3. Real-Time WebSocket Messaging (`GET /ws`)
+- **Pub/Sub Channels**:
+  - `inventory`: Global stock changes and movement broadcasts
+  - `role:admin` / `role:manager`: Role-scoped system notifications
+  - `user:id`: Targeted user alerts
+- **Post-Commit Guarantee**: Events are dispatched to clients **after** DB transaction commit.
+
+### 4. Transactional Email Notification System
+- **HTML Layouts**: Custom HTML templates for Email Verification and 6-Digit Password Reset OTPs.
+- **Nodemailer Transport**: Sends via SMTP (Gmail or custom provider) with fallback console logger for development.
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
@@ -71,7 +99,7 @@ StockSense is a high-performance, full-stack enterprise inventory management pla
 git clone https://github.com/SivaSabariGanesan/ODOO-X-GCET-Stock-Sense.git
 cd ODOO-X-GCET-Stock-Sense
 
-# Install monorepo workspace dependencies
+# Install workspace dependencies from monorepo root
 bun install
 ```
 
@@ -84,7 +112,7 @@ cp .env.example .env
 cp .env.example backend/.env
 ```
 
-Default local development configuration (`backend/.env`):
+Default development configuration (`backend/.env`):
 
 ```env
 DATABASE_URL=postgresql://stocksense:stocksense_pass@localhost:5437/stocksense_db
@@ -115,7 +143,7 @@ docker compose up -d
 ### 4. Run Database Migrations & Seed Dataset
 
 ```bash
-# Apply SQL migrations
+# Run SQL migrations
 bun --cwd backend run db:migrate
 
 # Seed 50+ products, categories, stock balances, reorder rules & movement history
@@ -136,9 +164,9 @@ bun --cwd frontend dev
 
 ---
 
-## API Module Reference
+## 📊 API Module Reference
 
-All REST endpoints are prefixed with `/api`. Documentation is maintained in [`docs/API_INTEGRATION.md`](docs/API_INTEGRATION.md).
+All REST endpoints are prefixed with `/api`. Complete documentation lives in [`docs/API_INTEGRATION.md`](docs/API_INTEGRATION.md).
 
 | Module | Base Path | Key Capabilities |
 |---|---|---|
@@ -159,9 +187,7 @@ All REST endpoints are prefixed with `/api`. Documentation is maintained in [`do
 
 ---
 
-## Database Schema Highlights
-
-The database consists of **18 relational tables** designed for high throughput and auditability:
+## 🗄️ Database Schema (18 Tables)
 
 ```text
 ├── Master Data: users, categories, units_of_measure, products, warehouses, locations, reorder_rules
@@ -176,25 +202,46 @@ The database consists of **18 relational tables** designed for high throughput a
 
 ---
 
-## Testing & Quality Assurance
+## 🧪 Testing & Quality Assurance
 
-StockSense includes **255 automated end-to-end tests** covering business logic, security, concurrent transaction handling, WebSocket broadcasting, and email rendering.
+StockSense includes **255 end-to-end integration tests** across 18 backend test files:
 
 ```bash
 # Execute full backend test suite (255 tests across 18 files)
 bun --cwd backend test
 
-# Run a specific module test
+# Run specific module tests
 bun --cwd backend test tests/inventory.test.ts
 bun --cwd backend test tests/ai.test.ts
 bun --cwd backend test tests/websocket.test.ts
 ```
 
+| Test File | Modules Tested |
+|---|---|
+| `auth.test.ts` | Registration, login, JWT verification, OTP reset, email confirmation |
+| `products.test.ts` | Product master CRUD, SKU uniqueness, search, barcode lookup |
+| `categories.test.ts` | Category hierarchy, parent-child links, name uniqueness |
+| `uoms.test.ts` | UOM CRUD, unit conversion types, deletion safeguards |
+| `warehouses.test.ts` | Warehouse CRUD, short code uniqueness, facility status |
+| `locations.test.ts` | Storage location hierarchy (aisle, shelf, bin), warehouse relation |
+| `reorders.test.ts` | Reordering rules CRUD, threshold triggers, min/max checks |
+| `stock-balances.test.ts` | Balance creation, location stock queries, stock isolation |
+| `receipts.test.ts` | Receipt CRUD, line items, business validation, stock increment, idempotency |
+| `deliveries.test.ts` | Delivery CRUD, line items, stock check, stock decrement, idempotency |
+| `transfers.test.ts` | Transfer CRUD, origin stock check, multi-location transfer execution |
+| `adjustments.test.ts` | Adjustment CRUD, count difference calculations, stock sync |
+| `recipes.test.ts` | Finished product BOM recipes & ingredient item management |
+| `stock-movements.test.ts` | Movement ledger audit logs, filtering by type/date/location |
+| `dashboard.test.ts` | Aggregated dashboard stats, valuation math, low-stock count |
+| `ai.test.ts` | AI Orchestrator intent routing, tool execution, action confirmation |
+| `websocket.test.ts` | WebSocket handshake, authentication, channel subscriptions, post-commit events |
+| `inventory.test.ts` | E2E inventory orchestration lifecycle: Receipt → Transfer → Delivery |
+
 ---
 
-## Seed Dataset Demo Credentials
+## 🔑 Seed Dataset Demo Credentials
 
-After executing `bun --cwd backend run db:seed`, use the admin credentials to log into StockSense:
+After running `bun --cwd backend run db:seed`, log into StockSense with the demo account:
 
 - **Email**: `alex.mercer@stocksense.io`
 - **Password**: `StockSense2026!`
@@ -202,13 +249,13 @@ After executing `bun --cwd backend run db:seed`, use the admin credentials to lo
 
 ---
 
-## Project Documentation
+## 📄 Documentation Links
 
-- 📘 [API Integration Guide](docs/API_INTEGRATION.md) — Complete endpoint specs, payload schemas, error codes, and frontend code snippets.
-- 🎨 [Design System Specification](design-system/stocksense/MASTER.md) — UI design tokens, color palettes, and component styles.
+- 📘 [API Integration Guide](docs/API_INTEGRATION.md) — Endpoint contracts, request schemas, WebSocket events, and frontend client integration code.
+- 🎨 [Design System Specification](design-system/stocksense/MASTER.md) — UI design tokens, color palettes, and component guidelines.
 
 ---
 
-## License
+## 📜 License
 
-This project is open-source and available under the MIT License.
+This project is licensed under the MIT License.
