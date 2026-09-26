@@ -14,6 +14,7 @@ import productsRouter from "../modules/products/route";
 import categoriesRouter from "../modules/categories/route";
 import uomsRouter from "../modules/uoms/route";
 import warehousesRouter from "../modules/warehouses/route";
+import locationsRouter from "../modules/locations/route";
 import { StockLedgerService } from "../modules/stock-movements/service";
 import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema";
 import { authMiddleware } from "../app/middleware/auth";
@@ -67,6 +68,7 @@ app.route("/api/stock-movements", stockMovementsRouter);
 app.route("/api/categories", categoriesRouter);
 app.route("/api/uoms", uomsRouter);
 app.route("/api/warehouses", warehousesRouter);
+app.route("/api/locations", locationsRouter);
 
 // Convenience product-specific and location-specific stock history endpoints
 app.get("/api/products/:productId/stock-movements", authMiddleware, async (c) => {

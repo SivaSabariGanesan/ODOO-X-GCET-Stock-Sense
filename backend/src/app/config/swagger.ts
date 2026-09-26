@@ -255,6 +255,26 @@ export const openApiSpec = {
           updatedAt: { type: "string", format: "date-time" },
         },
       },
+      Location: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          warehouseId: { type: "string", format: "uuid" },
+          parentId: { type: "string", format: "uuid", nullable: true },
+          name: { type: "string", example: "Shelf A-1" },
+          fullPath: { type: "string", example: "WH01 / Zone A / Shelf A-1" },
+          locationType: { type: "string", enum: ["internal", "input", "output", "quality_control", "virtual"], example: "internal" },
+          isActive: { type: "boolean", example: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          warehouseName: { type: "string", nullable: true },
+          warehouseShortCode: { type: "string", nullable: true },
+          parentName: { type: "string", nullable: true },
+          parentFullPath: { type: "string", nullable: true },
+          childrenCount: { type: "integer", nullable: true },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -1526,6 +1546,144 @@ export const openApiSpec = {
             },
           },
           404: { description: "Warehouse not found" },
+        },
+      },
+    },
+    "/api/locations": {
+      get: {
+        summary: "List Locations with Pagination, Tree Hierarchy & Filtering",
+        tags: ["Location CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 10 } },
+          { name: "warehouseId", in: "query", schema: { type: "string", format: "uuid" }, description: "Filter by warehouse ID" },
+          { name: "parentId", in: "query", schema: { type: "string" }, description: "Filter by parent location ID (or 'null' for root locations)" },
+          { name: "search", in: "query", schema: { type: "string" }, description: "Search by name or full path" },
+          { name: "locationType", in: "query", schema: { type: "string", enum: ["internal", "input", "output", "quality_control", "virtual"] } },
+          { name: "isActive", in: "query", schema: { type: "string", enum: ["true", "false"] } },
+          { name: "sortBy", in: "query", schema: { type: "string", enum: ["name", "fullPath", "locationType", "createdAt"], default: "name" } },
+          { name: "sortOrder", in: "query", schema: { type: "string", enum: ["asc", "desc"], default: "asc" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of location records",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/Location" } },
+                    pagination: {
+                      type: "object",
+                      properties: {
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        total: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "Invalid query parameters" },
+        },
+      },
+      post: {
+        summary: "Create New Location",
+        tags: ["Location CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["warehouseId", "name"],
+                properties: {
+                  warehouseId: { type: "string", format: "uuid", example: "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d" },
+                  parentId: { type: "string", format: "uuid", nullable: true, example: "3b7d4bad-9bdd-2b0d-7b3d-cb6d9b1deb4d" },
+                  name: { type: "string", example: "Shelf A-1" },
+                  fullPath: { type: "string", example: "WH01 / Zone A / Shelf A-1" },
+                  locationType: { type: "string", enum: ["internal", "input", "output", "quality_control", "virtual"], default: "internal" },
+                  isActive: { type: "boolean", default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Location created successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Location" } } } } } },
+          400: { description: "Validation error, missing warehouse/parent, or cross-warehouse parent" },
+          404: { description: "Warehouse or Parent location not found" },
+        },
+      },
+    },
+    "/api/locations/{id}": {
+      get: {
+        summary: "Get Location Details by ID",
+        tags: ["Location CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Location details", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Location" } } } } } },
+          404: { description: "Location not found" },
+        },
+      },
+      patch: {
+        summary: "Update Location Record",
+        tags: ["Location CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  warehouseId: { type: "string", format: "uuid" },
+                  parentId: { type: "string", format: "uuid", nullable: true },
+                  name: { type: "string" },
+                  fullPath: { type: "string" },
+                  locationType: { type: "string", enum: ["internal", "input", "output", "quality_control", "virtual"] },
+                  isActive: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Location updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Location" } } } } } },
+          400: { description: "Validation error, circular hierarchy, or cross-warehouse move error" },
+          404: { description: "Location not found" },
+        },
+      },
+      delete: {
+        summary: "Delete or Deactivate Location",
+        tags: ["Location CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "Location deleted if unreferenced, or deactivated if referenced by inventory/operational records",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    message: { type: "string" },
+                    mode: { type: "string", enum: ["deleted", "deactivated"] },
+                  },
+                },
+              },
+            },
+          },
+          400: { description: "Cannot delete location with active child locations" },
+          404: { description: "Location not found" },
         },
       },
     },

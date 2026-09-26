@@ -311,6 +311,66 @@ export class WarehouseReferencedError extends AppError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Location Domain Errors
+// ---------------------------------------------------------------------------
+
+export class ParentLocationNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Parent location with ID '${id}' was not found` : "Parent location not found", 404);
+    this.name = "ParentLocationNotFoundError";
+  }
+}
+
+export class CrossWarehouseParentError extends AppError {
+  constructor() {
+    super("Parent location must belong to the same warehouse", 400);
+    this.name = "CrossWarehouseParentError";
+  }
+}
+
+export class SelfParentError extends AppError {
+  constructor() {
+    super("A location cannot be its own parent", 400);
+    this.name = "SelfParentError";
+  }
+}
+
+export class CircularLocationHierarchyError extends AppError {
+  constructor() {
+    super("Circular hierarchy detected: a location cannot have its own descendant as a parent", 400);
+    this.name = "CircularLocationHierarchyError";
+  }
+}
+
+export class DuplicateLocationError extends AppError {
+  constructor(identifier: string) {
+    super(`A location with name or path '${identifier}' already exists in this warehouse`, 409);
+    this.name = "DuplicateLocationError";
+  }
+}
+
+export class LocationHasChildrenError extends AppError {
+  constructor() {
+    super("Location has child locations and cannot be deleted until its child locations are removed or re-assigned", 400);
+    this.name = "LocationHasChildrenError";
+  }
+}
+
+export class LocationReferencedError extends AppError {
+  constructor(id: string, message = `Location '${id}' is referenced by inventory records and cannot be hard deleted. Deactivated instead.`) {
+    super(message, 400);
+    this.name = "LocationReferencedError";
+  }
+}
+
+export class LocationWarehouseMoveError extends AppError {
+  constructor() {
+    super("Cannot move location to another warehouse while it is referenced by stock or inventory operations", 400);
+    this.name = "LocationWarehouseMoveError";
+  }
+}
+
 
 
 
