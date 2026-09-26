@@ -12,6 +12,18 @@ import { config } from "../app/config";
 export class EmailService {
   private static getTransporter() {
     if (config.email.smtpHost && config.email.smtpUser) {
+      const isGmail = config.email.smtpHost.includes("gmail.com");
+
+      if (isGmail) {
+        return nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: config.email.smtpUser,
+            pass: config.email.smtpPass, // exact string with spaces
+          },
+        });
+      }
+
       return nodemailer.createTransport({
         host: config.email.smtpHost,
         port: config.email.smtpPort,
