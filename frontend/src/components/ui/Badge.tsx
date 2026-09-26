@@ -26,42 +26,42 @@ export function Badge({
 }: BadgeProps) {
   const variantStyles = {
     draft: 'bg-gray-100 text-gray-700 border-gray-200',
-    confirmed: 'bg-info-bg text-info-text border-info-DEFAULT/20',
-    ready: 'bg-warning-bg text-warning-text border-warning-DEFAULT/20',
-    done: 'bg-success-bg text-success-text border-success-DEFAULT/20',
-    cancelled: 'bg-danger-bg text-danger-text border-danger-DEFAULT/20',
-    brand: 'bg-brand-light text-brand border-brand/20',
-    warning: 'bg-warning-bg text-warning-text border-warning-DEFAULT/20',
-    danger: 'bg-danger-bg text-danger-text border-danger-DEFAULT/20',
-    info: 'bg-info-bg text-info-text border-info-DEFAULT/20',
-    success: 'bg-success-bg text-success-text border-success-DEFAULT/20',
+    confirmed: 'bg-sky-50 text-sky-700 border-sky-200',
+    ready: 'bg-amber-50 text-amber-700 border-amber-200',
+    done: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    cancelled: 'bg-rose-50 text-rose-700 border-rose-200',
+    brand: 'bg-brand-light text-brand-dark border-brand/20',
+    warning: 'bg-amber-50 text-amber-700 border-amber-200',
+    danger: 'bg-rose-50 text-rose-700 border-rose-200',
+    info: 'bg-sky-50 text-sky-700 border-sky-200',
+    success: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     neutral: 'bg-gray-100 text-gray-600 border-gray-200',
   }[variant]
 
   const dotColors = {
     draft: 'bg-gray-400',
-    confirmed: 'bg-info-DEFAULT',
-    ready: 'bg-warning-DEFAULT',
-    done: 'bg-success-DEFAULT',
-    cancelled: 'bg-danger-DEFAULT',
+    confirmed: 'bg-sky-500',
+    ready: 'bg-amber-500',
+    done: 'bg-emerald-500',
+    cancelled: 'bg-rose-500',
     brand: 'bg-brand',
-    warning: 'bg-warning-DEFAULT',
-    danger: 'bg-danger-DEFAULT',
-    info: 'bg-info-DEFAULT',
-    success: 'bg-success-DEFAULT',
+    warning: 'bg-amber-500',
+    danger: 'bg-rose-500',
+    info: 'bg-sky-500',
+    success: 'bg-emerald-500',
     neutral: 'bg-gray-400',
   }[variant]
 
   return (
     <span
       className={cn(
-        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border leading-none tracking-tight select-none',
+        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium border leading-none tracking-tight select-none shadow-xs',
         variantStyles,
         className
       )}
       {...props}
     >
-      {dot && <span className={cn('w-1.5 h-1.5 rounded-full', dotColors)} />}
+      {dot && <span className={cn('w-1.5 h-1.5 rounded-full shrink-0', dotColors)} />}
       <span>{children}</span>
     </span>
   )

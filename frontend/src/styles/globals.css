@@ -12,102 +12,90 @@
 @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Fira+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
 
 :root {
-  /* ── Brand ───────────────────────────────────────────────────────────────
-   * $o-community-color: #71639e
-   * $o-brand-primary:   $o-community-color
-   * $o-action:          $o-brand-primary
-   */
-  --color-brand:        #71639e;
-  --color-brand-dark:   #5a4f80; /* darken(brand, 10%) — hover/active */
-  --color-brand-light:  #e8e5f3; /* brand tint — active sidebar bg, selected rows */
-  --color-action:       #71639e; /* $o-action */
+  /* ── Brand (Deep Odoo Purple — High Contrast & Precision) ────────────── */
+  --color-brand:        #69529b;
+  --color-brand-dark:   #543f80; /* darken(brand, 10%) — hover/active */
+  --color-brand-light:  #f2eefa; /* brand tint — active sidebar bg, selected rows */
+  --color-action:       #69529b; /* $o-action */
 
-  /* ── Semantic Status (Traffic-Light)
-   * Fills: use DEFAULT; Text on light bg: use -text (WCAG AA compliant)
-   * Mirrors $o-theme-text-colors override map in Odoo
-   */
-  --color-success:      #28a745; /* $o-success */
-  --color-success-text: #008818; /* $o-theme-text-colors.success */
-  --color-success-bg:   #e6f4ea;
+  /* ── Semantic Status (Traffic-Light System) ────────────────────────────── */
+  --color-success:      #16a34a; /* $o-success */
+  --color-success-text: #15803d; /* WCAG AA text */
+  --color-success-bg:   #f0fdf4;
 
-  --color-warning:      #ffac00; /* $o-warning */
-  --color-warning-text: #9a6b01; /* $o-theme-text-colors.warning */
-  --color-warning-bg:   #fff8e1;
+  --color-warning:      #d97706; /* $o-warning */
+  --color-warning-text: #b45309; /* WCAG AA text */
+  --color-warning-bg:   #fffbeb;
 
-  --color-danger:       #dc3545; /* $o-danger */
-  --color-danger-text:  #d23f3a; /* $o-theme-text-colors.danger */
-  --color-danger-bg:    #fde8e8;
+  --color-danger:       #dc2626; /* $o-danger */
+  --color-danger-text:  #b91c1c; /* WCAG AA text */
+  --color-danger-bg:    #fef2f2;
 
-  --color-info:         #17a2b8; /* $o-info */
-  --color-info-text:    #0180a5; /* $o-theme-text-colors.info */
-  --color-info-bg:      #e0f4f8;
+  --color-info:         #0284c7; /* $o-info */
+  --color-info-text:    #0369a1; /* WCAG AA text */
+  --color-info-bg:      #f0f9ff;
 
-  /* ── Neutrals — Odoo gray scale ($o-gray-100 … $o-gray-900) ─────────────  */
-  --gray-100: #f8f9fa;
-  --gray-200: #e9ecef;
-  --gray-300: #dee2e6;
-  --gray-400: #ced4da;
-  --gray-500: #adb5bd;
-  --gray-600: #6c757d;
-  --gray-700: #495057;
-  --gray-800: #343a40;
-  --gray-900: #212529;
+  /* ── Neutrals (Modern Slate Gray Scale) ────────────────────────────────── */
+  --gray-100: #f8fafc;
+  --gray-200: #f1f5f9;
+  --gray-300: #e2e8f0;
+  --gray-400: #cbd5e1;
+  --gray-500: #94a3b8;
+  --gray-600: #64748b;
+  --gray-700: #334155; /* main text color */
+  --gray-800: #1e293b;
+  --gray-900: #0f172a; /* headings color */
 
-  /* ── Surfaces ────────────────────────────────────────────────────────────  */
-  --color-app-bg:       #f0eeee; /* $o-main-bg-color — warm light gray shell */
-  --color-sidebar-bg:   #f8f9fa; /* $o-gray-100 — navigation rail */
-  --color-view-bg:      #ffffff; /* $o-view-background-color — form/list content */
-  --color-border:       #dee2e6; /* $o-gray-300 — dividers, input borders */
-  --color-border-hover: #ced4da; /* $o-gray-400 — hover border */
+  /* ── Surfaces ──────────────────────────────────────────────────────────── */
+  --color-app-bg:       #f8fafc; /* crisp, clean modern slate background */
+  --color-sidebar-bg:   #ffffff; /* clean white sidebar */
+  --color-view-bg:      #ffffff; /* card and list view surface */
+  --color-border:       #e2e8f0; /* modern slate border */
+  --color-border-hover: #cbd5e1; /* hover border */
 
-  /* ── Text ────────────────────────────────────────────────────────────────  */
-  --color-text:          #495057;                    /* $o-main-text-color = $o-gray-700 */
-  --color-text-muted:    rgba(73, 80, 87, 0.76);     /* $o-main-color-muted */
-  --color-headings:      #212529;                    /* $o-main-headings-color = $o-gray-900 */
-  --color-link:          #5a4f80;                    /* darken($o-brand-primary, 5%) */
-  --color-code:          #d2317b;                    /* $o-main-code-color */
-  --color-favorite:      #f3cc00;                    /* $o-main-favorite-color */
+  /* ── Text ──────────────────────────────────────────────────────────────── */
+  --color-text:          #334155;
+  --color-text-muted:    #64748b;
+  --color-headings:      #0f172a;
+  --color-link:          #543f80;
+  --color-code:          #be185d;
+  --color-favorite:      #f59e0b;
 
-  /* ── Opacity ─────────────────────────────────────────────────────────────
-   * $o-opacity-disabled: 0.5 · $o-opacity-muted: 0.76
-   */
+  /* ── Opacity ───────────────────────────────────────────────────────────── */
   --opacity-disabled: 0.5;
   --opacity-muted:    0.76;
 
-  /* ── Shadows — soft, functional, never decorative ────────────────────────  */
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 2px 4px rgba(0, 0, 0, 0.08);
-  --shadow-lg: 0 4px 8px rgba(0, 0, 0, 0.10);
-  --shadow-xl: 0 8px 16px rgba(0, 0, 0, 0.12);
+  /* ── Shadows (Tactile & Soft) ─────────────────────────────────────────── */
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
 
-  /* Focus ring — brand glow, used on inputs and interactive elements */
-  --shadow-focus: 0 0 0 2px rgba(113, 99, 158, 0.25);
+  /* Focus ring — brand glow */
+  --shadow-focus: 0 0 0 3px rgba(105, 82, 155, 0.18);
 
-  /* ── Typography ──────────────────────────────────────────────────────────  */
-  --font-sans:    'Fira Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, Arial, sans-serif;
-  --font-heading: 'Fira Code', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-mono:    'Fira Code', SFMono-Regular, Menlo, Monaco, Consolas, 'Courier New', monospace;
+  /* ── Typography ────────────────────────────────────────────────────────── */
+  --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-heading: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono:    'Fira Code', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  /* ── Sizing — component heights from Odoo ────────────────────────────────  */
-  --height-statbtn:    44px;  /* $o-statbutton-height */
-  --height-statusbar:  33px;  /* $o-statusbar-height  */
-  --height-breadcrumb: 30px;  /* $o-cp-breadcrumb-height */
+  /* ── Sizing ────────────────────────────────────────────────────────────── */
+  --height-statbtn:    44px;
+  --height-statusbar:  33px;
+  --height-breadcrumb: 30px;
 
-  /* ── Layout ──────────────────────────────────────────────────────────────  */
+  /* ── Layout ────────────────────────────────────────────────────────────── */
   --sidebar-width:           240px;
-  --sidebar-width-collapsed: 56px;
-  --modal-md:                650px;  /* $o-modal-md */
-  --modal-lg:                980px;  /* $o-modal-lg */
-  --dropdown-max-height:     70vh;   /* $o-dropdown-max-height */
+  --sidebar-width-collapsed: 58px;
+  --modal-md:                650px;
+  --modal-lg:                980px;
+  --dropdown-max-height:     70vh;
 
-  /* ── Transitions — functional only, no decoration ────────────────────────
-   * Odoo philosophy: motion signals state, never decorates.
-   * Duration range: 100–250ms. Default easing: ease.
-   */
-  --transition-fast:    100ms ease;
-  --transition-base:    150ms ease;
-  --transition-medium:  200ms ease;
-  --transition-slow:    250ms ease-out;
+  /* ── Transitions ───────────────────────────────────────────────────────── */
+  --transition-fast:    100ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base:    150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-medium:  200ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow:    250ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 

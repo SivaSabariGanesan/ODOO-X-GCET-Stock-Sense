@@ -68,23 +68,20 @@ export default {
 
       // ── Typography ───────────────────────────────────────────────────────
       fontFamily: {
-        // Body — Fira Sans, falls back to Odoo's system font stack
+        // Body — Inter modern font stack
         sans: [
-          'Fira Sans',
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
           'Roboto',
           'Helvetica Neue',
-          'Ubuntu',
-          'Noto Sans',
-          'Arial',
           'sans-serif',
         ],
-        // Headings — Fira Code, technical precision feel
+        // Headings — Plus Jakarta Sans / Inter clean geometric precision
         heading: [
-          'Fira Code',
-          'SF Pro Display',
+          'Plus Jakarta Sans',
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
@@ -97,8 +94,6 @@ export default {
           'Menlo',
           'Monaco',
           'Consolas',
-          'Liberation Mono',
-          'Courier New',
           'monospace',
         ],
       },
