@@ -13,6 +13,8 @@ interface DashboardFiltersProps {
   onFilterChange: (key: keyof DashboardFiltersState, value: string) => void
   onResetFilters: () => void
   totalResultsCount: number
+  warehouseOptions?: { id: string; name: string }[]
+  categoryOptions?: string[]
 }
 
 export function DashboardFilters({
@@ -20,6 +22,8 @@ export function DashboardFilters({
   onFilterChange,
   onResetFilters,
   totalResultsCount,
+  warehouseOptions = WAREHOUSE_OPTIONS,
+  categoryOptions = CATEGORY_OPTIONS,
 }: DashboardFiltersProps) {
   const isFiltered =
     filters.documentType !== 'all' ||
@@ -118,7 +122,7 @@ export function DashboardFilters({
               )}
               aria-label="Filter by Warehouse"
             >
-              {WAREHOUSE_OPTIONS.map((wh) => (
+              {warehouseOptions.map((wh) => (
                 <option key={wh.id} value={wh.id}>
                   {wh.name}
                 </option>
@@ -142,7 +146,7 @@ export function DashboardFilters({
               )}
               aria-label="Filter by Product Category"
             >
-              {CATEGORY_OPTIONS.map((cat) => (
+              {categoryOptions.map((cat) => (
                 <option key={cat} value={cat === 'All Categories' ? 'all' : cat}>
                   Category: {cat}
                 </option>
