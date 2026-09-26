@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
   ArrowDownToLine,
@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockReceiptById, updateReceiptStatus } from '../mockReceipts'
 import { Receipt, ReceiptStatus } from '../types'
@@ -55,16 +56,13 @@ export function ReceiptDetailsPage() {
 
   if (!receipt) {
     return (
-      <div className="w-full max-w-2xl mx-auto p-12 text-center bg-white border border-slate-200/80 rounded-lg shadow-2xs space-y-4">
-        <ArrowDownToLine className="w-10 h-10 text-slate-400 mx-auto" />
-        <h2 className="text-base font-semibold text-slate-800">Receipt Not Found</h2>
-        <p className="text-xs text-slate-500">The receipt identifier #{id} does not exist.</p>
-        <Link to="/operations/receipts">
-          <Button variant="secondary" size="sm">
-            Back to Receipts
-          </Button>
-        </Link>
-      </div>
+      <EmptyState
+        icon={ArrowDownToLine}
+        title="Receipt Not Found"
+        description={`The receipt identifier #${id} does not exist.`}
+        actionLabel="Back to Receipts"
+        onAction={() => navigate('/operations/receipts')}
+      />
     )
   }
 

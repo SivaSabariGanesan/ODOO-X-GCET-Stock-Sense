@@ -38,10 +38,7 @@ import {
   WarehousesListPage,
   WarehouseDetailsPage,
 } from '@/features/warehouses'
-import {
-  DashboardPlaceholder,
-  ProfilePlaceholder,
-} from './placeholders'
+import { ProfilePage } from '@/features/profile'
 
 export const router = createBrowserRouter([
   // ── Authentication Routes ──────────────────────────────────────────────
@@ -209,7 +206,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'profile',
-        element: <ProfilePlaceholder />,
+        element: <ProfilePage />,
       },
     ],
   },

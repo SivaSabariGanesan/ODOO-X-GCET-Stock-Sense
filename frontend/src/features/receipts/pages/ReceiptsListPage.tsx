@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -13,14 +13,19 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TablePagination } from '@/components/common/TablePagination'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockReceipts, updateReceiptStatus } from '../mockReceipts'
 import { Receipt, ReceiptFiltersState, ReceiptStatus } from '../types'
 import { cn } from '@/lib/cn'
 
+const PAGE_SIZE = 10
+
 export function ReceiptsListPage() {
   const toast = useToast()
   const [receipts, setReceipts] = useState<Receipt[]>(getMockReceipts())
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [filters, setFilters] = useState<ReceiptFiltersState>({
     search: '',
@@ -63,6 +68,15 @@ export function ReceiptsListPage() {
       return true
     })
   }, [receipts, filters])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
+  const paginatedReceipts = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredReceipts.slice(start, start + PAGE_SIZE)
+  }, [filteredReceipts, currentPage])
 
   const isFiltered =
     Boolean(filters.search.trim()) ||
@@ -245,22 +259,13 @@ export function ReceiptsListPage() {
 
       {/* ── Table Surface ───────────────────────────────────────────── */}
       {filteredReceipts.length === 0 ? (
-        <div className="bg-white border border-slate-200/80 rounded-lg p-12 text-center shadow-2xs space-y-3">
-          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-            <ArrowDownToLine className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-800">
-            No receipts match your search criteria
-          </h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Try resetting your filters or clearing search text to view all inbound receipts.
-          </p>
-          <div className="pt-2">
-            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
-              Reset Filters
-            </Button>
-          </div>
-        </div>
+        <EmptyState
+          icon={ArrowDownToLine}
+          title="No receipts match your search criteria"
+          description="Try resetting your filters or clearing search text to view all inbound receipts."
+          actionLabel={isFiltered ? 'Reset Filters' : undefined}
+          onAction={isFiltered ? handleResetFilters : undefined}
+        />
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-lg overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
@@ -278,7 +283,7 @@ export function ReceiptsListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredReceipts.map((rec) => (
+                {paginatedReceipts.map((rec) => (
                   <tr
                     key={rec.id}
                     className="hover:bg-slate-50/70 transition-colors group"
@@ -373,6 +378,13 @@ export function ReceiptsListPage() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredReceipts.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="receipts"
+          />
         </div>
       )}
     </div>

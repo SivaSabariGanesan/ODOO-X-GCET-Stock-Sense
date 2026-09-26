@@ -25,6 +25,7 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockMoves } from '../mockMoves'
 import { StockMove, MoveFiltersState, MovementType } from '../types'
@@ -329,24 +330,18 @@ export function MoveHistoryPage() {
             <tbody className="divide-y divide-slate-100 font-sans">
               {paginatedMoves.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
-                    <History className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-                    <p className="font-medium text-slate-600">No stock movements found</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      {isFiltered
-                        ? 'Try clearing your active filters to view all logged ledger movements.'
-                        : 'No stock movements have been recorded yet.'}
-                    </p>
-                    {isFiltered && (
-                      <Button
-                        variant="secondary"
-                        size="xs"
-                        onClick={handleResetFilters}
-                        className="mt-3"
-                      >
-                        Clear Filters
-                      </Button>
-                    )}
+                  <td colSpan={9} className="p-0">
+                    <EmptyState
+                      icon={History}
+                      title="No stock movements found"
+                      description={
+                        isFiltered
+                          ? 'Try clearing your active filters to view all logged ledger movements.'
+                          : 'No stock movements have been recorded yet.'
+                      }
+                      actionLabel={isFiltered ? 'Clear Filters' : undefined}
+                      onAction={isFiltered ? handleResetFilters : undefined}
+                    />
                   </td>
                 </tr>
               ) : (

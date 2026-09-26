@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -14,14 +14,19 @@ import {
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { TablePagination } from '@/components/common/TablePagination'
+import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
 import { getMockDeliveries, updateDeliveryStatus } from '../mockDeliveries'
 import { Delivery, DeliveryFiltersState, DeliveryStatus } from '../types'
 import { cn } from '@/lib/cn'
 
+const PAGE_SIZE = 10
+
 export function DeliveriesListPage() {
   const toast = useToast()
   const [deliveries, setDeliveries] = useState<Delivery[]>(getMockDeliveries())
+  const [currentPage, setCurrentPage] = useState(1)
 
   const [filters, setFilters] = useState<DeliveryFiltersState>({
     search: '',
@@ -64,6 +69,15 @@ export function DeliveriesListPage() {
       return true
     })
   }, [deliveries, filters])
+
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [filters])
+
+  const paginatedDeliveries = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE
+    return filteredDeliveries.slice(start, start + PAGE_SIZE)
+  }, [filteredDeliveries, currentPage])
 
   const isFiltered =
     Boolean(filters.search.trim()) ||
@@ -246,22 +260,13 @@ export function DeliveriesListPage() {
 
       {/* ── Table Surface ───────────────────────────────────────────── */}
       {filteredDeliveries.length === 0 ? (
-        <div className="bg-white border border-slate-200/80 rounded-lg p-12 text-center shadow-2xs space-y-3">
-          <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-            <ArrowUpFromLine className="w-6 h-6" />
-          </div>
-          <h3 className="text-base font-semibold text-slate-800">
-            No deliveries match your search criteria
-          </h3>
-          <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Try adjusting your search terms or selecting "All Warehouses" to view queued shipments.
-          </p>
-          <div className="pt-2">
-            <Button variant="secondary" size="sm" onClick={handleResetFilters}>
-              Reset Filters
-            </Button>
-          </div>
-        </div>
+        <EmptyState
+          icon={ArrowUpFromLine}
+          title="No deliveries match your search criteria"
+          description='Try adjusting your search terms or selecting "All Warehouses" to view queued shipments.'
+          actionLabel={isFiltered ? 'Reset Filters' : undefined}
+          onAction={isFiltered ? handleResetFilters : undefined}
+        />
       ) : (
         <div className="bg-white border border-slate-200/80 rounded-lg overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
@@ -278,7 +283,7 @@ export function DeliveriesListPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredDeliveries.map((del) => (
+                {paginatedDeliveries.map((del) => (
                   <tr
                     key={del.id}
                     className="hover:bg-slate-50/70 transition-colors group"
@@ -368,6 +373,14 @@ export function DeliveriesListPage() {
               </tbody>
             </table>
           </div>
+
+          <TablePagination
+            currentPage={currentPage}
+            totalItems={filteredDeliveries.length}
+            pageSize={PAGE_SIZE}
+            onPageChange={setCurrentPage}
+            itemLabel="deliveries"
+          />
         </div>
       )}
     </div>
