@@ -24,6 +24,8 @@ import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema
 import { authMiddleware } from "../app/middleware/auth";
 import { AppError } from "../lib/errors";
 
+import { aiRouter } from "../modules/ai/route";
+
 const app = new Hono();
 
 // ---------------------------------------------------------------------------
@@ -62,6 +64,7 @@ app.get("/ui", swaggerUI({ url: "/swagger.json" }));
 // API Route Modules
 // ---------------------------------------------------------------------------
 app.route("/api/auth", authRouter);
+app.route("/api/products", productsRouter);
 app.route("/api/receipts", receiptsRouter);
 app.route("/api/deliveries", deliveriesRouter);
 app.route("/api/transfers", transfersRouter);
@@ -74,6 +77,7 @@ app.route("/api/locations", locationsRouter);
 app.route("/api/reordering-rules", reorderingRulesRouter);
 app.route("/api/stock-balances", stockBalancesRouter);
 app.route("/api/dashboard", dashboardRouter);
+app.route("/api/ai", aiRouter);
 app.route("/ws", websocketRouter);
 
 // Convenience product-specific and location-specific stock history endpoints
