@@ -218,29 +218,36 @@ export function OtpVerificationPage() {
 
         {/* OTP Input Fields */}
         <div>
-          <label className="block text-label font-medium text-gray-700 mb-2">
-            Verification Code (6 Digits)
-          </label>
-          <div className="flex items-center justify-between gap-2" onPaste={handlePaste}>
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-semibold text-gray-700">
+              One-Time Passcode (6 Digits)
+            </label>
+            <span className="text-[11px] text-gray-400 font-mono">
+              Auto-advancing
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-1 sm:gap-2 w-full" onPaste={handlePaste}>
             {otpDigits.map((digit, index) => (
               <input
                 key={index}
                 ref={(el) => (inputRefs.current[index] = el)}
                 type="text"
                 inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete={index === 0 ? 'one-time-code' : 'off'}
                 maxLength={1}
                 value={digit}
                 disabled={isExpired}
                 onChange={(e) => handleDigitChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
                 className={cn(
-                  'w-12 h-13 text-center text-xl font-mono font-bold rounded border shadow-sm transition-colors duration-150',
-                  'focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand',
+                  'flex-1 min-w-[34px] max-w-[48px] h-12 sm:h-13 text-center text-lg sm:text-xl font-mono font-bold rounded border shadow-xs transition-all duration-150',
+                  'focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand',
                   errorMessage
-                    ? 'border-danger-DEFAULT bg-danger-bg/20 text-danger-text focus:border-danger-DEFAULT focus:ring-danger-DEFAULT'
+                    ? 'border-red-400 bg-red-50/50 text-red-700 focus:ring-red-300'
                     : digit
-                      ? 'border-brand bg-brand-light/30 text-gray-900'
-                      : 'border-gray-300 bg-view text-gray-900',
+                      ? 'border-brand bg-brand-light/40 text-gray-900 shadow-xs'
+                      : 'border-gray-300 bg-view text-gray-900 hover:border-gray-400',
                   isExpired && 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
                 )}
                 aria-label={`Digit ${index + 1}`}

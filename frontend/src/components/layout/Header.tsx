@@ -39,12 +39,16 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
   const warehouseRef = useRef<HTMLDivElement>(null)
   const notificationsRef = useRef<HTMLDivElement>(null)
 
-  // Listen for Ctrl+K or Cmd+K
+  // Listen for Ctrl+K or Cmd+K or Esc
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault()
         setIsCommandPaletteOpen((prev) => !prev)
+      } else if (e.key === 'Escape') {
+        setIsProfileOpen(false)
+        setIsWarehouseOpen(false)
+        setIsNotificationsOpen(false)
       }
     }
     window.addEventListener('keydown', handleKeyDown)
@@ -124,6 +128,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
   }
 
   const breadcrumbs = getBreadcrumbs()
+  const currentPageTitle = breadcrumbs[breadcrumbs.length - 1]?.label || 'Dashboard'
 
   const warehouses = [
     { id: 'WH01', name: 'WH01 - Main Central Hub', location: 'Section A-D', utilization: '74% Capacity' },
@@ -133,19 +138,24 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
   return (
     <>
-      <header className="page-topbar h-13 px-4 border-b border-gray-200 bg-view flex items-center justify-between gap-4 sticky top-0 z-30 select-none shadow-xs">
+      <header className="page-topbar h-13 px-3 sm:px-4 border-b border-gray-200 bg-view flex items-center justify-between gap-2 sm:gap-4 sticky top-0 z-30 select-none shadow-xs">
         {/* Left: Mobile hamburger & Breadcrumbs */}
-        <div className="flex items-center gap-3 min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="md:hidden p-1.5 rounded text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+            className="md:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
             aria-label="Toggle navigation menu"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          {/* Dynamic Breadcrumbs */}
+          {/* Mobile Current Page Title */}
+          <span className="sm:hidden font-heading font-bold text-sm text-gray-900 truncate max-w-[130px]">
+            {currentPageTitle}
+          </span>
+
+          {/* Desktop/Tablet Dynamic Breadcrumbs */}
           <nav className="breadcrumb hidden sm:flex items-center gap-1.5 text-xs text-gray-500 font-sans truncate">
             <Home className="w-3.5 h-3.5 text-gray-400" />
             {breadcrumbs.map((crumb, idx) => (
@@ -166,7 +176,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           </nav>
         </div>
 
-        {/* Middle: Interactive Quick Search & Command Palette Trigger */}
+        {/* Middle: Interactive Quick Search & Command Palette Trigger (Desktop) */}
         <div className="hidden lg:flex items-center flex-1 max-w-md mx-4">
           <button
             type="button"
@@ -183,10 +193,21 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
           </button>
         </div>
 
-        {/* Right Actions: Warehouse switcher, Notifications, Profile */}
-        <div className="flex items-center gap-2.5 shrink-0">
+        {/* Right Actions */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Mobile Search Button */}
+          <button
+            type="button"
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+            aria-label="Open command palette"
+          >
+            <Search className="w-4 h-4" />
+          </button>
+
           {/* Warehouse Selector Dropdown */}
           <div className="relative" ref={warehouseRef}>
+            {/* Desktop Button */}
             <button
               type="button"
               onClick={() => {
@@ -201,8 +222,23 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
               <ChevronDown className="w-3 h-3 text-gray-400" />
             </button>
 
+            {/* Mobile Compact Warehouse Button */}
+            <button
+              type="button"
+              onClick={() => {
+                setIsWarehouseOpen(!isWarehouseOpen)
+                setIsNotificationsOpen(false)
+                setIsProfileOpen(false)
+              }}
+              className="sm:hidden p-1.5 rounded-md text-gray-700 hover:bg-gray-100 transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-mono border border-gray-200"
+              aria-label="Select warehouse"
+            >
+              <Warehouse className="w-3.5 h-3.5 text-brand" />
+              <span className="font-semibold">{activeWarehouse.split(' - ')[0]}</span>
+            </button>
+
             {isWarehouseOpen && (
-              <div className="dropdown-menu absolute right-0 mt-1.5 w-72 bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
+              <div className="dropdown-menu absolute right-0 mt-1.5 w-72 max-w-[calc(100vw-1.5rem)] bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
                 <div className="px-3 py-1.5 text-[11px] font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 flex items-center justify-between">
                   <span>Warehouse Facility</span>
                   <span className="text-[10px] text-brand">3 Online</span>
@@ -241,10 +277,10 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 setIsProfileOpen(false)
               }}
               aria-label="View notifications"
-              className="relative p-1.5 rounded text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
+              className="relative p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-brand rounded-full ring-2 ring-view" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-brand rounded-full ring-2 ring-view" />
             </button>
 
             <NotificationsDropdown
@@ -264,7 +300,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
                 setIsWarehouseOpen(false)
                 setIsNotificationsOpen(false)
               }}
-              className="flex items-center gap-2 p-1 rounded hover:bg-gray-100 transition-colors cursor-pointer focus:outline-none focus:ring-1 focus:ring-brand"
+              className="flex items-center gap-2 p-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand/20"
               aria-expanded={isProfileOpen}
               aria-haspopup="true"
             >
@@ -295,7 +331,7 @@ export function Header({ onToggleMobileMenu }: HeaderProps) {
 
             {/* Profile Dropdown Menu */}
             {isProfileOpen && (
-              <div className="dropdown-menu absolute right-0 mt-1.5 w-64 bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
+              <div className="dropdown-menu absolute right-0 mt-1.5 w-64 max-w-[calc(100vw-1.5rem)] bg-view border border-gray-300 rounded shadow-lg py-1 z-50 text-xs animate-[fadeIn_100ms_ease-out]">
                 {/* User Info Header */}
                 <div className="px-3.5 py-2.5 border-b border-gray-200 bg-gray-50/70">
                   <div className="font-semibold text-gray-900 text-sm">
