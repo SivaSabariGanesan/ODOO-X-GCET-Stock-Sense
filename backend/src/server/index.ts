@@ -17,14 +17,13 @@ import warehousesRouter from "../modules/warehouses/route";
 import locationsRouter from "../modules/locations/route";
 import reorderingRulesRouter from "../modules/reordering-rules/route";
 import stockBalancesRouter from "../modules/stock-balances/route";
+import dashboardRouter from "../modules/dashboard/route";
 import { StockLedgerService } from "../modules/stock-movements/service";
 import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema";
 import { authMiddleware } from "../app/middleware/auth";
 import { AppError } from "../lib/errors";
 
 const app = new Hono();
-
-
 
 // ---------------------------------------------------------------------------
 // Global Middlewares
@@ -73,6 +72,7 @@ app.route("/api/warehouses", warehousesRouter);
 app.route("/api/locations", locationsRouter);
 app.route("/api/reordering-rules", reorderingRulesRouter);
 app.route("/api/stock-balances", stockBalancesRouter);
+app.route("/api/dashboard", dashboardRouter);
 
 // Convenience product-specific and location-specific stock history endpoints
 app.get("/api/products/:productId/stock-movements", authMiddleware, async (c) => {

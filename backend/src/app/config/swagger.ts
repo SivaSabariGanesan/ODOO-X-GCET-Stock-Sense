@@ -336,6 +336,30 @@ export const openApiSpec = {
           createdAt: { type: "string", format: "date-time" },
         },
       },
+      DashboardSummary: {
+        type: "object",
+        properties: {
+          totalProducts: { type: "integer", example: 42 },
+          totalWarehouses: { type: "integer", example: 3 },
+          totalLocations: { type: "integer", example: 12 },
+          totalStockItems: { type: "integer", example: 85 },
+          lowStockCount: { type: "integer", example: 4 },
+          recentMovementsCount: { type: "integer", example: 120 },
+          stockByUom: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                uomId: { type: "string", format: "uuid" },
+                uomName: { type: "string", example: "Kilogram" },
+                uomAbbreviation: { type: "string", example: "kg" },
+                totalQuantity: { type: "string", example: "500.0000" },
+                totalReservedQuantity: { type: "string", example: "25.0000" },
+              },
+            },
+          },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
