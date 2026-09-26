@@ -4,7 +4,7 @@
  * Strongly-typed API client matching the backend Internal Transfers routes and schemas.
  * Uses the shared apiClient with automatic JWT Authorization header injection.
  */
-import { apiClient } from '@/lib/apiClient';
+import { apiClient } from '../../lib/apiClient';
 import type {
   ApiTransfer,
   ApiListTransfersResponse,

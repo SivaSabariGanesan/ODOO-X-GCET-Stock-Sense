@@ -6,9 +6,9 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { transfersApi } from '../api';
-import { locationsApi } from '@/features/warehouses/api';
+import { locationsApi } from '../../warehouses/api';
 import type { ApiTransfer, ApiTransferStatus, ApiPagination } from '../types';
-import { ApiError } from '@/lib/apiClient';
+import { ApiError } from '../../../lib/apiClient';
 
 const STATUS_MAP: Record<string, ApiTransferStatus | undefined> = {
   draft: 'DRAFT',

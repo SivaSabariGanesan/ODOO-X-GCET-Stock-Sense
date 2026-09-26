@@ -7,7 +7,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { transfersApi } from '../api';
 import type { ApiTransfer } from '../types';
-import { ApiError } from '@/lib/apiClient';
+import { ApiError } from '../../../lib/apiClient';
 
 export interface UseTransferDetailReturn {
   transfer: ApiTransfer | null;
@@ -65,7 +65,11 @@ export function useTransferDetail(id?: string): UseTransferDetailReturn {
 
     try {
       const res = await transfersApi.validate(id);
-      setTransfer(res.data);
+      if (res.data && 'transfer' in res.data && res.data.transfer) {
+        setTransfer(res.data.transfer);
+      } else {
+        await fetchDetail();
+      }
       return true;
     } catch (err: any) {
       const msg = err instanceof ApiError ? err.message : 'Failed to validate internal transfer.';
@@ -74,7 +78,7 @@ export function useTransferDetail(id?: string): UseTransferDetailReturn {
     } finally {
       setIsValidating(false);
     }
-  }, [id]);
+  }, [id, fetchDetail]);
 
   const processTransfer = useCallback(async (): Promise<boolean> => {
     if (!id) return false;
