@@ -237,6 +237,39 @@ export class StockMovementNotFoundError extends AppError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Product Domain Errors
+// ---------------------------------------------------------------------------
+
+export class CategoryNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Category with ID '${id}' was not found` : "Category not found", 404);
+    this.name = "CategoryNotFoundError";
+  }
+}
+
+export class UomNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Unit of Measure with ID '${id}' was not found` : "Unit of Measure not found", 404);
+    this.name = "UomNotFoundError";
+  }
+}
+
+export class DuplicateSkuError extends AppError {
+  constructor(sku: string) {
+    super(`A product with SKU '${sku}' already exists`, 409);
+    this.name = "DuplicateSkuError";
+  }
+}
+
+export class ProductReferencedError extends AppError {
+  constructor(id: string, message = `Product '${id}' is referenced in inventory operations and cannot be hard deleted. Deactivate it instead.`) {
+    super(message, 400);
+    this.name = "ProductReferencedError";
+  }
+}
+
+
 
 
 

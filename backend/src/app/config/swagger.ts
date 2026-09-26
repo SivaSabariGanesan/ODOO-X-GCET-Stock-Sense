@@ -194,6 +194,26 @@ export const openApiSpec = {
           creator: { type: "object", nullable: true },
         },
       },
+      Product: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string", example: "Steel Bar" },
+          sku: { type: "string", example: "STL-001" },
+          description: { type: "string", nullable: true, example: "High tensile steel bar" },
+          categoryId: { type: "string", format: "uuid", nullable: true },
+          uomId: { type: "string", format: "uuid" },
+          barcode: { type: "string", nullable: true, example: "890123456789" },
+          imageUrl: { type: "string", nullable: true },
+          isActive: { type: "boolean", example: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          updatedBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+          category: { type: "object", nullable: true },
+          uom: { type: "object", nullable: true },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -931,6 +951,146 @@ export const openApiSpec = {
           },
           404: { description: "Stock movement not found" },
           401: { description: "Unauthorized" },
+        },
+      },
+    },
+    "/api/products": {
+      get: {
+        summary: "List Products",
+        tags: ["Product CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "search", in: "query", schema: { type: "string" } },
+          { name: "sku", in: "query", schema: { type: "string" } },
+          { name: "categoryId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "uomId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "isActive", in: "query", schema: { type: "boolean" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of products",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/Product" } },
+                    meta: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: "Unauthorized" },
+        },
+      },
+      post: {
+        summary: "Create Product Master Record",
+        tags: ["Product CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                required: ["name", "sku", "uomId"],
+                properties: {
+                  name: { type: "string", example: "Steel Bar" },
+                  sku: { type: "string", example: "STL-001" },
+                  description: { type: "string", example: "High tensile steel bar" },
+                  categoryId: { type: "string", format: "uuid" },
+                  uomId: { type: "string", format: "uuid" },
+                  barcode: { type: "string", example: "890123456789" },
+                  imageUrl: { type: "string" },
+                  isActive: { type: "boolean", default: true },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          201: { description: "Product created successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Product" } } } } } },
+          400: { description: "Validation error or invalid Category/UOM ID" },
+          409: { description: "Duplicate SKU error" },
+        },
+      },
+    },
+    "/api/products/{id}": {
+      get: {
+        summary: "Get Product by ID",
+        tags: ["Product CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: { description: "Product details with Category and UOM relations", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Product" } } } } } },
+          404: { description: "Product not found" },
+        },
+      },
+      patch: {
+        summary: "Update Product Master Data",
+        tags: ["Product CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  sku: { type: "string" },
+                  description: { type: "string", nullable: true },
+                  categoryId: { type: "string", format: "uuid", nullable: true },
+                  uomId: { type: "string", format: "uuid" },
+                  barcode: { type: "string", nullable: true },
+                  imageUrl: { type: "string", nullable: true },
+                  isActive: { type: "boolean" },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          200: { description: "Product updated successfully", content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/Product" } } } } } },
+          400: { description: "Validation error" },
+          404: { description: "Product, Category, or UOM not found" },
+          409: { description: "Duplicate SKU error" },
+        },
+      },
+      delete: {
+        summary: "Delete or Deactivate Product",
+        tags: ["Product CRUD"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "Product deleted if unreferenced, or deactivated if referenced in historical inventory records",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    success: { type: "boolean" },
+                    message: { type: "string" },
+                    mode: { type: "string", enum: ["deleted", "deactivated"] },
+                  },
+                },
+              },
+            },
+          },
+          404: { description: "Product not found" },
         },
       },
     },

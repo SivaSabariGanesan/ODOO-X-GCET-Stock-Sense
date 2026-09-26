@@ -10,6 +10,7 @@ import deliveriesRouter from "../modules/deliveries/route";
 import transfersRouter from "../modules/transfers/route";
 import adjustmentsRouter from "../modules/adjustments/route";
 import stockMovementsRouter from "../modules/stock-movements/route";
+import productsRouter from "../modules/products/route";
 import { StockLedgerService } from "../modules/stock-movements/service";
 import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema";
 import { authMiddleware } from "../app/middleware/auth";
@@ -89,6 +90,8 @@ app.get("/api/locations/:locationId/stock-movements", authMiddleware, async (c) 
     200
   );
 });
+
+app.route("/api/products", productsRouter);
 
 
 
