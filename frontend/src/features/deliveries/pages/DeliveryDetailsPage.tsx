@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft,
@@ -7,18 +6,20 @@ import {
   Printer,
   XCircle,
   Copy,
-  History,
   Check,
   PackageCheck,
   Truck,
   Box,
+  Loader2,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
-import { getMockDeliveryById, updateDeliveryStatus, updateDeliveryPicking } from '../mockDeliveries'
-import { Delivery, DeliveryStatus } from '../types'
+import { useDelivery } from '../hooks/useDelivery'
+import { ApiDeliveryStatus } from '../api'
 import { cn } from '@/lib/cn'
 
 export function DeliveryDetailsPage() {
@@ -26,9 +27,17 @@ export function DeliveryDetailsPage() {
   const navigate = useNavigate()
   const toast = useToast()
 
-  const [delivery, setDelivery] = useState<Delivery | undefined>(
-    id ? getMockDeliveryById(id) : undefined
-  )
+  const {
+    delivery,
+    isLoading,
+    error,
+    isActioning,
+    pick,
+    pack,
+    process: processDelivery,
+    cancel: cancelDelivery,
+    refetch,
+  } = useDelivery(id)
 
   const copyText = (txt: string, label: string) => {
     navigator.clipboard.writeText(txt)
@@ -36,41 +45,81 @@ export function DeliveryDetailsPage() {
   }
 
   const handlePrintSlip = () => {
-    toast.info('Printing Slip', `Delivery Note & Packing List for ${delivery?.deliveryNumber} sent to printer.`)
+    toast.info(
+      'Printing Slip',
+      `Delivery Note & Packing List for ${delivery?.deliveryNumber} sent to printer.`
+    )
   }
 
-  const handleStatusChange = (newStatus: DeliveryStatus) => {
-    if (!delivery) return
-    const updated = updateDeliveryStatus(delivery.id, newStatus)
-    if (updated) {
-      setDelivery({ ...updated })
-      if (newStatus === 'done') {
-        toast.success('Shipment Dispatched', `${delivery.deliveryNumber} has been validated and inventory deducted.`)
-      } else if (newStatus === 'ready') {
-        toast.info('Order Ready', 'Stock reserved. Staged for vehicle loading.')
-      } else if (newStatus === 'waiting') {
-        toast.info('Order Confirmed', 'Awaiting allocation check in warehouse.')
-      } else if (newStatus === 'cancelled') {
-        toast.warning('Delivery Canceled', `${delivery.deliveryNumber} marked as canceled.`)
-      }
-    }
-  }
-
-  const handlePickingAction = (action: 'pick' | 'pack') => {
-    if (!delivery) return
-    const updated = updateDeliveryPicking(delivery.id, action)
-    if (updated) {
-      setDelivery({ ...updated })
+  const handlePick = async () => {
+    if (!delivery || isActioning) return
+    try {
+      await pick()
       toast.success(
-        action === 'pick' ? 'Picking Completed' : 'Packing Completed',
-        action === 'pick'
-          ? 'Forklift route completed and items staged.'
-          : 'Cartons sealed and shipping labels affixed.'
+        'Picking Completed',
+        `${delivery.deliveryNumber} moved to WAITING state. Items staged for packing.`
       )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to pick delivery.'
+      toast.error('Pick Failed', msg)
     }
   }
 
-  if (!delivery) {
+  const handlePack = async () => {
+    if (!delivery || isActioning) return
+    try {
+      await pack()
+      toast.info(
+        'Packing Completed',
+        `${delivery.deliveryNumber} is now READY. Cartons sealed and staged for dispatch.`
+      )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to pack delivery.'
+      toast.error('Pack Failed', msg)
+    }
+  }
+
+  const handleProcess = async () => {
+    if (!delivery || isActioning) return
+    try {
+      await processDelivery()
+      toast.success(
+        'Shipment Dispatched',
+        `${delivery.deliveryNumber} has been validated, stock deducted, and marked DONE.`
+      )
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : 'Failed to process and dispatch delivery.'
+      toast.error('Dispatch Failed', msg)
+    }
+  }
+
+  const handleCancel = async () => {
+    if (!delivery || isActioning) return
+    try {
+      await cancelDelivery()
+      toast.warning(
+        'Delivery Canceled',
+        `${delivery.deliveryNumber} has been marked as canceled.`
+      )
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to cancel delivery.'
+      toast.error('Cancel Failed', msg)
+    }
+  }
+
+  // ── Loading State ─────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-5xl mx-auto py-24 flex flex-col items-center justify-center gap-3 text-slate-400">
+        <Loader2 className="w-6 h-6 animate-spin text-brand" />
+        <span className="text-sm">Loading delivery details…</span>
+      </div>
+    )
+  }
+
+  // ── Error State / 404 ─────────────────────────────────────────────────────
+  if (error === 'not_found' || !delivery) {
     return (
       <EmptyState
         icon={ArrowUpFromLine}
@@ -82,17 +131,63 @@ export function DeliveryDetailsPage() {
     )
   }
 
-  const stages: { key: DeliveryStatus; label: string }[] = [
-    { key: 'draft', label: 'Draft' },
-    { key: 'waiting', label: 'Waiting Stock' },
-    { key: 'ready', label: 'Ready' },
-    { key: 'done', label: 'Done' },
+  if (error) {
+    return (
+      <div className="w-full max-w-5xl mx-auto py-12 space-y-4">
+        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <Button variant="secondary" size="sm" onClick={refetch}>
+            <RotateCcw className="w-3.5 h-3.5 mr-1" />
+            Retry
+          </Button>
+        </div>
+        <div>
+          <Link
+            to="/operations/deliveries"
+            className="text-xs text-brand hover:underline inline-flex items-center gap-1"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            Back to Deliveries
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
+  const stages: { key: ApiDeliveryStatus; label: string }[] = [
+    { key: 'DRAFT', label: 'Draft' },
+    { key: 'WAITING', label: 'Waiting Stock' },
+    { key: 'READY', label: 'Ready' },
+    { key: 'DONE', label: 'Done' },
   ]
 
   const currentStageIndex =
-    delivery.status === 'cancelled'
+    delivery.status === 'CANCELED'
       ? -1
       : stages.findIndex((s) => s.key === delivery.status)
+
+  const items = delivery.items || []
+  const totalQuantity = items.reduce(
+    (sum, it) => sum + (parseFloat(it.quantity) || 0),
+    0
+  )
+
+  const formatDate = (isoString: string | null | undefined) => {
+    if (!isoString) return '—'
+    try {
+      const d = new Date(isoString)
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return isoString
+    }
+  }
 
   return (
     <div className="w-full max-w-5xl mx-auto space-y-6 pb-16">
@@ -122,27 +217,38 @@ export function DeliveryDetailsPage() {
               </button>
               <Badge
                 variant={
-                  delivery.status === 'done'
+                  delivery.status === 'DONE'
                     ? 'done'
-                    : delivery.status === 'ready'
+                    : delivery.status === 'READY'
                     ? 'ready'
-                    : delivery.status === 'waiting'
+                    : delivery.status === 'WAITING'
                     ? 'warning'
-                    : delivery.status === 'cancelled'
+                    : delivery.status === 'CANCELED'
                     ? 'cancelled'
                     : 'draft'
                 }
                 dot
               >
-                {delivery.status === 'waiting' ? 'WAITING AVAILABILITY' : delivery.status.toUpperCase()}
+                {delivery.status === 'WAITING'
+                  ? 'WAITING AVAILABILITY'
+                  : delivery.status}
               </Badge>
             </div>
 
             <h1 className="text-xl font-bold tracking-tight text-slate-900 font-heading mt-1 truncate">
-              {delivery.customer}
+              {delivery.customerName || 'No Customer Specified'}
             </h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              SO Ref: <span className="font-mono font-medium text-slate-700">{delivery.customerReference || 'None'}</span> · Source: <span className="font-medium text-slate-700">{delivery.sourceLocation}</span>
+              SO Ref:{' '}
+              <span className="font-mono font-medium text-slate-700">
+                {delivery.customerReference || 'None'}
+              </span>{' '}
+              · Source:{' '}
+              <span className="font-medium text-slate-700">
+                {delivery.defaultSourceLocation?.name ||
+                  delivery.defaultSourceLocation?.fullPath ||
+                  'Default Source'}
+              </span>
             </p>
           </div>
         </div>
@@ -158,42 +264,46 @@ export function DeliveryDetailsPage() {
             Print Slip
           </Button>
 
-          {delivery.status === 'draft' && (
+          {delivery.status === 'DRAFT' && (
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => handleStatusChange('waiting')}
+              onClick={handlePick}
+              disabled={isActioning}
             >
-              Confirm Order
+              {isActioning ? 'Updating…' : 'Confirm Order'}
             </Button>
           )}
 
-          {delivery.status === 'waiting' && (
+          {delivery.status === 'WAITING' && (
             <Button
               variant="primary"
               size="sm"
-              onClick={() => handleStatusChange('ready')}
+              onClick={handlePack}
+              disabled={isActioning}
             >
-              Check Availability & Reserve
+              {isActioning ? 'Updating…' : 'Check Availability & Reserve'}
             </Button>
           )}
 
-          {delivery.status === 'ready' && (
+          {delivery.status === 'READY' && (
             <Button
               variant="primary"
               size="sm"
               leftIcon={<Truck className="w-3.5 h-3.5" />}
-              onClick={() => handleStatusChange('done')}
+              onClick={handleProcess}
+              disabled={isActioning}
             >
-              Validate & Dispatch
+              {isActioning ? 'Dispatching…' : 'Validate & Dispatch'}
             </Button>
           )}
 
-          {delivery.status !== 'done' && delivery.status !== 'cancelled' && (
+          {delivery.status !== 'DONE' && delivery.status !== 'CANCELED' && (
             <Button
               variant="danger"
               size="sm"
-              onClick={() => handleStatusChange('cancelled')}
+              onClick={handleCancel}
+              disabled={isActioning}
             >
               Cancel
             </Button>
@@ -205,11 +315,16 @@ export function DeliveryDetailsPage() {
       <div className="bg-white border border-slate-200/80 rounded-lg p-3 sm:px-6 sm:py-3.5 shadow-2xs">
         <div className="flex items-center justify-between max-w-2xl mx-auto">
           {stages.map((stg, idx) => {
-            const isCompleted = currentStageIndex > idx || delivery.status === 'done'
-            const isCurrent = currentStageIndex === idx && delivery.status !== 'done'
+            const isCompleted =
+              currentStageIndex > idx || delivery.status === 'DONE'
+            const isCurrent =
+              currentStageIndex === idx && delivery.status !== 'DONE'
 
             return (
-              <div key={stg.key} className="flex items-center flex-1 last:flex-none">
+              <div
+                key={stg.key}
+                className="flex items-center flex-1 last:flex-none"
+              >
                 <div className="flex items-center gap-2">
                   <div
                     className={cn(
@@ -226,7 +341,11 @@ export function DeliveryDetailsPage() {
                   <span
                     className={cn(
                       'text-xs font-medium',
-                      isCurrent ? 'text-slate-900 font-bold' : isCompleted ? 'text-slate-700' : 'text-slate-400'
+                      isCurrent
+                        ? 'text-slate-900 font-bold'
+                        : isCompleted
+                        ? 'text-slate-700'
+                        : 'text-slate-400'
                     )}
                   >
                     {stg.label}
@@ -246,277 +365,250 @@ export function DeliveryDetailsPage() {
           })}
         </div>
 
-        {delivery.status === 'cancelled' && (
+        {delivery.status === 'CANCELED' && (
           <div className="mt-2 text-center text-xs font-semibold text-rose-600 flex items-center justify-center gap-1.5">
             <XCircle className="w-4 h-4" />
-            <span>This delivery order has been canceled. Stock reservations released.</span>
+            <span>
+              This delivery order has been canceled. Stock reservations released.
+            </span>
           </div>
         )}
       </div>
 
       {/* ── Pick & Pack Physical Execution Strip (Interactive Steps) ─── */}
-      {delivery.status !== 'cancelled' && (
+      {delivery.status !== 'CANCELED' && (
         <div className="bg-white border border-slate-200/80 rounded-lg p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-6">
-            {/* Pick Checkbox / Indicator */}
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center gap-3">
               <div
                 className={cn(
-                  'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
-                  delivery.isPicked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                  'w-9 h-9 rounded-lg flex items-center justify-center',
+                  delivery.status === 'WAITING' ||
+                    delivery.status === 'READY' ||
+                    delivery.status === 'DONE'
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-600 border border-amber-200'
                 )}
               >
-                <PackageCheck className="w-4 h-4" />
+                <Box className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-800">1. Pick Items</div>
+                <div className="text-xs font-bold text-slate-900">
+                  Step 1: Warehouse Picking
+                </div>
                 <div className="text-[11px] text-slate-500">
-                  {delivery.isPicked ? 'Warehouse bins picked' : 'Pending forklift pick'}
+                  {delivery.status === 'DRAFT'
+                    ? 'Awaiting pick execution'
+                    : 'Items picked from racks'}
                 </div>
               </div>
             </div>
 
-            {/* Pack Checkbox / Indicator */}
-            <div className="flex items-center gap-2.5">
+            <div className="h-6 w-px bg-slate-200 hidden sm:block" />
+
+            <div className="flex items-center gap-3">
               <div
                 className={cn(
-                  'w-7 h-7 rounded-md flex items-center justify-center transition-colors',
-                  delivery.isPacked ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'
+                  'w-9 h-9 rounded-lg flex items-center justify-center',
+                  delivery.status === 'READY' || delivery.status === 'DONE'
+                    ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                    : 'bg-slate-100 text-slate-400 border border-slate-200'
                 )}
               >
-                <Box className="w-4 h-4" />
+                <PackageCheck className="w-5 h-5" />
               </div>
               <div>
-                <div className="text-xs font-semibold text-slate-800">2. Pack & Label</div>
+                <div className="text-xs font-bold text-slate-900">
+                  Step 2: Carton Packing
+                </div>
                 <div className="text-[11px] text-slate-500">
-                  {delivery.isPacked ? 'Packed and barcoded' : 'Awaiting carton seal'}
+                  {delivery.status === 'READY' || delivery.status === 'DONE'
+                    ? 'Packed & labeled for shipment'
+                    : 'Cartons pending seal'}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Quick toggle actions if order is active */}
-          {delivery.status !== 'done' && (
-            <div className="flex items-center gap-2">
-              {!delivery.isPicked && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handlePickingAction('pick')}
-                  className="text-xs"
-                >
-                  Mark as Picked
-                </Button>
-              )}
-              {delivery.isPicked && !delivery.isPacked && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handlePickingAction('pack')}
-                  className="text-xs"
-                >
-                  Mark as Packed
-                </Button>
-              )}
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            {delivery.status === 'DRAFT' && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={handlePick}
+                disabled={isActioning}
+              >
+                {isActioning ? 'Updating…' : 'Complete Picking'}
+              </Button>
+            )}
+            {delivery.status === 'WAITING' && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handlePack}
+                disabled={isActioning}
+              >
+                {isActioning ? 'Updating…' : 'Seal Cartons (Pack)'}
+              </Button>
+            )}
+          </div>
         </div>
       )}
 
-      {/* ── Key Metadata Strip ───────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg grid grid-cols-2 sm:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 shadow-2xs">
-        <div className="p-4">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Total Demand Qty
-          </div>
-          <div className="text-2xl font-bold font-mono text-slate-900 mt-1">
-            {delivery.totalQuantity}{' '}
-            <span className="text-xs font-sans font-normal text-slate-400">units</span>
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            Across {delivery.itemCount} SKU line{delivery.itemCount !== 1 ? 's' : ''}
-          </div>
-        </div>
-
-        <div className="p-4">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Dispatch Hub
-          </div>
-          <div className="text-base font-bold text-slate-900 mt-1 truncate">
-            {delivery.warehouseId}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-            {delivery.warehouseName.split(' — ')[1] || delivery.warehouseName}
-          </div>
-        </div>
-
-        <div className="p-4">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Scheduled Dispatch
-          </div>
-          <div className="text-base font-semibold text-slate-900 mt-1 flex items-center gap-1.5">
-            <Clock className="w-3.5 h-3.5 text-slate-400" />
-            <span>{delivery.scheduledDate}</span>
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            Created on {delivery.createdDate}
-          </div>
-        </div>
-
-        <div className="p-4">
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-            Source Pick Staging
-          </div>
-          <div className="text-xs font-mono font-semibold text-brand mt-1 truncate">
-            {delivery.sourceLocation}
-          </div>
-          <div className="text-[11px] text-slate-400 mt-0.5">
-            Shipping staging zone
-          </div>
-        </div>
-      </div>
-
-      {/* ── Product Demand Lines Table ───────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
-        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-sky-600" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Delivery Order Lines ({delivery.lines.length})
-            </h2>
-          </div>
-          <span className="text-xs font-mono font-medium text-slate-500">
-            {delivery.totalQuantity} total demand
-          </span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse text-xs">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
-                <th className="px-4 py-2.5 sm:px-5">Product SKU</th>
-                <th className="px-3 py-2.5">Product Name</th>
-                <th className="px-3 py-2.5">Source Rack</th>
-                <th className="px-3 py-2.5 text-right">Demand Qty</th>
-                <th className="px-3 py-2.5 text-right">Done Qty</th>
-                <th className="px-3 py-2.5 text-center">Stock Availability</th>
-                <th className="px-4 py-2.5 text-right sm:pr-5">Fulfillment</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {delivery.lines.map((line) => {
-                const isFullyDispatched = delivery.status === 'done'
-
-                return (
-                  <tr key={line.id} className="hover:bg-slate-50/70 transition-colors">
-                    {/* SKU */}
-                    <td className="px-4 py-3 sm:px-5 whitespace-nowrap">
-                      <Link
-                        to={`/products/${line.productId}`}
-                        className="font-mono text-xs font-semibold text-brand hover:underline"
-                      >
-                        {line.productSku}
-                      </Link>
-                    </td>
-
-                    {/* Name */}
-                    <td className="px-3 py-3 font-semibold text-slate-900">
-                      {line.productName}
-                    </td>
-
-                    {/* Source */}
-                    <td className="px-3 py-3 whitespace-nowrap font-mono text-slate-600 text-[11.5px]">
-                      {line.sourceLocation}
-                    </td>
-
-                    {/* Demand Qty */}
-                    <td className="px-3 py-3 text-right whitespace-nowrap font-mono font-bold text-slate-800">
-                      {line.demandQuantity} <span className="font-normal font-sans text-slate-400 text-[11px]">{line.unit}</span>
-                    </td>
-
-                    {/* Done Qty */}
-                    <td className="px-3 py-3 text-right whitespace-nowrap font-mono font-bold">
-                      <span className={delivery.status === 'done' ? 'text-emerald-700' : 'text-slate-500'}>
-                        {line.doneQuantity || (delivery.status === 'done' ? line.demandQuantity : 0)}
-                      </span>{' '}
-                      <span className="font-normal font-sans text-slate-400 text-[11px]">{line.unit}</span>
-                    </td>
-
-                    {/* Stock Availability */}
-                    <td className="px-3 py-3 text-center whitespace-nowrap">
-                      {line.isAvailable ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
-                          <Check className="w-3 h-3" />
-                          Reserved
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-rose-700 bg-rose-50 px-2 py-0.5 rounded">
-                          Shortage
-                        </span>
-                      )}
-                    </td>
-
-                    {/* Fulfillment */}
-                    <td className="px-4 py-3 sm:pr-5 text-right whitespace-nowrap">
-                      {isFullyDispatched ? (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                          <Check className="w-3 h-3" />
-                          Shipped
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-mono text-slate-400">
-                          {delivery.isPacked ? 'Packed' : delivery.isPicked ? 'Picked' : 'Pending'}
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {delivery.notes && (
-          <div className="p-4 bg-slate-50/60 border-t border-slate-100 text-xs text-slate-600">
-            <span className="font-semibold text-slate-800">Dispatch Notes: </span>
-            {delivery.notes}
-          </div>
-        )}
-      </div>
-
-      {/* ── Activity / Timeline Log ──────────────────────────────────── */}
-      <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
-        <div className="px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 flex items-center justify-between bg-white">
-          <div className="flex items-center gap-2">
-            <History className="w-4 h-4 text-slate-500" />
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-800">
-              Delivery Order Timeline & Audit Trail
-            </h2>
-          </div>
-          <span className="text-xs text-slate-400 font-mono">
-            {delivery.timeline.length} events logged
-          </span>
-        </div>
-
-        <div className="p-5 space-y-4 text-xs">
-          {delivery.timeline.map((evt, idx) => (
-            <div key={evt.id} className="flex items-start gap-3 relative">
-              {idx < delivery.timeline.length - 1 && (
-                <div className="absolute left-2.5 top-6 bottom-0 w-0.5 bg-slate-200 -z-10" />
-              )}
-              <div className="w-5 h-5 rounded-full bg-sky-100 text-sky-700 flex items-center justify-center shrink-0 mt-0.5 font-bold text-[10px]">
-                ●
+      {/* ── Main Content Grid ────────────────────────────────────────── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Product Demand & Pick Lines */}
+        <div className="lg:col-span-2 space-y-5">
+          <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Box className="w-4 h-4 text-brand" />
+                <h2 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Outbound Product Lines ({items.length})
+                </h2>
               </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-semibold text-slate-900">{evt.title}</span>
-                  <span className="font-mono text-[11px] text-slate-400">{evt.timestamp}</span>
-                </div>
-                <p className="text-slate-600 mt-0.5">{evt.description}</p>
-                <span className="text-[11px] text-slate-400 mt-0.5 block">By {evt.user}</span>
-              </div>
+              <span className="font-mono text-xs text-slate-500">
+                <strong className="text-slate-900 font-sans">{totalQuantity}</strong> total units
+              </span>
             </div>
-          ))}
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-slate-50/70 border-b border-slate-100 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                    <th className="px-4 py-2.5">Item & SKU</th>
+                    <th className="px-3 py-2.5">Source Location</th>
+                    <th className="px-3 py-2.5 text-right font-mono">Demand Qty</th>
+                    <th className="px-4 py-2.5 text-right font-mono">Done Qty</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {items.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} className="px-4 py-6 text-center text-slate-400">
+                        No product lines in this delivery order.
+                      </td>
+                    </tr>
+                  ) : (
+                    items.map((line) => {
+                      const qty = parseFloat(line.quantity) || 0
+                      const doneQty = delivery.status === 'DONE' ? qty : 0
+
+                      return (
+                        <tr
+                          key={line.id}
+                          className="hover:bg-slate-50/50 transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <div className="font-medium text-slate-900">
+                              {line.product?.name || line.productId}
+                            </div>
+                            <div className="font-mono text-[11px] text-slate-400 mt-0.5">
+                              {line.product?.sku || 'SKU'}
+                            </div>
+                          </td>
+
+                          <td className="px-3 py-3 font-mono text-slate-600">
+                            {line.sourceLocation?.name ||
+                              line.sourceLocation?.fullPath ||
+                              delivery.defaultSourceLocation?.name ||
+                              'Warehouse Stock'}
+                          </td>
+
+                          <td className="px-3 py-3 text-right font-mono font-semibold text-slate-900">
+                            {qty}{' '}
+                            <span className="text-[10.5px] font-normal text-slate-400">
+                              units
+                            </span>
+                          </td>
+
+                          <td className="px-4 py-3 text-right font-mono">
+                            <span
+                              className={cn(
+                                'font-bold',
+                                doneQty > 0
+                                  ? 'text-emerald-600'
+                                  : 'text-slate-400'
+                              )}
+                            >
+                              {doneQty}
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        {/* Right 1 Col: Shipment & Warehouse Logistics */}
+        <div className="space-y-5">
+          <div className="bg-white border border-slate-200/80 rounded-lg p-4 shadow-2xs space-y-4">
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider border-b border-slate-100 pb-2">
+              Shipment Logistics
+            </h3>
+
+            <div className="space-y-3 text-xs">
+              <div>
+                <span className="text-slate-400 block text-[11px]">Warehouse</span>
+                <span className="font-semibold text-slate-800">
+                  {delivery.warehouse?.name || delivery.warehouseId}
+                </span>
+                {delivery.warehouse?.shortCode && (
+                  <span className="font-mono text-slate-500 block text-[11px]">
+                    Code: {delivery.warehouse.shortCode}
+                  </span>
+                )}
+              </div>
+
+              <div>
+                <span className="text-slate-400 block text-[11px]">Staging Source</span>
+                <span className="font-mono text-slate-700">
+                  {delivery.defaultSourceLocation?.fullPath ||
+                    delivery.defaultSourceLocation?.name ||
+                    'Standard Outbound Bay'}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-slate-400 block text-[11px]">Created Date</span>
+                <div className="flex items-center gap-1.5 font-medium text-slate-700 mt-0.5">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>{formatDate(delivery.createdAt)}</span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-slate-400 block text-[11px]">Validated / Processed</span>
+                <span className="text-slate-700 font-medium">
+                  {formatDate(delivery.validatedAt)}
+                </span>
+              </div>
+
+              {delivery.creator && (
+                <div>
+                  <span className="text-slate-400 block text-[11px]">Created By</span>
+                  <span className="text-slate-700 font-medium">
+                    {delivery.creator.name} ({delivery.creator.email})
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {delivery.notes && (
+              <div className="pt-2 border-t border-slate-100">
+                <span className="text-slate-400 block text-[11px] mb-1">
+                  Dispatch Instructions
+                </span>
+                <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic">
+                  "{delivery.notes}"
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
