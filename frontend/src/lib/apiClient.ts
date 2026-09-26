@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Base API Client
  * Wraps the native Fetch API with:
  *  - Automatic Bearer token from localStorage
@@ -25,28 +25,34 @@ export class ApiError extends Error {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Token Helpers (persist JWT between page reloads)
-// ---------------------------------------------------------------------------
+let memoryToken: string | null = null
+
 export function getAuthToken(): string | null {
+  if (memoryToken) return memoryToken
   try {
-    return localStorage.getItem(AUTH_TOKEN_KEY)
+    return typeof localStorage !== 'undefined' ? localStorage.getItem(AUTH_TOKEN_KEY) : null
   } catch {
     return null
   }
 }
 
 export function setAuthToken(token: string): void {
+  memoryToken = token
   try {
-    localStorage.setItem(AUTH_TOKEN_KEY, token)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(AUTH_TOKEN_KEY, token)
+    }
   } catch {
     // ignore
   }
 }
 
 export function clearAuthToken(): void {
+  memoryToken = null
   try {
-    localStorage.removeItem(AUTH_TOKEN_KEY)
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem(AUTH_TOKEN_KEY)
+    }
   } catch {
     // ignore
   }

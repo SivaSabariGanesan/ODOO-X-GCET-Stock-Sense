@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Search,
@@ -8,106 +8,104 @@ import {
   Eye,
   Clock,
   X,
+  AlertCircle,
+  Loader2,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { TablePagination } from '@/components/common/TablePagination'
 import { EmptyState } from '@/components/common/EmptyState'
 import { useToast } from '@/context/ToastContext'
-import { getMockDeliveries, updateDeliveryStatus } from '../mockDeliveries'
-import { Delivery, DeliveryFiltersState, DeliveryStatus } from '../types'
+import { useDeliveries } from '../hooks/useDeliveries'
+import { deliveriesApi, ApiDelivery, ApiDeliveryStatus } from '../api'
 import { cn } from '@/lib/cn'
 
 const PAGE_SIZE = 10
 
 export function DeliveriesListPage() {
   const toast = useToast()
-  const [deliveries, setDeliveries] = useState<Delivery[]>(getMockDeliveries())
-  const [currentPage, setCurrentPage] = useState(1)
 
-  const [filters, setFilters] = useState<DeliveryFiltersState>({
-    search: '',
-    status: 'all',
-    warehouse: 'all',
-    dateFilter: 'all',
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
+  const [warehouseFilter, setWarehouseFilter] = useState('all')
+
+  const {
+    deliveries,
+    pagination,
+    isLoading,
+    error,
+    currentPage,
+    setCurrentPage,
+    refetch,
+    updateDeliveryStatus,
+  } = useDeliveries({
+    search,
+    status: statusFilter,
+    warehouseId: warehouseFilter,
+    pageSize: PAGE_SIZE,
   })
 
-  // ── Live Filters ──────────────────────────────────────────────────────────
-  const filteredDeliveries = useMemo(() => {
-    const q = filters.search.toLowerCase().trim()
-
-    return deliveries.filter((d) => {
-      // Search
-      if (q) {
-        const matchesNum = d.deliveryNumber.toLowerCase().includes(q)
-        const matchesCustomer = d.customer.toLowerCase().includes(q)
-        const matchesRef = d.customerReference?.toLowerCase().includes(q)
-        const matchesWh = d.warehouseName.toLowerCase().includes(q)
-        if (!matchesNum && !matchesCustomer && !matchesRef && !matchesWh) return false
-      }
-
-      // Status
-      if (filters.status !== 'all' && d.status !== filters.status) {
-        return false
-      }
-
-      // Warehouse
-      if (filters.warehouse !== 'all' && d.warehouseId !== filters.warehouse) {
-        return false
-      }
-
-      // Date Filter
-      if (filters.dateFilter === 'today') {
-        if (!d.scheduledDate.toLowerCase().includes('today')) return false
-      } else if (filters.dateFilter === 'past_due') {
-        if (d.status === 'done' || d.status === 'cancelled') return false
-      }
-
-      return true
-    })
-  }, [deliveries, filters])
-
-  useEffect(() => {
-    setCurrentPage(1)
-  }, [filters])
-
-  const paginatedDeliveries = useMemo(() => {
-    const start = (currentPage - 1) * PAGE_SIZE
-    return filteredDeliveries.slice(start, start + PAGE_SIZE)
-  }, [filteredDeliveries, currentPage])
-
   const isFiltered =
-    Boolean(filters.search.trim()) ||
-    filters.status !== 'all' ||
-    filters.warehouse !== 'all' ||
-    filters.dateFilter !== 'all'
+    Boolean(search.trim()) || statusFilter !== 'all' || warehouseFilter !== 'all'
 
   const handleResetFilters = () => {
-    setFilters({ search: '', status: 'all', warehouse: 'all', dateFilter: 'all' })
+    setSearch('')
+    setStatusFilter('all')
+    setWarehouseFilter('all')
     toast.info('Filters Reset', 'Showing all outbound delivery orders.')
   }
 
-  const handleQuickValidate = (id: string, ref: string) => {
-    const updated = updateDeliveryStatus(id, 'done')
-    if (updated) {
-      setDeliveries(getMockDeliveries())
-      toast.success('Delivery Dispatched', `${ref} has been validated and shipped.`)
+  const handleQuickDispatch = async (del: ApiDelivery) => {
+    try {
+      await deliveriesApi.process(del.id)
+      updateDeliveryStatus(del.id, 'DONE')
+      toast.success(
+        'Delivery Dispatched',
+        `${del.deliveryNumber} has been validated and shipped.`
+      )
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : 'Failed to dispatch delivery.'
+      toast.error('Dispatch Failed', message)
     }
   }
 
-  const getStatusBadge = (status: DeliveryStatus) => {
+  const getStatusBadge = (status: ApiDeliveryStatus) => {
     switch (status) {
-      case 'ready':
+      case 'READY':
         return <Badge variant="ready" dot>READY</Badge>
-      case 'waiting':
+      case 'WAITING':
         return <Badge variant="warning" dot>WAITING</Badge>
-      case 'done':
+      case 'DONE':
         return <Badge variant="done" dot>DONE</Badge>
-      case 'cancelled':
+      case 'CANCELED':
         return <Badge variant="cancelled" dot>CANCELED</Badge>
-      case 'draft':
+      case 'DRAFT':
       default:
         return <Badge variant="draft" dot>DRAFT</Badge>
+    }
+  }
+
+  const totalItems = pagination?.total ?? deliveries.length
+
+  const resultSummary = useMemo(() => {
+    if (!pagination) return null
+    const start = (pagination.page - 1) * pagination.limit + 1
+    const end = Math.min(pagination.page * pagination.limit, pagination.total)
+    return { start, end, total: pagination.total }
+  }, [pagination])
+
+  const formatDate = (isoString: string) => {
+    try {
+      const d = new Date(isoString)
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return isoString
     }
   }
 
@@ -147,16 +145,16 @@ export function DeliveriesListPage() {
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="search"
-                value={filters.search}
-                onChange={(e) => setFilters((prev) => ({ ...prev, search: e.target.value }))}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search delivery #, customer, SO..."
                 className="w-full pl-9 pr-8 py-1.5 text-xs bg-slate-50/80 border border-slate-200 rounded-md focus:bg-white focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/30 transition-colors placeholder:text-slate-400 text-slate-800"
                 aria-label="Search deliveries"
               />
-              {filters.search && (
+              {search && (
                 <button
                   type="button"
-                  onClick={() => setFilters((prev) => ({ ...prev, search: '' }))}
+                  onClick={() => setSearch('')}
                   className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                 >
                   <X className="w-3 h-3" />
@@ -167,11 +165,14 @@ export function DeliveriesListPage() {
             {/* Status Dropdown */}
             <div className="relative">
               <select
-                value={filters.status}
-                onChange={(e) => setFilters((prev) => ({ ...prev, status: e.target.value }))}
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value)
+                  setCurrentPage(1)
+                }}
                 className={cn(
                   'px-2.5 py-1.5 text-xs rounded-md border appearance-none pr-7 transition-colors cursor-pointer font-medium',
-                  filters.status !== 'all'
+                  statusFilter !== 'all'
                     ? 'border-brand bg-[#ede9fe]/50 text-brand-dark'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                 )}
@@ -192,11 +193,14 @@ export function DeliveriesListPage() {
             {/* Warehouse Dropdown */}
             <div className="relative">
               <select
-                value={filters.warehouse}
-                onChange={(e) => setFilters((prev) => ({ ...prev, warehouse: e.target.value }))}
+                value={warehouseFilter}
+                onChange={(e) => {
+                  setWarehouseFilter(e.target.value)
+                  setCurrentPage(1)
+                }}
                 className={cn(
                   'px-2.5 py-1.5 text-xs rounded-md border appearance-none pr-7 transition-colors cursor-pointer font-medium max-w-[190px] truncate',
-                  filters.warehouse !== 'all'
+                  warehouseFilter !== 'all'
                     ? 'border-brand bg-[#ede9fe]/50 text-brand-dark'
                     : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                 )}
@@ -211,35 +215,20 @@ export function DeliveriesListPage() {
                 ▼
               </div>
             </div>
-
-            {/* Date Filter */}
-            <div className="relative">
-              <select
-                value={filters.dateFilter}
-                onChange={(e) => setFilters((prev) => ({ ...prev, dateFilter: e.target.value }))}
-                className={cn(
-                  'px-2.5 py-1.5 text-xs rounded-md border appearance-none pr-7 transition-colors cursor-pointer font-medium',
-                  filters.dateFilter !== 'all'
-                    ? 'border-brand bg-[#ede9fe]/50 text-brand-dark'
-                    : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50 hover:text-slate-900'
-                )}
-                aria-label="Filter by Date"
-              >
-                <option value="all">Date: All</option>
-                <option value="today">Date: Dispatches Today</option>
-                <option value="past_due">Date: Active Queue</option>
-              </select>
-              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
-                ▼
-              </div>
-            </div>
           </div>
 
-          {/* Right: Results Count & Reset */}
+          {/* Right: Results Count, Reset & Refresh */}
           <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 lg:pt-0 border-t lg:border-t-0 border-slate-100 text-xs">
-            <span className="font-mono text-slate-500">
-              <strong className="text-slate-800 font-sans">{filteredDeliveries.length}</strong> of {deliveries.length} orders
-            </span>
+            {resultSummary && !isLoading ? (
+              <span className="font-mono text-slate-500">
+                <strong className="text-slate-800 font-sans">
+                  {resultSummary.start}–{resultSummary.end}
+                </strong>{' '}
+                of {resultSummary.total} orders
+              </span>
+            ) : (
+              <span className="font-mono text-slate-400">Loading…</span>
+            )}
 
             {isFiltered && (
               <button
@@ -251,12 +240,45 @@ export function DeliveriesListPage() {
                 <span>Reset</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={refetch}
+              className="inline-flex items-center gap-1 text-slate-500 hover:text-slate-700 font-medium cursor-pointer"
+              title="Refresh"
+            >
+              <RotateCcw className={cn('w-3 h-3', isLoading && 'animate-spin')} />
+            </button>
           </div>
         </div>
       </div>
 
-      {/* ── Table Surface ───────────────────────────────────────────── */}
-      {filteredDeliveries.length === 0 ? (
+      {/* ── Error State ─────────────────────────────────────────────── */}
+      {error && !isLoading && (
+        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-lg text-rose-700 text-xs">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{error}</span>
+          <button
+            onClick={refetch}
+            className="font-semibold underline hover:no-underline cursor-pointer"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+
+      {/* ── Loading Skeleton ─────────────────────────────────────────── */}
+      {isLoading && (
+        <div className="bg-white border border-slate-200/80 rounded-lg shadow-2xs overflow-hidden">
+          <div className="flex items-center justify-center py-16 gap-3 text-slate-400 text-sm">
+            <Loader2 className="w-5 h-5 animate-spin" />
+            Loading deliveries…
+          </div>
+        </div>
+      )}
+
+      {/* ── Empty State ─────────────────────────────────────────────── */}
+      {!isLoading && !error && deliveries.length === 0 && (
         <EmptyState
           icon={ArrowUpFromLine}
           title="No deliveries match your search criteria"
@@ -264,7 +286,10 @@ export function DeliveriesListPage() {
           actionLabel={isFiltered ? 'Reset Filters' : undefined}
           onAction={isFiltered ? handleResetFilters : undefined}
         />
-      ) : (
+      )}
+
+      {/* ── Table Surface ───────────────────────────────────────────── */}
+      {!isLoading && !error && deliveries.length > 0 && (
         <div className="bg-white border border-slate-200/80 rounded-lg overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse text-xs">
@@ -274,106 +299,117 @@ export function DeliveriesListPage() {
                   <th className="px-3 py-2.5">Customer</th>
                   <th className="px-3 py-2.5">Warehouse</th>
                   <th className="px-3 py-2.5 text-center">Items & Qty</th>
-                  <th className="px-3 py-2.5">Scheduled Date</th>
+                  <th className="px-3 py-2.5">Date</th>
                   <th className="px-3 py-2.5">Status</th>
                   <th className="px-4 py-2.5 text-right sm:pr-5">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {paginatedDeliveries.map((del) => (
-                  <tr
-                    key={del.id}
-                    className="hover:bg-slate-50/70 transition-colors group"
-                  >
-                    {/* Delivery Number */}
-                    <td className="px-4 py-3 sm:px-5 whitespace-nowrap">
-                      <Link
-                        to={`/operations/deliveries/${del.id}`}
-                        className="font-mono text-xs font-semibold text-brand hover:underline"
-                      >
-                        {del.deliveryNumber}
-                      </Link>
-                      {del.customerReference && (
-                        <div className="text-[10.5px] font-mono text-slate-400 mt-0.5">
-                          {del.customerReference}
-                        </div>
-                      )}
-                    </td>
+                {deliveries.map((del) => {
+                  const itemCount = del.items?.length ?? 0
+                  const totalQty =
+                    del.items?.reduce(
+                      (acc, it) => acc + (parseFloat(it.quantity) || 0),
+                      0
+                    ) ?? 0
 
-                    {/* Customer */}
-                    <td className="px-3 py-3">
-                      <div className="font-medium text-slate-900 truncate max-w-[200px]">
-                        {del.customer}
-                      </div>
-                      <div className="text-[10.5px] text-slate-400 truncate max-w-[200px]">
-                        From: {del.sourceLocation}
-                      </div>
-                    </td>
-
-                    {/* Warehouse */}
-                    <td className="px-3 py-3 whitespace-nowrap text-slate-600">
-                      <span className="font-semibold text-slate-800">{del.warehouseId}</span>
-                      <span className="text-[10.5px] text-slate-400 block truncate max-w-[130px]">
-                        {del.warehouseName.split(' — ')[1] || del.warehouseName}
-                      </span>
-                    </td>
-
-                    {/* Items & Qty */}
-                    <td className="px-3 py-3 text-center whitespace-nowrap font-mono">
-                      <span className="font-bold text-slate-900 text-xs">
-                        {del.totalQuantity}
-                      </span>{' '}
-                      <span className="text-[11px] text-slate-400 font-sans">units</span>
-                      <div className="text-[10.5px] text-slate-400 font-sans">
-                        {del.itemCount} line{del.itemCount !== 1 ? 's' : ''}
-                      </div>
-                    </td>
-
-                    {/* Scheduled Date */}
-                    <td className="px-3 py-3 whitespace-nowrap text-slate-600">
-                      <div className="flex items-center gap-1.5 font-medium text-slate-700">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
-                        <span>{del.scheduledDate}</span>
-                      </div>
-                    </td>
-
-                    {/* Status */}
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      {getStatusBadge(del.status)}
-                    </td>
-
-                    {/* Actions */}
-                    <td className="px-4 py-3 sm:pr-5 text-right whitespace-nowrap">
-                      <div className="flex items-center justify-end gap-1.5">
+                  return (
+                    <tr
+                      key={del.id}
+                      className="hover:bg-slate-50/70 transition-colors group"
+                    >
+                      {/* Delivery Number */}
+                      <td className="px-4 py-3 sm:px-5 whitespace-nowrap">
                         <Link
                           to={`/operations/deliveries/${del.id}`}
-                          className="px-2.5 py-1 rounded text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
+                          className="font-mono text-xs font-semibold text-brand hover:underline"
                         >
-                          <Eye className="w-3 h-3 text-slate-400" />
-                          <span>View</span>
+                          {del.deliveryNumber}
                         </Link>
-
-                        {del.status === 'ready' && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleQuickValidate(del.id, del.deliveryNumber)}
-                            className="text-[11px] py-1 px-2.5 h-auto"
-                          >
-                            Dispatch
-                          </Button>
+                        {del.customerReference && (
+                          <div className="text-[10.5px] font-mono text-slate-400 mt-0.5">
+                            {del.customerReference}
+                          </div>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+
+                      {/* Customer */}
+                      <td className="px-3 py-3">
+                        <div className="font-medium text-slate-900 truncate max-w-[200px]">
+                          {del.customerName || 'No customer specified'}
+                        </div>
+                        <div className="text-[10.5px] text-slate-400 truncate max-w-[200px]">
+                          From: {del.defaultSourceLocation?.name || del.defaultSourceLocation?.fullPath || 'Default Location'}
+                        </div>
+                      </td>
+
+                      {/* Warehouse */}
+                      <td className="px-3 py-3 whitespace-nowrap text-slate-600">
+                        <span className="font-semibold text-slate-800">
+                          {del.warehouse?.shortCode || del.warehouseId.substring(0, 8)}
+                        </span>
+                        <span className="text-[10.5px] text-slate-400 block truncate max-w-[130px]">
+                          {del.warehouse?.name || 'Warehouse'}
+                        </span>
+                      </td>
+
+                      {/* Items & Qty */}
+                      <td className="px-3 py-3 text-center whitespace-nowrap font-mono">
+                        <span className="font-bold text-slate-900 text-xs">
+                          {totalQty}
+                        </span>{' '}
+                        <span className="text-[11px] text-slate-400 font-sans">units</span>
+                        <div className="text-[10.5px] text-slate-400 font-sans">
+                          {itemCount} line{itemCount !== 1 ? 's' : ''}
+                        </div>
+                      </td>
+
+                      {/* Date */}
+                      <td className="px-3 py-3 whitespace-nowrap text-slate-600">
+                        <div className="flex items-center gap-1.5 font-medium text-slate-700">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{formatDate(del.createdAt)}</span>
+                        </div>
+                      </td>
+
+                      {/* Status */}
+                      <td className="px-3 py-3 whitespace-nowrap">
+                        {getStatusBadge(del.status)}
+                      </td>
+
+                      {/* Actions */}
+                      <td className="px-4 py-3 sm:pr-5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Link
+                            to={`/operations/deliveries/${del.id}`}
+                            className="px-2.5 py-1 rounded text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors inline-flex items-center gap-1"
+                          >
+                            <Eye className="w-3 h-3 text-slate-400" />
+                            <span>View</span>
+                          </Link>
+
+                          {del.status === 'READY' && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              onClick={() => handleQuickDispatch(del)}
+                              className="text-[11px] py-1 px-2.5 h-auto"
+                            >
+                              Dispatch
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
               </tbody>
             </table>
           </div>
 
           <TablePagination
             currentPage={currentPage}
-            totalItems={filteredDeliveries.length}
+            totalItems={totalItems}
             pageSize={PAGE_SIZE}
             onPageChange={setCurrentPage}
             itemLabel="deliveries"

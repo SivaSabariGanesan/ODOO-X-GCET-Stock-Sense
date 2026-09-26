@@ -1,69 +1,107 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import { ArrowLeft, Plus, Trash2, Save, ArrowUpFromLine } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Save, ArrowUpFromLine, CheckCircle2 } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { useToast } from '@/context/ToastContext'
-import { CUSTOMERS, DELIVERY_WAREHOUSES, createMockDelivery } from '../mockDeliveries'
+import { deliveriesApi, CreateDeliveryPayload } from '../api'
+import { ApiError, apiClient } from '@/lib/apiClient'
 import { getMockProducts } from '@/features/products/mockProducts'
+
+interface ProductOption {
+  id: string
+  name: string
+  sku: string
+  unit: string
+}
 
 interface ProductLineForm {
   productId: string
   productSku: string
   productName: string
-  sourceLocation: string
+  sourceLocationId?: string
   quantity: number
+  unitPrice?: number
   unit: string
 }
 
 export function DeliveryFormPage() {
   const navigate = useNavigate()
   const toast = useToast()
-  const catalog = getMockProducts()
+
+  const defaultCatalog: ProductOption[] = getMockProducts().map((p) => ({
+    id: p.id,
+    name: p.name,
+    sku: p.sku,
+    unit: p.unit,
+  }))
+
+  const [catalog, setCatalog] = useState<ProductOption[]>(defaultCatalog)
 
   // ── Header State ──────────────────────────────────────────────────────────
-  const [customer, setCustomer] = useState(CUSTOMERS[0]!)
+  const [customer, setCustomer] = useState('Global Logistics Direct')
   const [customerReference, setCustomerReference] = useState('')
-  const [warehouseId, setWarehouseId] = useState(DELIVERY_WAREHOUSES[0]!.id)
-  const [scheduledDate, setScheduledDate] = useState('Today, 17:00')
+  const [warehouseId, setWarehouseId] = useState('64a05d3b-e307-4a31-a335-029ecc4273ff')
   const [notes, setNotes] = useState('')
-
-  const activeWarehouse = (DELIVERY_WAREHOUSES.find((w) => w.id === warehouseId) || DELIVERY_WAREHOUSES[0])!
 
   // ── Lines State ───────────────────────────────────────────────────────────
   const [lines, setLines] = useState<ProductLineForm[]>([
     {
-      productId: catalog[0]?.id || 'prod-001',
-      productSku: catalog[0]?.sku || 'SKU-ERG-904',
-      productName: catalog[0]?.name || 'Ergonomic Task Chair (Mesh Black)',
-      sourceLocation: activeWarehouse.defaultSourceLocation,
+      productId: defaultCatalog[0]?.id || 'prod-001',
+      productSku: defaultCatalog[0]?.sku || 'SKU-ERG-904',
+      productName: defaultCatalog[0]?.name || 'Ergonomic Task Chair (Mesh Black)',
       quantity: 10,
-      unit: catalog[0]?.unit || 'pcs',
+      unit: defaultCatalog[0]?.unit || 'pcs',
     },
   ])
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // ── Handlers ──────────────────────────────────────────────────────────────
-  const handleWarehouseChange = (whId: string) => {
-    setWarehouseId(whId)
-    const wh = DELIVERY_WAREHOUSES.find((w) => w.id === whId)
-    if (wh) {
-      setLines((prev) =>
-        prev.map((l) => ({ ...l, sourceLocation: wh.defaultSourceLocation }))
-      )
+  // Try to load real products from /api/products
+  useEffect(() => {
+    let isMounted = true
+    async function loadProducts() {
+      try {
+        const res = await apiClient.get<{ data: Array<{ id: string; name: string; sku: string; uom?: { symbol?: string } }> }>('/api/products')
+        if (isMounted && res.data && res.data.length > 0) {
+          const apiProducts: ProductOption[] = res.data.map((p) => ({
+            id: p.id,
+            name: p.name,
+            sku: p.sku,
+            unit: p.uom?.symbol || 'pcs',
+          }))
+          setCatalog(apiProducts)
+          if (apiProducts[0]) {
+            setLines((prev) => [
+              {
+                productId: apiProducts[0]!.id,
+                productSku: apiProducts[0]!.sku,
+                productName: apiProducts[0]!.name,
+                quantity: prev[0]?.quantity || 10,
+                unit: apiProducts[0]!.unit,
+              },
+            ])
+          }
+        }
+      } catch {
+        // Fall back to default catalog if offline or API empty
+      }
     }
-  }
+    loadProducts()
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAddLine = () => {
-    const nextProd = (catalog[lines.length % catalog.length] || catalog[0])!
+    const nextProd = catalog[lines.length % catalog.length] || catalog[0]!
     setLines((prev) => [
       ...prev,
       {
         productId: nextProd.id,
         productSku: nextProd.sku,
         productName: nextProd.name,
-        sourceLocation: activeWarehouse.defaultSourceLocation,
         quantity: 5,
         unit: nextProd.unit,
       },
@@ -72,14 +110,17 @@ export function DeliveryFormPage() {
 
   const handleRemoveLine = (index: number) => {
     if (lines.length <= 1) {
-      toast.warning('Minimum Item Required', 'A delivery order must have at least one product line.')
+      toast.warning(
+        'Minimum Item Required',
+        'A delivery order must have at least one product line.'
+      )
       return
     }
     setLines((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleProductSelect = (index: number, productId: string) => {
-    const prod = catalog.find((p) => p.id === productId)
+  const handleProductSelect = (index: number, prodId: string) => {
+    const prod = catalog.find((p) => p.id === prodId)
     if (!prod) return
 
     setLines((prev) =>
@@ -103,45 +144,79 @@ export function DeliveryFormPage() {
     )
   }
 
-  const handleLocationChange = (index: number, loc: string) => {
+  const handleUnitPriceChange = (index: number, price: number) => {
     setLines((prev) =>
-      prev.map((l, i) => (i === index ? { ...l, sourceLocation: loc } : l))
+      prev.map((l, i) => (i === index ? { ...l, unitPrice: price } : l))
     )
   }
 
   const isValid =
     customer.trim().length > 0 &&
+    warehouseId.trim().length > 0 &&
     lines.length > 0 &&
     lines.every((l) => l.productId && l.quantity > 0)
 
-  const handleSubmit = (statusToSave: 'draft' | 'waiting' | 'ready' | 'done') => {
+  const handleSubmit = async (confirmWorkflow: boolean) => {
     if (!isValid) {
-      toast.error('Validation Error', 'Please complete all required fields and verify demand quantities.')
+      toast.error(
+        'Validation Error',
+        'Please complete all required fields and verify demand quantities.'
+      )
       return
     }
 
+    if (isSubmitting) return
     setIsSubmitting(true)
 
-    setTimeout(() => {
-      setIsSubmitting(false)
-      const created = createMockDelivery({
-        customer,
+    try {
+      const payload: CreateDeliveryPayload = {
+        customerName: customer.trim() || undefined,
         customerReference: customerReference.trim() || undefined,
-        warehouseId,
-        sourceLocation: activeWarehouse.defaultSourceLocation,
-        scheduledDate,
+        warehouseId: warehouseId.trim(),
         notes: notes.trim() || undefined,
-        status: statusToSave,
-        lines,
-      })
+        items: lines.map((l) => ({
+          productId: l.productId,
+          quantity: l.quantity,
+          unitPrice: l.unitPrice,
+        })),
+      }
 
-      toast.success(
-        statusToSave === 'ready' ? 'Delivery Order Confirmed' : 'Delivery Order Created',
-        `${created.deliveryNumber} generated for ${created.customer} (${created.totalQuantity} total units).`
-      )
+      // 1. Create delivery in backend
+      const created = await deliveriesApi.create(payload)
+
+      if (confirmWorkflow) {
+        try {
+          // Progress through workflow: pick -> pack
+          await deliveriesApi.pick(created.id)
+          await deliveriesApi.pack(created.id)
+          toast.success(
+            'Delivery Confirmed & Ready',
+            `${created.deliveryNumber} confirmed, picked, and staged for dispatch.`
+          )
+        } catch (actionErr: unknown) {
+          const msg =
+            actionErr instanceof ApiError
+              ? actionErr.message
+              : 'Delivery created as draft, but workflow confirmation had an issue.'
+          toast.warning('Delivery Saved as Draft', msg)
+        }
+      } else {
+        toast.success(
+          'Delivery Order Created',
+          `${created.deliveryNumber} generated as draft with ${created.items.length} line item(s).`
+        )
+      }
 
       navigate(`/operations/deliveries/${created.id}`)
-    }, 350)
+    } catch (err: unknown) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : 'Failed to create delivery. Please check required fields.'
+      toast.error('Creation Failed', message)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -167,7 +242,10 @@ export function DeliveryFormPage() {
           </div>
         </div>
 
-        <Link to="/operations/deliveries" className="text-xs text-slate-500 hover:text-slate-800">
+        <Link
+          to="/operations/deliveries"
+          className="text-xs text-slate-500 hover:text-slate-800"
+        >
           Cancel
         </Link>
       </div>
@@ -186,218 +264,171 @@ export function DeliveryFormPage() {
               <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
                 Customer Name <span className="text-brand ml-1">*</span>
               </label>
-              <div className="relative mt-1.5">
-                <select
-                  value={customer}
-                  onChange={(e) => setCustomer(e.target.value)}
-                  className="w-full h-9 px-3 text-sm text-gray-800 bg-view border border-gray-300 rounded shadow-xs appearance-none pr-8 focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
-                >
-                  {CUSTOMERS.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                  ▼
-                </div>
-              </div>
-            </div>
-
-            {/* Warehouse */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
-                Fulfillment Warehouse <span className="text-brand ml-1">*</span>
-              </label>
-              <div className="relative mt-1.5">
-                <select
-                  value={warehouseId}
-                  onChange={(e) => handleWarehouseChange(e.target.value)}
-                  className="w-full h-9 px-3 text-sm text-gray-800 bg-view border border-gray-300 rounded shadow-xs appearance-none pr-8 focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
-                >
-                  {DELIVERY_WAREHOUSES.map((w) => (
-                    <option key={w.id} value={w.id}>
-                      {w.name}
-                    </option>
-                  ))}
-                </select>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-xs">
-                  ▼
-                </div>
-              </div>
-            </div>
-
-            {/* Customer SO Reference */}
-            <div>
               <Input
-                label="Sales Order Reference / SO #"
-                placeholder="e.g. SO-4425"
-                value={customerReference}
-                onChange={(e) => setCustomerReference(e.target.value)}
-                hint="Customer purchase order or sales order number"
+                value={customer}
+                onChange={(e) => setCustomer(e.target.value)}
+                placeholder="e.g. Global Logistics Direct"
+                className="mt-1.5"
+                required
               />
             </div>
 
-            {/* Scheduled Date */}
+            {/* Customer Reference */}
             <div>
+              <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
+                Sales Order / Reference #
+              </label>
               <Input
-                label="Scheduled Dispatch Date"
-                placeholder="e.g. Today, 17:00"
-                value={scheduledDate}
-                onChange={(e) => setScheduledDate(e.target.value)}
+                value={customerReference}
+                onChange={(e) => setCustomerReference(e.target.value)}
+                placeholder="e.g. SO-2026-904"
+                className="mt-1.5 font-mono"
+              />
+            </div>
+
+            {/* Warehouse ID */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
+                Source Warehouse ID <span className="text-brand ml-1">*</span>
+              </label>
+              <Input
+                value={warehouseId}
+                onChange={(e) => setWarehouseId(e.target.value)}
+                placeholder="UUID format (e.g. 64a05d3b-e307-4a31-a335-029ecc4273ff)"
+                className="mt-1.5 font-mono text-xs"
+                required
+              />
+              <span className="text-[10.5px] text-slate-400 mt-1 block">
+                Warehouse UUID (default: Central Warehouse)
+              </span>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-xs font-semibold text-gray-700 select-none tracking-tight">
+                Dispatch / Shipping Notes
+              </label>
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Protective wrap required"
+                className="mt-1.5"
               />
             </div>
           </div>
         </div>
 
-        {/* Step 2: Multiple Product Lines */}
-        <div className="space-y-4 pt-2">
+        {/* Step 2: Product Lines */}
+        <div className="space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-2">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              2. Demand Product Lines ({lines.length})
+              2. Products to Dispatch ({lines.length})
             </h2>
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              leftIcon={<Plus className="w-3.5 h-3.5 text-brand" />}
+              leftIcon={<Plus className="w-3.5 h-3.5" />}
               onClick={handleAddLine}
               className="text-xs py-1"
             >
-              Add Product Line
+              Add Line Item
             </Button>
           </div>
 
-          <div className="space-y-2.5">
+          <div className="space-y-3">
             {lines.map((line, idx) => (
               <div
                 key={idx}
-                className="p-3 bg-slate-50/70 border border-slate-200/80 rounded-md grid grid-cols-1 sm:grid-cols-12 gap-3 items-center"
+                className="bg-slate-50/70 border border-slate-200/80 rounded-lg p-3.5 space-y-3"
               >
-                {/* Product Select */}
-                <div className="sm:col-span-5">
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:hidden">
-                    Product
-                  </label>
-                  <div className="relative">
+                <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                  <span>Line #{idx + 1}</span>
+                  {lines.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveLine(idx)}
+                      className="text-slate-400 hover:text-rose-600 transition-colors p-1"
+                      title="Remove product line"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {/* Product Selector */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                      Product
+                    </label>
                     <select
                       value={line.productId}
                       onChange={(e) => handleProductSelect(idx, e.target.value)}
-                      className="w-full h-8 px-2.5 text-xs text-gray-800 bg-white border border-gray-300 rounded shadow-2xs appearance-none pr-7 focus:border-brand focus:ring-1 focus:ring-brand/30"
+                      className="w-full h-8 px-2.5 text-xs text-slate-800 bg-white border border-slate-300 rounded shadow-xs focus:border-brand focus:ring-1 focus:ring-brand/30"
                     >
                       {catalog.map((p) => (
                         <option key={p.id} value={p.id}>
-                          {p.sku} — {p.name}
+                          {p.name} ({p.sku})
                         </option>
                       ))}
                     </select>
-                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-slate-400 text-[10px]">
-                      ▼
-                    </div>
                   </div>
-                </div>
 
-                {/* Source Pick Location */}
-                <div className="sm:col-span-4">
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:hidden">
-                    Source Pick Location
-                  </label>
-                  <input
-                    type="text"
-                    value={line.sourceLocation}
-                    onChange={(e) => handleLocationChange(idx, e.target.value)}
-                    placeholder="e.g. WH01/Bay 04"
-                    className="w-full h-8 px-2.5 text-xs text-gray-800 bg-white border border-gray-300 rounded shadow-2xs focus:border-brand focus:ring-1 focus:ring-brand/30 font-mono"
-                  />
-                </div>
-
-                {/* Demand Quantity & Unit */}
-                <div className="sm:col-span-2 flex items-center gap-1.5">
-                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1 sm:hidden">
-                    Demand Qty
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={line.quantity}
-                    onChange={(e) => handleQuantityChange(idx, parseInt(e.target.value) || 1)}
-                    className="w-full h-8 px-2 text-xs font-mono font-bold text-slate-900 bg-white border border-gray-300 rounded shadow-2xs focus:border-brand text-right"
-                  />
-                  <span className="text-[11px] font-mono text-slate-500 shrink-0">
-                    {line.unit}
-                  </span>
-                </div>
-
-                {/* Delete button */}
-                <div className="sm:col-span-1 text-right">
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveLine(idx)}
-                    disabled={lines.length <= 1}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 disabled:opacity-30 disabled:pointer-events-none transition-colors cursor-pointer rounded"
-                    title="Remove item line"
-                    aria-label="Remove item"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
+                  {/* Quantity */}
+                  <div>
+                    <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                      Quantity ({line.unit})
+                    </label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={line.quantity}
+                      onChange={(e) =>
+                        handleQuantityChange(idx, parseInt(e.target.value) || 1)
+                      }
+                      className="h-8 text-xs font-mono"
+                    />
+                  </div>
                 </div>
               </div>
             ))}
           </div>
-
-          <div className="flex items-center justify-between text-xs text-slate-500 pt-1 font-mono">
-            <span>{lines.length} lines total</span>
-            <span>
-              Total Demand:{' '}
-              <strong className="text-slate-900 font-bold">
-                {lines.reduce((acc, l) => acc + (Number(l.quantity) || 0), 0)}
-              </strong>
-            </span>
-          </div>
         </div>
 
-        {/* Dispatch Notes */}
-        <div className="space-y-1.5 pt-2 border-t border-slate-100">
-          <label className="block text-xs font-semibold text-gray-700 tracking-tight">
-            Dispatch & Packaging Instructions
-          </label>
-          <textarea
-            rows={2}
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            placeholder="Add carrier instructions, delivery slot windows, or pallet wrapping requirements..."
-            className="w-full p-2.5 text-xs text-gray-800 bg-view border border-gray-300 rounded shadow-xs focus:border-brand focus:ring-2 focus:ring-brand/20 transition-colors"
-          />
-        </div>
-
-        {/* ── Actions Bar ────────────────────────────────────────────── */}
-        <div className="pt-4 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-3">
+        {/* ── Actions ──────────────────────────────────────────────── */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4 border-t border-slate-100">
           <div className="text-xs text-slate-500">
-            <span className="text-brand">*</span> Validating delivery reserves stock and stages shipment
+            Total Demand:{' '}
+            <strong className="text-slate-800">
+              {lines.reduce((acc, l) => acc + l.quantity, 0)} units
+            </strong>{' '}
+            across {lines.length} item{lines.length !== 1 ? 's' : ''}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <div className="flex items-center gap-2.5 w-full sm:w-auto">
             <Button
               type="button"
               variant="secondary"
               size="sm"
-              disabled={!isValid || isSubmitting}
-              onClick={() => handleSubmit('draft')}
               leftIcon={<Save className="w-3.5 h-3.5" />}
+              onClick={() => handleSubmit(false)}
+              disabled={isSubmitting || !isValid}
+              className="flex-1 sm:flex-none justify-center"
             >
-              Save Draft
+              {isSubmitting ? 'Saving…' : 'Save as Draft'}
             </Button>
 
             <Button
               type="button"
               variant="primary"
               size="sm"
-              disabled={!isValid || isSubmitting}
-              isLoading={isSubmitting}
-              onClick={() => handleSubmit('ready')}
-              leftIcon={<ArrowUpFromLine className="w-3.5 h-3.5" />}
+              leftIcon={<CheckCircle2 className="w-3.5 h-3.5" />}
+              onClick={() => handleSubmit(true)}
+              disabled={isSubmitting || !isValid}
+              className="flex-1 sm:flex-none justify-center"
             >
-              Confirm & Stage Order
+              {isSubmitting ? 'Confirming…' : 'Confirm & Reserve'}
             </Button>
           </div>
         </div>
