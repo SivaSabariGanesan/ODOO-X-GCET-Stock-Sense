@@ -10,6 +10,7 @@ import {
 import { locations } from "../../db/schema/locations";
 import { products } from "../../db/schema/products";
 import { InventoryService } from "../inventory/service";
+import { EventBus } from "../websocket/event-bus";
 import {
   CreateInternalTransferInput,
   UpdateInternalTransferInput,
@@ -633,7 +634,33 @@ export class TransferService {
         .where(eq(internalTransfers.id, id));
     });
 
-    // 7. Return complete updated transfer details
-    return await this.getTransfer(id);
+    // 7. Post-Commit WebSocket Event Publishing
+    try {
+      const updatedTransfer = await this.getTransfer(id);
+
+      EventBus.publish("stock.transferred", {
+        transferId: id,
+        transferNumber: updatedTransfer.transferNumber,
+        sourceLocationId: updatedTransfer.sourceLocationId,
+        destinationLocationId: updatedTransfer.destinationLocationId,
+        items: updatedTransfer.items.map((i) => ({
+          productId: i.productId,
+          quantity: i.quantity,
+        })),
+        processedBy: processedByUserId,
+        timestamp: new Date().toISOString(),
+      });
+
+      EventBus.publish("inventory.updated", {
+        operationType: "TRANSFER",
+        operationId: id,
+        timestamp: new Date().toISOString(),
+      });
+
+      return updatedTransfer;
+    } catch (err) {
+      console.error(`[WebSocket] Post-commit transfer broadcast error:`, err);
+      return await this.getTransfer(id);
+    }
   }
 }

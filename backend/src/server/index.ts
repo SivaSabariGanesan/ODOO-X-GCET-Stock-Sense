@@ -18,6 +18,7 @@ import locationsRouter from "../modules/locations/route";
 import reorderingRulesRouter from "../modules/reordering-rules/route";
 import stockBalancesRouter from "../modules/stock-balances/route";
 import dashboardRouter from "../modules/dashboard/route";
+import websocketRouter from "../modules/websocket/route";
 import { StockLedgerService } from "../modules/stock-movements/service";
 import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema";
 import { authMiddleware } from "../app/middleware/auth";
@@ -73,6 +74,7 @@ app.route("/api/locations", locationsRouter);
 app.route("/api/reordering-rules", reorderingRulesRouter);
 app.route("/api/stock-balances", stockBalancesRouter);
 app.route("/api/dashboard", dashboardRouter);
+app.route("/ws", websocketRouter);
 
 // Convenience product-specific and location-specific stock history endpoints
 app.get("/api/products/:productId/stock-movements", authMiddleware, async (c) => {

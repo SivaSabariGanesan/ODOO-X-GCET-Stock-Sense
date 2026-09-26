@@ -3,6 +3,7 @@ import { receipts } from "../../db/schema/receipts";
 import { receiptItems } from "../../db/schema/receipt-items";
 import { ReceiptCoreService } from "./service";
 import { InventoryService } from "../inventory/service";
+import { EventBus } from "../websocket/event-bus";
 import { ReceiptWithDetails } from "./types";
 import {
   ReceiptNotFoundError,
@@ -111,7 +112,35 @@ export class ReceiptProcessingService {
         .where(eq(receipts.id, receiptId));
     });
 
-    // 7. Return complete updated receipt details
-    return await ReceiptCoreService.getReceipt(receiptId);
+    // 7. Post-Commit WebSocket Event Publishing
+    try {
+      const updatedReceipt = await ReceiptCoreService.getReceipt(receiptId);
+
+      EventBus.publish("stock.received", {
+        receiptId,
+        receiptNumber: updatedReceipt.receiptNumber,
+        warehouseId: updatedReceipt.warehouseId,
+        items: updatedReceipt.items.map((i) => ({
+          productId: i.productId,
+          destinationLocationId: i.destinationLocationId!,
+          quantity: i.quantity,
+        })),
+        processedBy: processedByUserId,
+        timestamp: new Date().toISOString(),
+      });
+
+      EventBus.publish("inventory.updated", {
+        operationType: "RECEIPT",
+        operationId: receiptId,
+        warehouseId: updatedReceipt.warehouseId,
+        timestamp: new Date().toISOString(),
+      });
+
+      return updatedReceipt;
+    } catch (err) {
+      // Broadcast error cannot roll back committed receipt transaction
+      console.error(`[WebSocket] Post-commit receipt broadcast error:`, err);
+      return await ReceiptCoreService.getReceipt(receiptId);
+    }
   }
 }
