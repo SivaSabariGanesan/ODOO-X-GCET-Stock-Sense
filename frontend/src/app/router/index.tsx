@@ -7,6 +7,7 @@ import {
   OtpVerificationPage,
   ResetPasswordPage,
 } from '@/features/auth'
+import { DashboardPage } from '@/features/dashboard'
 import {
   DashboardPlaceholder,
   ProductsPlaceholder,
@@ -53,7 +54,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'dashboard',
-        element: <DashboardPlaceholder />,
+        element: <DashboardPage />,
       },
       {
         path: 'products',
