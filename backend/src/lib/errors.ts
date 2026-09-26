@@ -226,5 +226,17 @@ export class AdjustmentValidationError extends AppError {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Stock Movement / Ledger Domain Errors
+// ---------------------------------------------------------------------------
+
+export class StockMovementNotFoundError extends AppError {
+  constructor(id?: string) {
+    super(id ? `Stock movement with ID '${id}' was not found` : "Stock movement not found", 404);
+    this.name = "StockMovementNotFoundError";
+  }
+}
+
+
 
 

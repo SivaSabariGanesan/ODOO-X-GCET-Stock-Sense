@@ -175,6 +175,25 @@ export const openApiSpec = {
       },
 
 
+      StockMovement: {
+        type: "object",
+        properties: {
+          id: { type: "string", format: "uuid" },
+          productId: { type: "string", format: "uuid" },
+          quantity: { type: "string", example: "10.0000" },
+          movementType: { type: "string", enum: ["IN", "OUT", "INTERNAL", "ADJUSTMENT"], example: "IN" },
+          referenceType: { type: "string", enum: ["RECEIPT", "DELIVERY", "TRANSFER", "ADJUSTMENT"], example: "RECEIPT" },
+          referenceId: { type: "string", format: "uuid" },
+          sourceLocationId: { type: "string", format: "uuid", nullable: true },
+          destinationLocationId: { type: "string", format: "uuid", nullable: true },
+          createdBy: { type: "string", format: "uuid", nullable: true },
+          createdAt: { type: "string", format: "date-time" },
+          product: { type: "object", nullable: true },
+          sourceLocation: { type: "object", nullable: true },
+          destinationLocation: { type: "object", nullable: true },
+          creator: { type: "object", nullable: true },
+        },
+      },
       ErrorResponse: {
         type: "object",
         properties: {
@@ -849,6 +868,69 @@ export const openApiSpec = {
         parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
         responses: {
           200: { description: "Inventory adjustment cancelled" },
+        },
+      },
+    },
+    "/api/stock-movements": {
+      get: {
+        summary: "List Stock Movements / Read-Only Stock Ledger History",
+        tags: ["Move History / Stock Ledger"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [
+          { name: "page", in: "query", schema: { type: "integer", default: 1 } },
+          { name: "limit", in: "query", schema: { type: "integer", default: 20 } },
+          { name: "productId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "locationId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "sourceLocationId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "destinationLocationId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "movementType", in: "query", schema: { type: "string", enum: ["IN", "OUT", "INTERNAL", "ADJUSTMENT"] } },
+          { name: "referenceType", in: "query", schema: { type: "string", enum: ["RECEIPT", "DELIVERY", "TRANSFER", "ADJUSTMENT"] } },
+          { name: "referenceId", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "createdBy", in: "query", schema: { type: "string", format: "uuid" } },
+          { name: "fromDate", in: "query", schema: { type: "string", format: "date-time" } },
+          { name: "toDate", in: "query", schema: { type: "string", format: "date-time" } },
+          { name: "search", in: "query", schema: { type: "string" } },
+        ],
+        responses: {
+          200: {
+            description: "Paginated list of historical stock ledger movements",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  properties: {
+                    data: { type: "array", items: { $ref: "#/components/schemas/StockMovement" } },
+                    meta: {
+                      type: "object",
+                      properties: {
+                        total: { type: "integer" },
+                        page: { type: "integer" },
+                        limit: { type: "integer" },
+                        totalPages: { type: "integer" },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          401: { description: "Unauthorized" },
+        },
+      },
+    },
+    "/api/stock-movements/{id}": {
+      get: {
+        summary: "Get Stock Movement by ID",
+        tags: ["Move History / Stock Ledger"],
+        security: [{ bearerAuth: [] }, { cookieAuth: [] }],
+        parameters: [{ name: "id", in: "path", required: true, schema: { type: "string", format: "uuid" } }],
+        responses: {
+          200: {
+            description: "Stock movement ledger detail with relational product, location, and user info",
+            content: { "application/json": { schema: { type: "object", properties: { data: { $ref: "#/components/schemas/StockMovement" } } } } },
+          },
+          404: { description: "Stock movement not found" },
+          401: { description: "Unauthorized" },
         },
       },
     },

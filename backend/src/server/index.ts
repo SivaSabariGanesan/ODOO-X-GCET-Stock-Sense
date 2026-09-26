@@ -9,6 +9,10 @@ import receiptsRouter from "../modules/receipts/route";
 import deliveriesRouter from "../modules/deliveries/route";
 import transfersRouter from "../modules/transfers/route";
 import adjustmentsRouter from "../modules/adjustments/route";
+import stockMovementsRouter from "../modules/stock-movements/route";
+import { StockLedgerService } from "../modules/stock-movements/service";
+import { listStockMovementsQuerySchema } from "../modules/stock-movements/schema";
+import { authMiddleware } from "../app/middleware/auth";
 import { AppError } from "../lib/errors";
 
 const app = new Hono();
@@ -55,6 +59,36 @@ app.route("/api/receipts", receiptsRouter);
 app.route("/api/deliveries", deliveriesRouter);
 app.route("/api/transfers", transfersRouter);
 app.route("/api/adjustments", adjustmentsRouter);
+app.route("/api/stock-movements", stockMovementsRouter);
+
+// Convenience product-specific and location-specific stock history endpoints
+app.get("/api/products/:productId/stock-movements", authMiddleware, async (c) => {
+  const productId = c.req.param("productId");
+  const query = c.req.query();
+  const parseResult = listStockMovementsQuerySchema.safeParse({ ...query, productId });
+  if (!parseResult.success) {
+    throw new AppError("Invalid query parameters", 400, parseResult.error.flatten());
+  }
+  const result = await StockLedgerService.listMovements(parseResult.data);
+  return c.json(
+    { data: result.data, meta: result.pagination, pagination: result.pagination },
+    200
+  );
+});
+
+app.get("/api/locations/:locationId/stock-movements", authMiddleware, async (c) => {
+  const locationId = c.req.param("locationId");
+  const query = c.req.query();
+  const parseResult = listStockMovementsQuerySchema.safeParse({ ...query, locationId });
+  if (!parseResult.success) {
+    throw new AppError("Invalid query parameters", 400, parseResult.error.flatten());
+  }
+  const result = await StockLedgerService.listMovements(parseResult.data);
+  return c.json(
+    { data: result.data, meta: result.pagination, pagination: result.pagination },
+    200
+  );
+});
 
 
 
