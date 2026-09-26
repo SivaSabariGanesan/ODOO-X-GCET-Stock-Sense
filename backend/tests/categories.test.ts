@@ -28,7 +28,7 @@ describe("StockSense Category CRUD Module", () => {
         name: "Category CRUD Tester",
         email: TEST_EMAIL,
         password: TEST_PASSWORD,
-        role: "manager",
+        role: "admin",
       }),
     });
     const regData = await regRes.json();

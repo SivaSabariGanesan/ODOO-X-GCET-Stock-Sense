@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { authMiddleware } from "../../app/middleware/auth.js";
+import { authMiddleware, requireRole } from "../../app/middleware/auth.js";
 import { CategoryService } from "./service.js";
 import {
   createCategorySchema,
@@ -14,9 +14,9 @@ const categoriesRouter = new Hono();
 categoriesRouter.use("*", authMiddleware);
 
 // ---------------------------------------------------------------------------
-// POST /api/categories - Create Category
+// POST /api/categories - Create Category (admin, manager)
 // ---------------------------------------------------------------------------
-categoriesRouter.post("/", async (c) => {
+categoriesRouter.post("/", requireRole("admin", "manager"), async (c) => {
   const body = await c.req.json();
   const parseResult = createCategorySchema.safeParse(body);
   if (!parseResult.success) {
@@ -57,9 +57,9 @@ categoriesRouter.get("/:id", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// PATCH /api/categories/:id - Update Category
+// PATCH /api/categories/:id - Update Category (admin, manager)
 // ---------------------------------------------------------------------------
-categoriesRouter.patch("/:id", async (c) => {
+categoriesRouter.patch("/:id", requireRole("admin", "manager"), async (c) => {
   const id = c.req.param("id");
   const body = await c.req.json();
   const parseResult = updateCategorySchema.safeParse(body);
@@ -75,9 +75,9 @@ categoriesRouter.patch("/:id", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
-// DELETE /api/categories/:id - Delete or Deactivate Category
+// DELETE /api/categories/:id - Delete or Deactivate Category (admin only)
 // ---------------------------------------------------------------------------
-categoriesRouter.delete("/:id", async (c) => {
+categoriesRouter.delete("/:id", requireRole("admin"), async (c) => {
   const id = c.req.param("id");
   const result = await CategoryService.deleteCategory(id);
   return c.json(result, 200);

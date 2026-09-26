@@ -38,6 +38,7 @@ import {
   WarehousesListPage,
   WarehouseDetailsPage,
 } from '@/features/warehouses'
+import { CategoriesListPage } from '@/features/categories'
 import { ProfilePage } from '@/features/profile'
 
 export const router = createBrowserRouter([
@@ -202,7 +203,15 @@ export const router = createBrowserRouter([
               },
             ],
           },
+          {
+            path: 'categories',
+            element: <CategoriesListPage />,
+          },
         ],
+      },
+      {
+        path: 'categories',
+        element: <Navigate to="/settings/categories" replace />,
       },
       {
         path: 'profile',
