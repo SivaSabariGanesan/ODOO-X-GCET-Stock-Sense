@@ -1,0 +1,14 @@
+{
+  "name": "stocksense",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev:frontend": "bun --cwd frontend dev",
+    "dev:backend": "bun --cwd backend dev",
+    "build:frontend": "bun --cwd frontend build",
+    "build:backend": "bun --cwd backend build"
+  }
+}
